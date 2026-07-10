@@ -1,11 +1,14 @@
 import { spawn, type ChildProcess } from "node:child_process";
 import { once } from "node:events";
+import { mkdtemp, rm } from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
 import electronExecutable from "electron";
 import { chromium, type Browser, type Page } from "@playwright/test";
 
-interface LaunchApplicationOptions {
-  readonly env: NodeJS.ProcessEnv;
+interface LaunchTestApplicationOptions {
+  readonly openPath?: (workspace: string) => Promise<string>;
+  readonly profilePrefix: string;
 }
 
 export interface RunningApplication {
@@ -47,7 +50,7 @@ async function closeApplication(applicationProcess: ChildProcess, browser: Brows
   }
 }
 
-export async function launchApplication({ env }: LaunchApplicationOptions): Promise<RunningApplication> {
+async function launchApplication(env: NodeJS.ProcessEnv): Promise<RunningApplication> {
   const applicationProcess = spawn(
     electronExecutable as unknown as string,
     ["--remote-debugging-port=0", path.resolve(".vite/build/main.js")],
@@ -69,4 +72,34 @@ export async function launchApplication({ env }: LaunchApplicationOptions): Prom
     page,
     close: () => closeApplication(applicationProcess, browser),
   };
+}
+
+export async function launchTestApplication({
+  openPath,
+  profilePrefix,
+}: LaunchTestApplicationOptions): Promise<RunningApplication> {
+  const workspace = await mkdtemp(path.join(os.tmpdir(), `${profilePrefix}-`));
+
+  try {
+    const selectedPath = await openPath?.(workspace);
+    const application = await launchApplication({
+      ...process.env,
+      PDFANTOM_TEST_OPEN_PATH: selectedPath,
+      PDFANTOM_TEST_PROFILE: path.join(workspace, "profile"),
+    });
+
+    return {
+      page: application.page,
+      close: async () => {
+        try {
+          await application.close();
+        } finally {
+          await rm(workspace, { recursive: true, force: true });
+        }
+      },
+    };
+  } catch (error) {
+    await rm(workspace, { recursive: true, force: true });
+    throw error;
+  }
 }
