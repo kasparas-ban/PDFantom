@@ -1,6 +1,5 @@
 {
   "name": "pdfantom",
-  "productName": "PDFantom",
   "version": "0.1.0",
   "private": true,
   "description": "A secure, local-first macOS textbook reader",
@@ -8,6 +7,11 @@
   "scripts": {
     "start": "electron-forge start",
     "build": "vite build --config vite.main.config.ts && vite build --config vite.preload.config.ts && vite build --config vite.renderer.config.ts",
+    "check": "npm run fmt:check && npm run lint && npm run typecheck",
+    "fmt": "oxfmt",
+    "fmt:check": "oxfmt --check",
+    "lint": "oxlint --deny-warnings --report-unused-disable-directives",
+    "lint:fix": "oxlint --fix --deny-warnings --report-unused-disable-directives",
     "package": "electron-forge package",
     "make": "electron-forge make",
     "typecheck": "tsc --noEmit",
@@ -38,10 +42,14 @@
     "@types/react-dom": "19.2.3",
     "@vitejs/plugin-react": "6.0.3",
     "electron": "42.5.0",
+    "oxfmt": "^0.57.0",
+    "oxlint": "^1.72.0",
+    "oxlint-tsgolint": "^0.24.0",
     "pdf-lib": "1.17.1",
     "pngjs": "7.0.0",
     "tailwindcss": "^4.3.1",
     "typescript": "7.0.2",
     "vite": "8.1.0"
-  }
+  },
+  "productName": "PDFantom"
 }

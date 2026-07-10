@@ -1,94 +1,94 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react"
 import {
   getDocument,
   GlobalWorkerOptions,
   TextLayer,
   type PDFDocumentProxy,
   type PDFPageProxy,
-} from "pdfjs-dist";
-import workerSource from "pdfjs-dist/build/pdf.worker.min.mjs?url";
-import { Minus, Plus } from "lucide-react";
-import type { OpenedTextbook } from "../../shared/textbook-api";
-import { Button } from "@/components/ui/button";
+} from "pdfjs-dist"
+import workerSource from "pdfjs-dist/build/pdf.worker.min.mjs?url"
+import { Minus, Plus } from "lucide-react"
+import type { OpenedTextbook } from "../../shared/textbook-api"
+import { Button } from "@/components/ui/button"
 
-GlobalWorkerOptions.workerSrc = workerSource;
+GlobalWorkerOptions.workerSrc = workerSource
 
 interface TextbookReaderProps {
-  readonly textbook: OpenedTextbook;
+  readonly textbook: OpenedTextbook
 }
 
 interface PdfPageProps {
-  readonly document: PDFDocumentProxy;
-  readonly onTextAnalyzed: (pageNumber: number, hasText: boolean) => void;
-  readonly pageNumber: number;
-  readonly scale: number;
+  readonly document: PDFDocumentProxy
+  readonly onTextAnalyzed: (pageNumber: number, hasText: boolean) => void
+  readonly pageNumber: number
+  readonly scale: number
 }
 
 function PdfPage({ document, onTextAnalyzed, pageNumber, scale }: PdfPageProps) {
-  const [page, setPage] = useState<PDFPageProxy | null>(null);
-  const [canvas, setCanvas] = useState<HTMLCanvasElement | null>(null);
-  const [textContainer, setTextContainer] = useState<HTMLDivElement | null>(null);
+  const [page, setPage] = useState<PDFPageProxy | null>(null)
+  const [canvas, setCanvas] = useState<HTMLCanvasElement | null>(null)
+  const [textContainer, setTextContainer] = useState<HTMLDivElement | null>(null)
 
   useEffect(() => {
-    let active = true;
+    let active = true
     void document.getPage(pageNumber).then((loadedPage) => {
-      if (active) setPage(loadedPage);
-    });
+      if (active) setPage(loadedPage)
+    })
 
     return () => {
-      active = false;
-    };
-  }, [document, pageNumber]);
+      active = false
+    }
+  }, [document, pageNumber])
 
   useEffect(() => {
-    if (!page || !canvas || !textContainer) return;
+    if (!page || !canvas || !textContainer) return
 
-    const viewport = page.getViewport({ scale });
-    const outputScale = window.devicePixelRatio || 1;
-    canvas.width = Math.floor(viewport.width * outputScale);
-    canvas.height = Math.floor(viewport.height * outputScale);
-    canvas.style.width = `${Math.floor(viewport.width)}px`;
-    canvas.style.height = `${Math.floor(viewport.height)}px`;
-    textContainer.replaceChildren();
-    textContainer.style.setProperty("--scale-factor", `${viewport.scale}`);
+    const viewport = page.getViewport({ scale })
+    const outputScale = window.devicePixelRatio || 1
+    canvas.width = Math.floor(viewport.width * outputScale)
+    canvas.height = Math.floor(viewport.height * outputScale)
+    canvas.style.width = `${Math.floor(viewport.width)}px`
+    canvas.style.height = `${Math.floor(viewport.height)}px`
+    textContainer.replaceChildren()
+    textContainer.style.setProperty("--scale-factor", `${viewport.scale}`)
 
     const renderTask = page.render({
       canvas,
       transform: outputScale === 1 ? undefined : [outputScale, 0, 0, outputScale, 0, 0],
       viewport,
-    });
-    let textLayer: TextLayer | undefined;
-    let active = true;
+    })
+    let textLayer: TextLayer | undefined
+    let active = true
 
     void Promise.all([renderTask.promise, page.getTextContent()])
       .then(async ([, textContent]) => {
-        if (!active) return;
+        if (!active) return
 
         const hasText = textContent.items.some(
           (item) => "str" in item && item.str.trim().length > 0,
-        );
+        )
         textLayer = new TextLayer({
           container: textContainer,
           textContentSource: textContent,
           viewport,
-        });
-        await textLayer.render();
-        if (active) onTextAnalyzed(pageNumber, hasText);
+        })
+        await textLayer.render()
+        if (active) onTextAnalyzed(pageNumber, hasText)
       })
       .catch((error: unknown) => {
         if (active && !(error instanceof Error && error.name === "RenderingCancelledException")) {
-          onTextAnalyzed(pageNumber, false);
+          onTextAnalyzed(pageNumber, false)
         }
-      });
+      })
 
     return () => {
-      active = false;
-      renderTask.cancel();
-      textLayer?.cancel();
-    };
-  }, [canvas, onTextAnalyzed, page, pageNumber, scale, textContainer]);
+      active = false
+      renderTask.cancel()
+      textLayer?.cancel()
+    }
+  }, [canvas, onTextAnalyzed, page, pageNumber, scale, textContainer])
 
-  const viewport = page?.getViewport({ scale });
+  const viewport = page?.getViewport({ scale })
 
   return (
     <article
@@ -107,52 +107,52 @@ function PdfPage({ document, onTextAnalyzed, pageNumber, scale }: PdfPageProps) 
         {pageNumber}
       </span>
     </article>
-  );
+  )
 }
 
 export function TextbookReader({ textbook }: TextbookReaderProps) {
-  const [document, setDocument] = useState<PDFDocumentProxy | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [scale, setScale] = useState(1.15);
-  const [textByPage, setTextByPage] = useState<Record<number, boolean>>({});
+  const [document, setDocument] = useState<PDFDocumentProxy | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [scale, setScale] = useState(1.15)
+  const [textByPage, setTextByPage] = useState<Record<number, boolean>>({})
 
   useEffect(() => {
-    setDocument(null);
-    setError(null);
-    setTextByPage({});
+    setDocument(null)
+    setError(null)
+    setTextByPage({})
 
     const loadingTask = getDocument({
       data: textbook.bytes.slice(0),
       useWorkerFetch: false,
-    });
-    let active = true;
+    })
+    let active = true
 
     void loadingTask.promise
       .then((loadedDocument) => {
-        if (active) setDocument(loadedDocument);
+        if (active) setDocument(loadedDocument)
       })
       .catch(() => {
-        if (active) setError("This PDF could not be opened.");
-      });
+        if (active) setError("This PDF could not be opened.")
+      })
 
     return () => {
-      active = false;
-      void loadingTask.destroy();
-    };
-  }, [textbook]);
+      active = false
+      void loadingTask.destroy()
+    }
+  }, [textbook])
 
   const handleTextAnalyzed = useCallback((pageNumber: number, hasText: boolean) => {
     setTextByPage((current) =>
       current[pageNumber] === hasText ? current : { ...current, [pageNumber]: hasText },
-    );
-  }, []);
+    )
+  }, [])
 
   if (error) {
     return (
       <p className="mx-auto my-8 max-w-152 text-center text-destructive" role="alert">
         {error}
       </p>
-    );
+    )
   }
 
   if (!document) {
@@ -160,11 +160,11 @@ export function TextbookReader({ textbook }: TextbookReaderProps) {
       <p className="mx-auto my-8 max-w-152 text-center text-muted-foreground">
         Opening {textbook.name}…
       </p>
-    );
+    )
   }
 
-  const analyzedAllPages = Object.keys(textByPage).length === document.numPages;
-  const hasSelectableText = Object.values(textByPage).some(Boolean);
+  const analyzedAllPages = Object.keys(textByPage).length === document.numPages
+  const hasSelectableText = Object.values(textByPage).some(Boolean)
 
   return (
     <section
@@ -178,17 +178,14 @@ export function TextbookReader({ textbook }: TextbookReaderProps) {
             {document.numPages === 1 ? "1 page" : `${document.numPages} pages`}
           </p>
         </div>
-        <p
-          className="m-0 text-center text-[0.78rem] text-muted-foreground"
-          aria-live="polite"
-        >
+        <p className="m-0 text-center text-[0.78rem] text-muted-foreground" aria-live="polite">
           {!analyzedAllPages
             ? "Checking for selectable text…"
             : hasSelectableText
               ? "Selectable text available"
               : "No selectable text — scanned pages remain viewable"}
         </p>
-        <div className="flex items-center justify-self-end gap-2" aria-label="Zoom controls">
+        <div className="flex items-center gap-2 justify-self-end" aria-label="Zoom controls">
           <Button
             aria-label="Zoom out"
             disabled={scale <= 0.7}
@@ -228,5 +225,5 @@ export function TextbookReader({ textbook }: TextbookReaderProps) {
         </div>
       </div>
     </section>
-  );
+  )
 }

@@ -1,6 +1,6 @@
-import type { ForgeConfig } from "@electron-forge/shared-types";
-import { MakerZIP } from "@electron-forge/maker-zip";
-import { VitePlugin } from "@electron-forge/plugin-vite";
+import type { ForgeConfig } from "@electron-forge/shared-types"
+import { MakerZIP } from "@electron-forge/maker-zip"
+import { VitePlugin } from "@electron-forge/plugin-vite"
 
 const config: ForgeConfig = {
   packagerConfig: {
@@ -27,6 +27,6 @@ const config: ForgeConfig = {
       ],
     }),
   ],
-};
+}
 
-export default config;
+export default config

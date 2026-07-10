@@ -1,0 +1,15 @@
+{
+  "$schema": "./node_modules/oxfmt/configuration_schema.json",
+  "ignorePatterns": [
+    ".vite/**",
+    "out/**",
+    "package-lock.json",
+    "playwright-report/**",
+    "test-results/**"
+  ],
+  "semi": false,
+  "sortTailwindcss": {
+    "stylesheet": "./src/renderer/src/styles.css",
+    "functions": ["cn", "cva"]
+  }
+}

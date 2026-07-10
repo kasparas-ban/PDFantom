@@ -1,10 +1,10 @@
-export const OPEN_TEXTBOOK_CHANNEL = "textbook:open";
+export const OPEN_TEXTBOOK_CHANNEL = "textbook:open"
 
 export interface OpenedTextbook {
-  readonly bytes: ArrayBuffer;
-  readonly name: string;
+  readonly bytes: ArrayBuffer
+  readonly name: string
 }
 
 export interface TextbookApi {
-  openTextbook(): Promise<OpenedTextbook | null>;
+  openTextbook(): Promise<OpenedTextbook | null>
 }

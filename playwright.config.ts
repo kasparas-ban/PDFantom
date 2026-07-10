@@ -1,4 +1,4 @@
-import { defineConfig } from "@playwright/test";
+import { defineConfig } from "@playwright/test"
 
 export default defineConfig({
   testDir: "tests/app",
@@ -7,4 +7,4 @@ export default defineConfig({
   use: {
     trace: "retain-on-failure",
   },
-});
+})

@@ -123,15 +123,15 @@ flowchart LR
 
 ## Persistence model
 
-| Record | Key relationships and retained data |
-| --- | --- |
-| Textbook | Content fingerprint, current source reference, metadata, last reading position |
-| Conversation | Belongs to one Textbook; title, timestamps, copied Assistant Instructions |
-| Student Message | Belongs to one Conversation; text, order, status, zero or more Context Attachments |
-| Assistant Message | Belongs to one Conversation; rendered source text, status, Provider and Model provenance, usage metadata when available |
-| Context Attachment | Selection quote, page range, extracted Page Context, references to persisted page assets |
-| Page Asset | Content-addressed rendered page image with reference count |
-| Provider configuration | Non-secret settings and selected Supported Model; secret credential remains in Keychain |
+| Record                 | Key relationships and retained data                                                                                     |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| Textbook               | Content fingerprint, current source reference, metadata, last reading position                                          |
+| Conversation           | Belongs to one Textbook; title, timestamps, copied Assistant Instructions                                               |
+| Student Message        | Belongs to one Conversation; text, order, status, zero or more Context Attachments                                      |
+| Assistant Message      | Belongs to one Conversation; rendered source text, status, Provider and Model provenance, usage metadata when available |
+| Context Attachment     | Selection quote, page range, extracted Page Context, references to persisted page assets                                |
+| Page Asset             | Content-addressed rendered page image with reference count                                                              |
+| Provider configuration | Non-secret settings and selected Supported Model; secret credential remains in Keychain                                 |
 
 Store structured records in SQLite. Store page images as content-addressed files outside the database. Deleting a Conversation must transactionally remove its records and garbage-collect page assets whose reference count becomes zero.
 
