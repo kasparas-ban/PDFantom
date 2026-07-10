@@ -5,9 +5,9 @@ import { launchTestApplication } from "./launch-application";
 
 test("a Student opens, reads, and selects text without a Model Provider", async () => {
   const application = await launchTestApplication({
-    openPath: async (workspace) =>
+    createOpenPath: async (workspace) =>
       (await createPdfFixtures(path.join(workspace, "fixtures"))).selectable,
-    profilePrefix: "pdfantom-reader",
+    workspacePrefix: "pdfantom-reader",
   });
 
   try {
@@ -31,9 +31,9 @@ test("a Student opens, reads, and selects text without a Model Provider", async 
 
 test("an image-only scan remains viewable without offering text selection", async () => {
   const application = await launchTestApplication({
-    openPath: async (workspace) =>
+    createOpenPath: async (workspace) =>
       (await createPdfFixtures(path.join(workspace, "fixtures"))).imageOnly,
-    profilePrefix: "pdfantom-scan",
+    workspacePrefix: "pdfantom-scan",
   });
 
   try {
@@ -68,7 +68,7 @@ test("an image-only scan remains viewable without offering text selection", asyn
 
 test("the renderer exposes only the constrained Textbook boundary", async () => {
   const application = await launchTestApplication({
-    profilePrefix: "pdfantom-security",
+    workspacePrefix: "pdfantom-security",
   });
 
   try {

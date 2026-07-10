@@ -7,8 +7,8 @@ import electronExecutable from "electron";
 import { chromium, type Browser, type Page } from "@playwright/test";
 
 interface LaunchTestApplicationOptions {
-  readonly openPath?: (workspace: string) => Promise<string>;
-  readonly profilePrefix: string;
+  readonly createOpenPath?: (workspace: string) => Promise<string>;
+  readonly workspacePrefix: string;
 }
 
 export interface RunningApplication {
@@ -75,13 +75,13 @@ async function launchApplication(env: NodeJS.ProcessEnv): Promise<RunningApplica
 }
 
 export async function launchTestApplication({
-  openPath,
-  profilePrefix,
+  createOpenPath,
+  workspacePrefix,
 }: LaunchTestApplicationOptions): Promise<RunningApplication> {
-  const workspace = await mkdtemp(path.join(os.tmpdir(), `${profilePrefix}-`));
+  const workspace = await mkdtemp(path.join(os.tmpdir(), `${workspacePrefix}-`));
 
   try {
-    const selectedPath = await openPath?.(workspace);
+    const selectedPath = await createOpenPath?.(workspace);
     const application = await launchApplication({
       ...process.env,
       PDFANTOM_TEST_OPEN_PATH: selectedPath,
