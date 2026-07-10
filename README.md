@@ -4,28 +4,28 @@ A secure, local-first macOS textbook reader.
 
 ## Development
 
-Install the [Vite+ CLI](https://viteplus.dev/guide/) and project dependencies:
+Install project dependencies:
 
 ```sh
-vp install
+pnpm install
 ```
 
 Run the unified formatter, linter, and type checker:
 
 ```sh
-vp check
-vp check --fix
+pnpm exec vp check
+pnpm exec vp check --fix
 ```
 
-Electron-specific workflows remain package scripts and must be run through `vp run`:
+Electron-specific workflows are available as package scripts:
 
 ```sh
-vp run start      # Start Electron Forge in development mode
-vp run build      # Build the main, preload, and renderer targets
-vp run test       # Build and run the Playwright Electron tests
-vp run test:e2e   # Run the tests against an existing build
-vp run package    # Package the macOS application
-vp run make       # Create the configured distributable
+pnpm start      # Start Electron Forge in development mode
+pnpm build      # Build the main, preload, and renderer targets
+pnpm test       # Build and run the Playwright Electron tests
+pnpm test:e2e   # Run the tests against an existing build
+pnpm package    # Package the macOS application
+pnpm make       # Create the configured distributable
 ```
 
-`vp test` runs Vite+'s built-in Vitest command; it does not run the Electron Playwright suite.
+`pnpm exec vp test` runs Vite+'s built-in Vitest command; it does not run the Electron Playwright suite.

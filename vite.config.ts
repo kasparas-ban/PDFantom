@@ -6,7 +6,7 @@ export default defineConfig({
       ".vite/**",
       ".vite-plus/**",
       "out/**",
-      "package-lock.json",
+      "pnpm-lock.yaml",
       "playwright-report/**",
       "test-results/**",
     ],

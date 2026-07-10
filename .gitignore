@@ -5,4 +5,4 @@ out/
 test-results/
 playwright-report/
 .DS_Store
-npm-debug.log*
+pnpm-debug.log*

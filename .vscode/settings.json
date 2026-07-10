@@ -5,7 +5,8 @@
   "editor.defaultFormatter": "oxc.oxc-vscode",
   "editor.formatOnSave": true,
   "editor.formatOnSaveMode": "file",
-  "npm.scriptRunner": "vp",
+  "npm.packageManager": "pnpm",
+  "npm.scriptRunner": "pnpm",
   "oxc.fmt.configPath": "./vite.config.ts",
   "oxc.typeAware": true,
   "[javascript]": {

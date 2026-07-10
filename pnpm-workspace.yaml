@@ -1,0 +1,11 @@
+# Electron Forge needs pnpm to expose dependencies in a flat node_modules layout.
+nodeLinker: hoisted
+
+# Vite+ 0.2.x's optional TypeScript peer range has not yet added TypeScript 7.
+strictPeerDependencies: false
+
+# Electron Forge currently depends on @electron/node-gyp from a Git repository.
+blockExoticSubdeps: false
+
+overrides:
+  vite: npm:@voidzero-dev/vite-plus-core@0.2.4
