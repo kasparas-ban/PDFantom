@@ -1,5 +1,6 @@
 node_modules/
 .vite/
+.vite-plus/
 out/
 test-results/
 playwright-report/
