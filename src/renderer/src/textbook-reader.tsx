@@ -7,7 +7,9 @@ import {
   type PDFPageProxy,
 } from "pdfjs-dist";
 import workerSource from "pdfjs-dist/build/pdf.worker.min.mjs?url";
+import { Minus, Plus } from "lucide-react";
 import type { OpenedTextbook } from "../../shared/textbook-api";
+import { Button } from "@/components/ui/button";
 
 GlobalWorkerOptions.workerSrc = workerSource;
 
@@ -91,14 +93,17 @@ function PdfPage({ document, onTextAnalyzed, pageNumber, scale }: PdfPageProps) 
   return (
     <article
       aria-label={`Page ${pageNumber}`}
-      className="page pdf-page"
+      className="page pdf-page relative mx-auto mb-6 overflow-hidden rounded-[2px] border-0 shadow-[0_7px_24px_rgba(35,45,39,0.18)]"
       style={viewport ? { height: viewport.height, width: viewport.width } : undefined}
     >
       <div className="canvasWrapper">
         <canvas ref={setCanvas} />
       </div>
       <div className="textLayer" ref={setTextContainer} />
-      <span className="page-number" aria-hidden="true">
+      <span
+        className="pointer-events-none absolute right-2.5 bottom-2.5 z-2 rounded-full bg-neutral-950/80 px-2 py-1 text-[0.68rem] leading-none text-white"
+        aria-hidden="true"
+      >
         {pageNumber}
       </span>
     </article>
@@ -143,54 +148,74 @@ export function TextbookReader({ textbook }: TextbookReaderProps) {
   }, []);
 
   if (error) {
-    return <p role="alert">{error}</p>;
+    return (
+      <p className="mx-auto my-8 max-w-152 text-center text-destructive" role="alert">
+        {error}
+      </p>
+    );
   }
 
   if (!document) {
-    return <p className="loading-status">Opening {textbook.name}…</p>;
+    return (
+      <p className="mx-auto my-8 max-w-152 text-center text-muted-foreground">
+        Opening {textbook.name}…
+      </p>
+    );
   }
 
   const analyzedAllPages = Object.keys(textByPage).length === document.numPages;
   const hasSelectableText = Object.values(textByPage).some(Boolean);
 
   return (
-    <section className="reader" aria-label="Textbook reader">
-      <div className="reader-toolbar">
-        <div className="document-details">
-          <h2>{textbook.name}</h2>
-          <p>{document.numPages === 1 ? "1 page" : `${document.numPages} pages`}</p>
+    <section
+      className="grid h-[calc(100vh-77px)] grid-rows-[auto_minmax(0,1fr)]"
+      aria-label="Textbook reader"
+    >
+      <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-4 border-b bg-muted/50 px-6 py-2.5">
+        <div className="min-w-0">
+          <h2 className="truncate text-[0.95rem] font-semibold">{textbook.name}</h2>
+          <p className="text-[0.78rem] text-muted-foreground">
+            {document.numPages === 1 ? "1 page" : `${document.numPages} pages`}
+          </p>
         </div>
-        <p className="text-status" aria-live="polite">
+        <p
+          className="m-0 text-center text-[0.78rem] text-muted-foreground"
+          aria-live="polite"
+        >
           {!analyzedAllPages
             ? "Checking for selectable text…"
             : hasSelectableText
               ? "Selectable text available"
               : "No selectable text — scanned pages remain viewable"}
         </p>
-        <div className="zoom-controls" aria-label="Zoom controls">
-          <button
+        <div className="flex items-center justify-self-end gap-2" aria-label="Zoom controls">
+          <Button
             aria-label="Zoom out"
-            className="secondary-button"
             disabled={scale <= 0.7}
             onClick={() => setScale((current) => Math.max(0.7, current - 0.15))}
+            size="icon"
             type="button"
+            variant="secondary"
           >
-            −
-          </button>
-          <output aria-label="Zoom level">{Math.round(scale * 100)}%</output>
-          <button
+            <Minus />
+          </Button>
+          <output className="min-w-12 text-center text-[0.78rem]" aria-label="Zoom level">
+            {Math.round(scale * 100)}%
+          </output>
+          <Button
             aria-label="Zoom in"
-            className="secondary-button"
             disabled={scale >= 1.9}
             onClick={() => setScale((current) => Math.min(1.9, current + 0.15))}
+            size="icon"
             type="button"
+            variant="secondary"
           >
-            +
-          </button>
+            <Plus />
+          </Button>
         </div>
       </div>
-      <div className="document-viewport">
-        <div className="pdfViewer">
+      <div className="overflow-auto bg-neutral-300 p-6 dark:bg-neutral-950">
+        <div className="pdfViewer mx-auto w-max">
           {Array.from({ length: document.numPages }, (_, index) => (
             <PdfPage
               document={document}
