@@ -59,9 +59,18 @@ export default defineConfig({
       "react/exhaustive-deps": "error",
       "react/react-in-jsx-scope": "off",
       "react/rules-of-hooks": "error",
+      "typescript/consistent-type-definitions": ["error", "type"],
       "typescript/consistent-return": "off",
       "unicorn/require-module-specifiers": "off",
     },
+    overrides: [
+      {
+        files: ["**/*.d.ts"],
+        rules: {
+          "typescript/consistent-type-definitions": "off",
+        },
+      },
+    ],
     env: {
       builtin: true,
     },

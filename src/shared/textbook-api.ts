@@ -1,10 +1,10 @@
 export const OPEN_TEXTBOOK_CHANNEL = "textbook:open"
 
-export interface OpenedTextbook {
+export type OpenedTextbook = {
   readonly bytes: ArrayBuffer
   readonly name: string
 }
 
-export interface TextbookApi {
+export type TextbookApi = {
   openTextbook(): Promise<OpenedTextbook | null>
 }

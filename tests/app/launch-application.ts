@@ -4,7 +4,7 @@ import path from "node:path"
 
 import { _electron as electron, type ElectronApplication } from "@playwright/test"
 
-interface LaunchTestApplicationOptions {
+type LaunchTestApplicationOptions = {
   readonly createOpenPath?: (workspace: string) => Promise<string>
   readonly workspacePrefix: string
 }

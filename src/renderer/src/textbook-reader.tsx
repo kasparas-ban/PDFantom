@@ -14,11 +14,11 @@ import type { OpenedTextbook } from "../../shared/textbook-api"
 
 GlobalWorkerOptions.workerSrc = workerSource
 
-interface TextbookReaderProps {
+type TextbookReaderProps = {
   readonly textbook: OpenedTextbook
 }
 
-interface PdfPageProps {
+type PdfPageProps = {
   readonly document: PDFDocumentProxy
   readonly onTextAnalyzed: (pageNumber: number, hasText: boolean) => void
   readonly pageNumber: number
