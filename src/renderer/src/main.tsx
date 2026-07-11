@@ -49,12 +49,12 @@ function App() {
         </div>
       )}
 
-      <section className="min-w-0 flex-1">
+      <section className="flex h-full min-w-0 flex-1 flex-col">
         <div className="window-drag-region h-12">
           <PDFControls />
         </div>
 
-        <div className="flex h-full w-full">
+        <div className="flex min-h-0 w-full flex-1">
           <PDFCanvas error={error} openDocument={openDocument} />
         </div>
       </section>

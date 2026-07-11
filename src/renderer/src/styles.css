@@ -136,3 +136,9 @@
 .window-no-drag {
   -webkit-app-region: no-drag;
 }
+
+.pdf-reader-viewer {
+  --pdfViewer-padding-bottom: 28px;
+  --page-margin: 28px auto 0;
+  --page-border: 0;
+}
