@@ -12,7 +12,7 @@ export function AppSidebar({ onOpenTextbook }: AppSidebarProps) {
   const activePDF = useAppConfig((state) => state.activePDF)
 
   return (
-    <aside className="flex w-64 shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground shadow-[inset_-1px_0_rgb(255_255_255/28%)]">
+    <aside className="flex h-full flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground shadow-[inset_-1px_0_rgb(255_255_255/28%)]">
       <div className="flex min-h-0 flex-1 flex-col px-2 pt-12 pb-2">
         <div className="mb-3 flex items-center gap-2 px-1">
           <img alt="" className="size-8 rounded-md" src={pdfantomLogo} />

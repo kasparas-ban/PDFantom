@@ -41,12 +41,18 @@ function App() {
   }
 
   return (
-    <main className="flex h-screen overflow-hidden bg-background text-foreground">
+    <main className="flex h-screen bg-background text-foreground">
       <TopControl />
 
-      {isSidePanelOpen && <AppSidebar onOpenTextbook={openTextbook} />}
+      {isSidePanelOpen && (
+        <div className="h-full w-64 shrink-0">
+          <AppSidebar onOpenTextbook={openTextbook} />
+        </div>
+      )}
 
-      <EmptyCanvasContents error={error} openTextbook={openTextbook} />
+      <section className="min-w-0 flex-1">
+        <EmptyCanvasContents error={error} openTextbook={openTextbook} />
+      </section>
     </main>
   )
 }
@@ -61,7 +67,7 @@ function EmptyCanvasContents({
   const activePDF = useAppConfig((state) => state.activePDF)
 
   return (
-    <section className="min-w-0 flex-1">
+    <>
       {error && (
         <div
           className="absolute top-4 left-1/2 z-20 -translate-x-1/2 rounded-lg border bg-background px-4 py-2 text-sm text-destructive shadow-sm"
@@ -74,7 +80,7 @@ function EmptyCanvasContents({
       {activePDF ? (
         <TextbookReader textbook={activePDF} />
       ) : (
-        <div className="grid h-full grid-rows-[3rem_minmax(0,1fr)]">
+        <div className="flex h-full items-center justify-center">
           <section className="flex items-center justify-center px-8 pb-[8vh] text-center">
             <div className="max-w-md">
               <img
@@ -97,7 +103,7 @@ function EmptyCanvasContents({
           </section>
         </div>
       )}
-    </section>
+    </>
   )
 }
 
