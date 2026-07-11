@@ -32,6 +32,10 @@ function createWindow(rendererUrl: string) {
 }
 
 void app.whenReady().then(() => {
+  if (process.platform === "darwin" && !app.isPackaged) {
+    app.dock?.setIcon(path.resolve("assets/pdfantom-logo.png"))
+  }
+
   const rendererUrl = rendererEntryUrl()
   const window = createWindow(rendererUrl)
 

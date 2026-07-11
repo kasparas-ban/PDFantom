@@ -5,6 +5,7 @@ import type { ForgeConfig } from "@electron-forge/shared-types"
 const config: ForgeConfig = {
   packagerConfig: {
     asar: true,
+    icon: "assets/pdfantom-logo",
   },
   makers: [new MakerZIP({}, ["darwin"])],
   plugins: [
