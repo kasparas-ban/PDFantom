@@ -2,7 +2,8 @@ import path from "node:path"
 
 import { app, BrowserWindow } from "electron"
 
-import { registerTextbookBoundary, rendererEntryUrl } from "./textbook-boundary"
+import { rendererEntryUrl } from "./renderer-entry"
+import { registerTextbookBoundary } from "./textbook-boundary"
 
 function createWindow(rendererUrl: string) {
   const window = new BrowserWindow({

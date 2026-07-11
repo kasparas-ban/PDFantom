@@ -1,12 +1,30 @@
 import { readFile } from "node:fs/promises"
 import path from "node:path"
-import { pathToFileURL } from "node:url"
 
 import { dialog, ipcMain, type BrowserWindow, type IpcMainInvokeEvent } from "electron"
 
 import { OPEN_TEXTBOOK_CHANNEL } from "../shared/textbook-api"
 
 const PDF_HEADER = "%PDF-"
+
+export function registerTextbookBoundary(window: BrowserWindow, rendererUrl: string) {
+  ipcMain.handle(OPEN_TEXTBOOK_CHANNEL, async (event) => {
+    if (!isTrustedSender(event, window, rendererUrl)) {
+      throw new Error("Textbook access was denied for an untrusted sender.")
+    }
+
+    const selectedPath = await choosePdf(window)
+    return selectedPath ? readPdf(selectedPath) : null
+  })
+}
+
+function isTrustedSender(event: IpcMainInvokeEvent, window: BrowserWindow, rendererUrl: string) {
+  return (
+    event.sender === window.webContents &&
+    event.senderFrame === window.webContents.mainFrame &&
+    isSameDocument(event.senderFrame.url, rendererUrl)
+  )
+}
 
 function isSameDocument(actualUrl: string, expectedUrl: string) {
   try {
@@ -17,14 +35,6 @@ function isSameDocument(actualUrl: string, expectedUrl: string) {
   } catch {
     return false
   }
-}
-
-function isTrustedSender(event: IpcMainInvokeEvent, window: BrowserWindow, rendererUrl: string) {
-  return (
-    event.sender === window.webContents &&
-    event.senderFrame === window.webContents.mainFrame &&
-    isSameDocument(event.senderFrame.url, rendererUrl)
-  )
 }
 
 async function choosePdf(window: BrowserWindow) {
@@ -49,25 +59,4 @@ async function readPdf(filePath: string) {
 
   const bytes = Uint8Array.from(file).buffer
   return { bytes, name: path.basename(filePath) }
-}
-
-export function rendererEntryUrl() {
-  if (typeof MAIN_WINDOW_VITE_DEV_SERVER_URL !== "undefined" && MAIN_WINDOW_VITE_DEV_SERVER_URL) {
-    return MAIN_WINDOW_VITE_DEV_SERVER_URL
-  }
-
-  const rendererName =
-    typeof MAIN_WINDOW_VITE_NAME === "undefined" ? "main_window" : MAIN_WINDOW_VITE_NAME
-  return pathToFileURL(path.join(__dirname, `../renderer/${rendererName}/index.html`)).href
-}
-
-export function registerTextbookBoundary(window: BrowserWindow, rendererUrl: string) {
-  ipcMain.handle(OPEN_TEXTBOOK_CHANNEL, async (event) => {
-    if (!isTrustedSender(event, window, rendererUrl)) {
-      throw new Error("Textbook access was denied for an untrusted sender.")
-    }
-
-    const selectedPath = await choosePdf(window)
-    return selectedPath ? readPdf(selectedPath) : null
-  })
 }
