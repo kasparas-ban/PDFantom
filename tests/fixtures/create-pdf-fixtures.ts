@@ -4,12 +4,7 @@ import path from "node:path"
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib"
 import { PNG } from "pngjs"
 
-export interface PdfFixtures {
-  readonly imageOnly: string
-  readonly selectable: string
-}
-
-function createScannedPageImage(): Buffer {
+function createScannedPageImage() {
   const image = new PNG({ height: 420, width: 320 })
 
   for (let y = 0; y < image.height; y += 1) {
@@ -32,7 +27,7 @@ function createScannedPageImage(): Buffer {
   return PNG.sync.write(image)
 }
 
-export async function createPdfFixtures(directory: string): Promise<PdfFixtures> {
+export async function createPdfFixtures(directory: string) {
   await mkdir(directory, { recursive: true })
 
   const selectableDocument = await PDFDocument.create()

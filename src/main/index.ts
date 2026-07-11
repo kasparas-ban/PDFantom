@@ -4,7 +4,7 @@ import { app, BrowserWindow } from "electron"
 
 import { registerTextbookBoundary, rendererEntryUrl } from "./textbook-boundary"
 
-function createWindow(rendererUrl: string): BrowserWindow {
+function createWindow(rendererUrl: string) {
   const window = new BrowserWindow({
     width: 1280,
     height: 820,

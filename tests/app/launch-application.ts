@@ -2,22 +2,14 @@ import { mkdtemp, rm } from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
 
-import { _electron as electron, type ElectronApplication, type Page } from "@playwright/test"
+import { _electron as electron, type ElectronApplication } from "@playwright/test"
 
 interface LaunchTestApplicationOptions {
   readonly createOpenPath?: (workspace: string) => Promise<string>
   readonly workspacePrefix: string
 }
 
-export interface RunningApplication {
-  readonly page: Page
-  close(): Promise<void>
-}
-
-async function mockOpenDialog(
-  application: ElectronApplication,
-  selectedPath: string,
-): Promise<void> {
+async function mockOpenDialog(application: ElectronApplication, selectedPath: string) {
   await application.evaluate(
     ({ dialog }, filePaths) => {
       dialog.showOpenDialog = () => Promise.resolve({ canceled: false, filePaths })
@@ -26,10 +18,7 @@ async function mockOpenDialog(
   )
 }
 
-async function launchApplication(
-  profilePath: string,
-  selectedPath: string | undefined,
-): Promise<{ application: ElectronApplication; page: Page }> {
+async function launchApplication(profilePath: string, selectedPath: string | undefined) {
   const application = await electron.launch({
     args: [path.resolve(".vite/build/main.js"), `--user-data-dir=${profilePath}`],
   })
@@ -46,7 +35,7 @@ async function launchApplication(
 export async function launchTestApplication({
   createOpenPath,
   workspacePrefix,
-}: LaunchTestApplicationOptions): Promise<RunningApplication> {
+}: LaunchTestApplicationOptions) {
   const workspace = await mkdtemp(path.join(os.tmpdir(), `${workspacePrefix}-`))
 
   try {
