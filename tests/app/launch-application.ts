@@ -90,7 +90,7 @@ export async function launchTestApplication({
     const application = await launchApplication({
       ...process.env,
       PDFANTOM_TEST_OPEN_PATH: selectedPath,
-      PDFANTOM_TEST_PROFILE: path.join(workspace, "profile"),
+      PDFANTOM_USER_DATA_PATH: path.join(workspace, "profile"),
     })
 
     return {

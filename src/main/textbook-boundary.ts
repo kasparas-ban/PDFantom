@@ -33,7 +33,7 @@ function isTrustedSender(
 
 async function choosePdf(window: BrowserWindow): Promise<string | null> {
   const testSelection = app.isPackaged ? undefined : process.env.PDFANTOM_TEST_OPEN_PATH
-  if (testSelection && process.env.PDFANTOM_TEST_PROFILE) {
+  if (testSelection && process.env.PDFANTOM_USER_DATA_PATH) {
     return testSelection
   }
 
