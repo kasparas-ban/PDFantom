@@ -24,7 +24,7 @@ function App() {
     return () => colorScheme.removeEventListener("change", syncColorScheme)
   }, [])
 
-  async function openTextbook() {
+  const openTextbook = async () => {
     setError(null)
     try {
       const openedTextbook = await window.pdfantom.openTextbook()
@@ -47,11 +47,11 @@ function App() {
           Open textbook
         </Button>
       </header>
-      {error ? (
+      {error && (
         <p className="mx-auto my-8 max-w-152 text-center text-destructive" role="alert">
           {error}
         </p>
-      ) : null}
+      )}
       {textbook ? (
         <TextbookReader textbook={textbook} />
       ) : (

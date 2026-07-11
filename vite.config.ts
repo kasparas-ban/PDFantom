@@ -56,6 +56,7 @@ export default defineConfig({
     rules: {
       "import/default": "off",
       "import/no-unassigned-import": "off",
+      "no-unneeded-ternary": "warn",
       "react/exhaustive-deps": "error",
       "react/react-in-jsx-scope": "off",
       "react/rules-of-hooks": "error",
