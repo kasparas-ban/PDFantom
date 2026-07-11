@@ -1,0 +1,52 @@
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  viewBox="0 0 1024 1024"
+  role="img"
+  aria-labelledby="title description"
+>
+  <title id="title">PDFantom logo</title>
+  <desc id="description">A folded paper page whose lower edge forms a friendly phantom.</desc>
+
+  <defs>
+    <linearGradient id="tile" x1="260" y1="190" x2="770" y2="850" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#151c24" />
+      <stop offset="0.58" stop-color="#1a222c" />
+      <stop offset="1" stop-color="#222a33" />
+    </linearGradient>
+    <linearGradient id="paper" x1="320" y1="280" x2="705" y2="720" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#f7f4ed" />
+      <stop offset="0.55" stop-color="#fffdf8" />
+      <stop offset="1" stop-color="#f5f1e9" />
+    </linearGradient>
+    <linearGradient id="fold" x1="585" y1="275" x2="690" y2="405" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#d5d8ce" />
+      <stop offset="1" stop-color="#aeb8aa" />
+    </linearGradient>
+    <filter id="tileShadow" x="-10%" y="-10%" width="120%" height="125%">
+      <feDropShadow dx="0" dy="8" stdDeviation="10" flood-color="#05080c" flood-opacity="0.28" />
+    </filter>
+    <filter id="paperShadow" x="-10%" y="-10%" width="120%" height="125%">
+      <feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#05080c" flood-opacity="0.25" />
+    </filter>
+  </defs>
+
+  <path
+    d="M331 154h362c101 0 161 62 161 162v376c0 101-60 163-161 163H331c-101 0-161-62-161-163V316c0-100 60-162 161-162Z"
+    fill="url(#tile)"
+    filter="url(#tileShadow)"
+  />
+
+  <path
+    d="M350 265h226l133 133v258c0 23 3 45 10 65 2 7-3 12-10 11-64-4-103-33-112-82-9-68-37-117-86-117s-77 49-86 117c-9 49-48 78-112 82-7 1-12-4-10-11 12-27 18-48 18-65V294c0-16 13-29 29-29Z"
+    fill="url(#paper)"
+    filter="url(#paperShadow)"
+  />
+
+  <path
+    d="M576 265 709 398H608c-18 0-32-14-32-32V265Z"
+    fill="url(#fold)"
+  />
+
+  <rect x="475" y="588" width="25" height="50" rx="12.5" fill="#faf7f0" />
+  <rect x="523" y="588" width="25" height="50" rx="12.5" fill="#faf7f0" />
+</svg>
