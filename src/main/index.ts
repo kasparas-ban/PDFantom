@@ -13,10 +13,13 @@ function createWindow(rendererUrl: string) {
     minHeight: 560,
     title: "PDFantom",
     webPreferences: {
+      allowRunningInsecureContent: false,
       contextIsolation: true,
       nodeIntegration: false,
       preload: path.join(__dirname, "preload.js"),
       sandbox: true,
+      webSecurity: true,
+      webviewTag: false,
     },
   })
 

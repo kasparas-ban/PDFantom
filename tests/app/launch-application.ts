@@ -20,6 +20,7 @@ export async function launchTestApplication({
     const { application, page } = await launchApplication(profilePath, openPath)
 
     return {
+      electronApplication: application,
       page,
       close: async () => {
         try {
