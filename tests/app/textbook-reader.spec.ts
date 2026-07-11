@@ -2,13 +2,14 @@ import path from "node:path"
 
 import { expect, test } from "@playwright/test"
 
-import { createPdfFixtures } from "../fixtures/create-pdf-fixtures"
 import { launchTestApplication } from "./launch-application"
+
+const textbookFixture = path.resolve("tests/fixtures/pdfs/textbook-mock.pdf")
+const imageOnlyFixture = path.resolve("tests/fixtures/pdfs/image-only-scan.pdf")
 
 test("a Student opens, reads, and selects text without a Model Provider", async () => {
   const application = await launchTestApplication({
-    createOpenPath: async (workspace) =>
-      (await createPdfFixtures(path.join(workspace, "fixtures"))).selectable,
+    openPath: textbookFixture,
     workspacePrefix: "pdfantom-reader",
   })
 
@@ -16,16 +17,16 @@ test("a Student opens, reads, and selects text without a Model Provider", async 
     const { page } = application
     await page.getByRole("button", { name: "Open textbook" }).click()
 
-    await expect(page.getByRole("heading", { name: "selectable-textbook.pdf" })).toBeVisible()
-    await expect(page.getByText("2 pages")).toBeVisible()
+    await expect(page.getByRole("heading", { name: "textbook-mock.pdf" })).toBeVisible()
+    await expect(page.getByText("5 pages")).toBeVisible()
     await expect(page.getByText("Selectable text available")).toBeVisible()
-    await expect(page.locator(".pdf-page > .canvasWrapper > canvas")).toHaveCount(2)
+    await expect(page.locator(".pdf-page > .canvasWrapper > canvas")).toHaveCount(5)
 
-    const passage = page.getByText("Selectable textbook passage", { exact: true })
+    const passage = page.getByText("Introduction to", { exact: true })
     await passage.selectText()
     await expect
       .poll(() => page.evaluate(() => window.getSelection()?.toString()))
-      .toContain("Selectable textbook passage")
+      .toContain("Introduction to")
   } finally {
     await application.close()
   }
@@ -33,8 +34,7 @@ test("a Student opens, reads, and selects text without a Model Provider", async 
 
 test("an image-only scan remains viewable without offering text selection", async () => {
   const application = await launchTestApplication({
-    createOpenPath: async (workspace) =>
-      (await createPdfFixtures(path.join(workspace, "fixtures"))).imageOnly,
+    openPath: imageOnlyFixture,
     workspacePrefix: "pdfantom-scan",
   })
 

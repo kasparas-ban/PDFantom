@@ -5,20 +5,19 @@ import path from "node:path"
 import { _electron as electron, type ElectronApplication } from "@playwright/test"
 
 type LaunchTestApplicationOptions = {
-  readonly createOpenPath?: (workspace: string) => Promise<string>
+  readonly openPath?: string
   readonly workspacePrefix: string
 }
 
 export async function launchTestApplication({
-  createOpenPath,
+  openPath,
   workspacePrefix,
 }: LaunchTestApplicationOptions) {
   const workspace = await mkdtemp(path.join(os.tmpdir(), `${workspacePrefix}-`))
 
   try {
-    const selectedPath = await createOpenPath?.(workspace)
     const profilePath = path.join(workspace, "profile")
-    const { application, page } = await launchApplication(profilePath, selectedPath)
+    const { application, page } = await launchApplication(profilePath, openPath)
 
     return {
       page,
