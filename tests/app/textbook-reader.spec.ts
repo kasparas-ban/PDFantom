@@ -6,7 +6,7 @@ import { launchTestApplication } from "./launch-application"
 
 const textbookFixture = path.resolve("tests/fixtures/pdfs/textbook-mock.pdf")
 
-test("a Student opens, reads, and selects text without a Model Provider", async () => {
+test("opens, reads, and selects text without a Model Provider", async () => {
   const application = await launchTestApplication({
     openPath: textbookFixture,
     workspacePrefix: "pdfantom-reader",
