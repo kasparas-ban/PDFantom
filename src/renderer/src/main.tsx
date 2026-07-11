@@ -4,6 +4,7 @@ import { createRoot } from "react-dom/client"
 
 import { Button } from "@/components/ui/button"
 import pdfantomLogo from "../../../assets/pdfantom-logo.svg?no-inline"
+import { PDFControls } from "./pdf-controls"
 import { AppSidebar } from "./sidebar/app-sidebar"
 import { AppConfigProvider, useAppConfig } from "./store/app-config-provider"
 import { TextbookReader } from "./textbook-reader"
@@ -51,19 +52,19 @@ function App() {
       )}
 
       <section className="min-w-0 flex-1">
-        <EmptyCanvasContents error={error} openTextbook={openTextbook} />
+        <div className="window-drag-region h-12">
+          <PDFControls />
+        </div>
+
+        <div className="flex h-full w-full">
+          <PDFCanvas error={error} openTextbook={openTextbook} />
+        </div>
       </section>
     </main>
   )
 }
 
-function EmptyCanvasContents({
-  error,
-  openTextbook,
-}: {
-  error: string | null
-  openTextbook: () => void
-}) {
+function PDFCanvas({ error, openTextbook }: { error: string | null; openTextbook: () => void }) {
   const activePDF = useAppConfig((state) => state.activePDF)
 
   return (
@@ -80,7 +81,7 @@ function EmptyCanvasContents({
       {activePDF ? (
         <TextbookReader textbook={activePDF} />
       ) : (
-        <div className="flex h-full items-center justify-center">
+        <div className="flex h-full w-full items-center justify-center">
           <section className="flex items-center justify-center px-8 pb-[8vh] text-center">
             <div className="max-w-md">
               <img

@@ -149,16 +149,17 @@ export function TextbookReader({ textbook }: TextbookReaderProps) {
   }
 
   return (
-    <section className="grid h-full grid-rows-[3rem_minmax(0,1fr)]" aria-label="Textbook reader">
-      <div className="overflow-auto bg-[#e7e7e5] p-7 dark:bg-[#171716]">
-        <div className="mb-3 text-center text-[0.7rem] text-muted-foreground">
-          {document.numPages === 1 ? "1 page" : `${document.numPages} pages`}
-        </div>
-        <div className="pdfViewer mx-auto w-max">
-          {Array.from({ length: document.numPages }, (_, index) => (
-            <PdfPage document={document} key={index + 1} pageNumber={index + 1} scale={zoom} />
-          ))}
-        </div>
+    <section
+      className="flex h-full w-full overflow-auto bg-[#e7e7e5] p-7 dark:bg-[#171716]"
+      aria-label="PDF reader"
+    >
+      <div className="mb-3 text-center text-[0.7rem] text-muted-foreground">
+        {document.numPages === 1 ? "1 page" : `${document.numPages} pages`}
+      </div>
+      <div className="pdfViewer mx-auto w-max">
+        {Array.from({ length: document.numPages }, (_, index) => (
+          <PdfPage document={document} key={index + 1} pageNumber={index + 1} scale={zoom} />
+        ))}
       </div>
     </section>
   )
