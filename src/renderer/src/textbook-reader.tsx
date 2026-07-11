@@ -1,5 +1,4 @@
-import { useCallback, useEffect, useState } from "react"
-import { Minus, Plus } from "lucide-react"
+import { useEffect, useState } from "react"
 import {
   getDocument,
   GlobalWorkerOptions,
@@ -9,8 +8,8 @@ import {
 } from "pdfjs-dist"
 import workerSource from "pdfjs-dist/build/pdf.worker.min.mjs?url"
 
-import { Button } from "@/components/ui/button"
 import type { OpenedTextbook } from "../../shared/textbook-api"
+import { useAppConfig } from "./store/app-config-provider"
 
 GlobalWorkerOptions.workerSrc = workerSource
 
@@ -20,12 +19,11 @@ type TextbookReaderProps = {
 
 type PdfPageProps = {
   readonly document: PDFDocumentProxy
-  readonly onTextAnalyzed: (pageNumber: number, hasText: boolean) => void
   readonly pageNumber: number
   readonly scale: number
 }
 
-function PdfPage({ document, onTextAnalyzed, pageNumber, scale }: PdfPageProps) {
+function PdfPage({ document, pageNumber, scale }: PdfPageProps) {
   const [page, setPage] = useState<PDFPageProxy | null>(null)
   const [canvas, setCanvas] = useState<HTMLCanvasElement | null>(null)
   const [textContainer, setTextContainer] = useState<HTMLDivElement | null>(null)
@@ -66,29 +64,21 @@ function PdfPage({ document, onTextAnalyzed, pageNumber, scale }: PdfPageProps) 
       .then(async ([, textContent]) => {
         if (!active) return
 
-        const hasText = textContent.items.some(
-          (item) => "str" in item && item.str.trim().length > 0,
-        )
         textLayer = new TextLayer({
           container: textContainer,
           textContentSource: textContent,
           viewport,
         })
         await textLayer.render()
-        if (active) onTextAnalyzed(pageNumber, hasText)
       })
-      .catch((error: unknown) => {
-        if (active && !(error instanceof Error && error.name === "RenderingCancelledException")) {
-          onTextAnalyzed(pageNumber, false)
-        }
-      })
+      .catch(() => {})
 
     return () => {
       active = false
       renderTask.cancel()
       textLayer?.cancel()
     }
-  }, [canvas, onTextAnalyzed, page, pageNumber, scale, textContainer])
+  }, [canvas, page, pageNumber, scale, textContainer])
 
   const viewport = page?.getViewport({ scale })
 
@@ -115,13 +105,12 @@ function PdfPage({ document, onTextAnalyzed, pageNumber, scale }: PdfPageProps) 
 export function TextbookReader({ textbook }: TextbookReaderProps) {
   const [document, setDocument] = useState<PDFDocumentProxy | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [scale, setScale] = useState(1.15)
-  const [textByPage, setTextByPage] = useState<Record<number, boolean>>({})
+
+  const zoom = useAppConfig((state) => state.zoom)
 
   useEffect(() => {
     setDocument(null)
     setError(null)
-    setTextByPage({})
 
     const loadingTask = getDocument({
       data: textbook.bytes.slice(0),
@@ -143,12 +132,6 @@ export function TextbookReader({ textbook }: TextbookReaderProps) {
     }
   }, [textbook])
 
-  const handleTextAnalyzed = useCallback((pageNumber: number, hasText: boolean) => {
-    setTextByPage((current) =>
-      current[pageNumber] === hasText ? current : { ...current, [pageNumber]: hasText },
-    )
-  }, [])
-
   if (error) {
     return (
       <p className="mx-auto my-8 max-w-152 text-center text-destructive" role="alert">
@@ -165,74 +148,15 @@ export function TextbookReader({ textbook }: TextbookReaderProps) {
     )
   }
 
-  const analyzedAllPages = Object.keys(textByPage).length === document.numPages
-  const hasSelectableText = Object.values(textByPage).some(Boolean)
-
   return (
     <section className="grid h-full grid-rows-[3rem_minmax(0,1fr)]" aria-label="Textbook reader">
-      <header className="window-drag-region grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-4 border-b border-border/70 bg-background px-3">
-        <div className="window-no-drag flex min-w-0 items-center gap-2 pl-1">
-          <h2 className="truncate text-[0.82rem] font-medium">{textbook.name}</h2>
-        </div>
-        <div
-          className="window-no-drag flex items-center rounded-lg border border-border/80 bg-muted/50 p-0.5 shadow-xs"
-          aria-label="Zoom controls"
-        >
-          <Button
-            aria-label="Zoom out"
-            className="size-6 rounded-md"
-            disabled={scale <= 0.7}
-            onClick={() => setScale((current) => Math.max(0.7, current - 0.15))}
-            size="icon-xs"
-            type="button"
-            variant="ghost"
-          >
-            <Minus />
-          </Button>
-          <output
-            className="min-w-11 text-center text-[0.72rem] tabular-nums"
-            aria-label="Zoom level"
-          >
-            {Math.round(scale * 100)}%
-          </output>
-          <Button
-            aria-label="Zoom in"
-            className="size-6 rounded-md"
-            disabled={scale >= 1.9}
-            onClick={() => setScale((current) => Math.min(1.9, current + 0.15))}
-            size="icon-xs"
-            type="button"
-            variant="ghost"
-          >
-            <Plus />
-          </Button>
-        </div>
-        <div className="window-no-drag flex items-center justify-self-end">
-          <p
-            className="hidden text-[0.72rem] text-muted-foreground min-[980px]:block"
-            aria-live="polite"
-          >
-            {!analyzedAllPages
-              ? "Checking text…"
-              : hasSelectableText
-                ? "Selectable text available"
-                : "Scanned document"}
-          </p>
-        </div>
-      </header>
       <div className="overflow-auto bg-[#e7e7e5] p-7 dark:bg-[#171716]">
         <div className="mb-3 text-center text-[0.7rem] text-muted-foreground">
           {document.numPages === 1 ? "1 page" : `${document.numPages} pages`}
         </div>
         <div className="pdfViewer mx-auto w-max">
           {Array.from({ length: document.numPages }, (_, index) => (
-            <PdfPage
-              document={document}
-              key={index + 1}
-              onTextAnalyzed={handleTextAnalyzed}
-              pageNumber={index + 1}
-              scale={scale}
-            />
+            <PdfPage document={document} key={index + 1} pageNumber={index + 1} scale={zoom} />
           ))}
         </div>
       </div>

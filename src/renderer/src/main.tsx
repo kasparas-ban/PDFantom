@@ -4,7 +4,6 @@ import { createRoot } from "react-dom/client"
 
 import { Button } from "@/components/ui/button"
 import pdfantomLogo from "../../../assets/pdfantom-logo.svg?no-inline"
-import type { OpenedTextbook } from "../../shared/textbook-api"
 import { AppSidebar } from "./sidebar/app-sidebar"
 import { AppConfigProvider, useAppConfig } from "./store/app-config-provider"
 import { TextbookReader } from "./textbook-reader"
@@ -14,9 +13,10 @@ import "pdfjs-dist/web/pdf_viewer.css"
 import "./styles.css"
 
 function App() {
-  const [textbook, setTextbook] = useState<OpenedTextbook | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  const setActivePDF = useAppConfig((state) => state.setActivePDF)
   const isSidePanelOpen = useAppConfig((state) => state.isSidePanelOpen)
+
+  const [error, setError] = useState<string | null>(null)
 
   // TODO: Implement this in a nicer way
   useEffect(() => {
@@ -34,7 +34,7 @@ function App() {
     setError(null)
     try {
       const openedTextbook = await window.pdfantom.openTextbook()
-      if (openedTextbook) setTextbook(openedTextbook)
+      if (openedTextbook) setActivePDF(openedTextbook)
     } catch {
       setError("The textbook could not be opened.")
     }
@@ -44,22 +44,22 @@ function App() {
     <main className="flex h-screen overflow-hidden bg-background text-foreground">
       <TopControl />
 
-      {isSidePanelOpen && <AppSidebar onOpenTextbook={openTextbook} textbook={textbook} />}
+      {isSidePanelOpen && <AppSidebar onOpenTextbook={openTextbook} />}
 
-      <EmptyCanvasContents error={error} textbook={textbook} openTextbook={openTextbook} />
+      <EmptyCanvasContents error={error} openTextbook={openTextbook} />
     </main>
   )
 }
 
 function EmptyCanvasContents({
   error,
-  textbook,
   openTextbook,
 }: {
   error: string | null
-  textbook: OpenedTextbook | null
   openTextbook: () => void
 }) {
+  const activePDF = useAppConfig((state) => state.activePDF)
+
   return (
     <section className="min-w-0 flex-1">
       {error && (
@@ -71,8 +71,8 @@ function EmptyCanvasContents({
         </div>
       )}
 
-      {textbook ? (
-        <TextbookReader textbook={textbook} />
+      {activePDF ? (
+        <TextbookReader textbook={activePDF} />
       ) : (
         <div className="grid h-full grid-rows-[3rem_minmax(0,1fr)]">
           <section className="flex items-center justify-center px-8 pb-[8vh] text-center">
