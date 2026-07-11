@@ -1,10 +1,12 @@
 import { StrictMode, useEffect, useState } from "react"
 import { createRoot } from "react-dom/client"
-import "pdfjs-dist/web/pdf_viewer.css"
-import type { OpenedTextbook } from "../../shared/textbook-api"
+
 import { Button } from "@/components/ui/button"
-import "./styles.css"
+import type { OpenedTextbook } from "../../shared/textbook-api"
 import { TextbookReader } from "./textbook-reader"
+
+import "pdfjs-dist/web/pdf_viewer.css"
+import "./styles.css"
 
 function App() {
   const [textbook, setTextbook] = useState<OpenedTextbook | null>(null)

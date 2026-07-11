@@ -1,5 +1,7 @@
 import path from "node:path"
+
 import { app, BrowserWindow } from "electron"
+
 import { registerTextbookBoundary, rendererEntryUrl } from "./textbook-boundary"
 
 if (process.env.PDFANTOM_TEST_PROFILE) {

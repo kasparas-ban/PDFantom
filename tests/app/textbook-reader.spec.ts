@@ -1,5 +1,7 @@
 import path from "node:path"
+
 import { expect, test } from "@playwright/test"
+
 import { createPdfFixtures } from "../fixtures/create-pdf-fixtures"
 import { launchTestApplication } from "./launch-application"
 

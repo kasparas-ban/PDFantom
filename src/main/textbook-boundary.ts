@@ -1,7 +1,9 @@
 import { readFile } from "node:fs/promises"
 import path from "node:path"
 import { pathToFileURL } from "node:url"
+
 import { app, dialog, ipcMain, type BrowserWindow, type IpcMainInvokeEvent } from "electron"
+
 import { OPEN_TEXTBOOK_CHANNEL, type OpenedTextbook } from "../shared/textbook-api"
 
 const PDF_HEADER = "%PDF-"

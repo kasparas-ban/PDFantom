@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react"
+import { Minus, Plus } from "lucide-react"
 import {
   getDocument,
   GlobalWorkerOptions,
@@ -7,9 +8,9 @@ import {
   type PDFPageProxy,
 } from "pdfjs-dist"
 import workerSource from "pdfjs-dist/build/pdf.worker.min.mjs?url"
-import { Minus, Plus } from "lucide-react"
-import type { OpenedTextbook } from "../../shared/textbook-api"
+
 import { Button } from "@/components/ui/button"
+import type { OpenedTextbook } from "../../shared/textbook-api"
 
 GlobalWorkerOptions.workerSrc = workerSource
 

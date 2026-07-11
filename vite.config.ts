@@ -11,6 +11,36 @@ export default defineConfig({
       "test-results/**",
     ],
     semi: false,
+    sortImports: {
+      customGroups: [
+        {
+          elementNamePattern: ["react"],
+          groupName: "react",
+          selector: "external",
+        },
+        {
+          elementNamePattern: ["./*.css", "./**/*.css", "../*.css", "../**/*.css"],
+          groupName: "local-styles",
+          selector: "side_effect_style",
+        },
+      ],
+      groups: [
+        "builtin",
+        { newlinesBetween: true },
+        "react",
+        "external",
+        { newlinesBetween: true },
+        ["internal", "subpath"],
+        ["parent", "sibling", "index"],
+        "unknown",
+        { newlinesBetween: true },
+        "style",
+        "side_effect_style",
+        "local-styles",
+      ],
+      newlinesBetween: false,
+      sortSideEffects: true,
+    },
     sortTailwindcss: {
       stylesheet: "./src/renderer/src/styles.css",
       functions: ["cn", "cva"],

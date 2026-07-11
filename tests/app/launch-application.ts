@@ -3,8 +3,9 @@ import { once } from "node:events"
 import { mkdtemp, rm } from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
-import electronExecutable from "electron"
+
 import { chromium, type Browser, type Page } from "@playwright/test"
+import electronExecutable from "electron"
 
 interface LaunchTestApplicationOptions {
   readonly createOpenPath?: (workspace: string) => Promise<string>
