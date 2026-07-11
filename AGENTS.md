@@ -15,3 +15,7 @@ The repository uses a single-context domain-document layout. See `docs/agents/do
 ### Renderer UI
 
 Use shadcn/ui components and Tailwind CSS utilities for all renderer UI, reserving custom CSS for global theming and unavoidable third-party integrations.
+
+### Testing
+
+Keep test-only code out of business logic by using explicit test seams at application boundaries.

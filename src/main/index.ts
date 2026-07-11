@@ -4,11 +4,6 @@ import { app, BrowserWindow } from "electron"
 
 import { registerTextbookBoundary, rendererEntryUrl } from "./textbook-boundary"
 
-const userDataPath = process.env.PDFANTOM_USER_DATA_PATH
-if (userDataPath) {
-  app.setPath("userData", userDataPath)
-}
-
 function createWindow(rendererUrl: string): BrowserWindow {
   const window = new BrowserWindow({
     width: 1280,

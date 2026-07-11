@@ -2,7 +2,7 @@ import { readFile } from "node:fs/promises"
 import path from "node:path"
 import { pathToFileURL } from "node:url"
 
-import { app, dialog, ipcMain, type BrowserWindow, type IpcMainInvokeEvent } from "electron"
+import { dialog, ipcMain, type BrowserWindow, type IpcMainInvokeEvent } from "electron"
 
 import { OPEN_TEXTBOOK_CHANNEL, type OpenedTextbook } from "../shared/textbook-api"
 
@@ -32,11 +32,6 @@ function isTrustedSender(
 }
 
 async function choosePdf(window: BrowserWindow): Promise<string | null> {
-  const testSelection = app.isPackaged ? undefined : process.env.PDFANTOM_TEST_OPEN_PATH
-  if (testSelection && process.env.PDFANTOM_USER_DATA_PATH) {
-    return testSelection
-  }
-
   const result = await dialog.showOpenDialog(window, {
     filters: [{ name: "PDF documents", extensions: ["pdf"] }],
     properties: ["openFile"],

@@ -1,11 +1,8 @@
-import { spawn, type ChildProcess } from "node:child_process"
-import { once } from "node:events"
 import { mkdtemp, rm } from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
 
-import { chromium, type Browser, type Page } from "@playwright/test"
-import electronExecutable from "electron"
+import { _electron as electron, type ElectronApplication, type Page } from "@playwright/test"
 
 interface LaunchTestApplicationOptions {
   readonly createOpenPath?: (workspace: string) => Promise<string>
@@ -17,65 +14,32 @@ export interface RunningApplication {
   close(): Promise<void>
 }
 
-function waitForDevToolsEndpoint(applicationProcess: ChildProcess): Promise<string> {
-  return new Promise((resolve, reject) => {
-    let stderr = ""
-    const timeout = setTimeout(
-      () => reject(new Error(`Electron did not expose DevTools.\n${stderr}`)),
-      10_000,
-    )
-
-    applicationProcess.stderr?.on("data", (chunk: Buffer) => {
-      stderr += chunk.toString()
-      const endpoint = stderr.match(/DevTools listening on (ws:\/\/[^\s]+)/)?.[1]
-      if (endpoint) {
-        clearTimeout(timeout)
-        resolve(endpoint)
-      }
-    })
-    applicationProcess.once("exit", (code, signal) => {
-      clearTimeout(timeout)
-      reject(new Error(`Electron exited before startup (${code ?? signal}).\n${stderr}`))
-    })
-  })
-}
-
-async function closeApplication(applicationProcess: ChildProcess, browser: Browser): Promise<void> {
-  await browser.close().catch(() => undefined)
-  if (applicationProcess.exitCode === null && applicationProcess.signalCode === null) {
-    applicationProcess.kill("SIGTERM")
-    await Promise.race([
-      once(applicationProcess, "exit"),
-      new Promise((resolve) => setTimeout(resolve, 3_000)),
-    ])
-  }
-}
-
-async function launchApplication(env: NodeJS.ProcessEnv): Promise<RunningApplication> {
-  if (typeof electronExecutable !== "string") {
-    throw new TypeError("Electron did not provide an executable path.")
-  }
-
-  const applicationProcess = spawn(
-    electronExecutable,
-    ["--remote-debugging-port=0", path.resolve(".vite/build/main.js")],
-    {
-      env,
-      stdio: ["ignore", "pipe", "pipe"],
+async function mockOpenDialog(
+  application: ElectronApplication,
+  selectedPath: string,
+): Promise<void> {
+  await application.evaluate(
+    ({ dialog }, filePaths) => {
+      dialog.showOpenDialog = () => Promise.resolve({ canceled: false, filePaths })
     },
+    [selectedPath],
   )
-  const endpoint = await waitForDevToolsEndpoint(applicationProcess)
-  const browser = await chromium.connectOverCDP(endpoint)
-  const context = browser.contexts()[0]
-  if (!context) {
-    await closeApplication(applicationProcess, browser)
-    throw new Error("Electron did not create a browser context.")
-  }
+}
 
-  const page = context.pages()[0] ?? (await context.waitForEvent("page"))
-  return {
-    page,
-    close: () => closeApplication(applicationProcess, browser),
+async function launchApplication(
+  profilePath: string,
+  selectedPath: string | undefined,
+): Promise<{ application: ElectronApplication; page: Page }> {
+  const application = await electron.launch({
+    args: [path.resolve(".vite/build/main.js"), `--user-data-dir=${profilePath}`],
+  })
+
+  try {
+    if (selectedPath) await mockOpenDialog(application, selectedPath)
+    return { application, page: await application.firstWindow() }
+  } catch (error) {
+    await application.close().catch(() => undefined)
+    throw error
   }
 }
 
@@ -87,14 +51,11 @@ export async function launchTestApplication({
 
   try {
     const selectedPath = await createOpenPath?.(workspace)
-    const application = await launchApplication({
-      ...process.env,
-      PDFANTOM_TEST_OPEN_PATH: selectedPath,
-      PDFANTOM_USER_DATA_PATH: path.join(workspace, "profile"),
-    })
+    const profilePath = path.join(workspace, "profile")
+    const { application, page } = await launchApplication(profilePath, selectedPath)
 
     return {
-      page: application.page,
+      page,
       close: async () => {
         try {
           await application.close()
