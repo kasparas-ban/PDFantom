@@ -9,29 +9,6 @@ type LaunchTestApplicationOptions = {
   readonly workspacePrefix: string
 }
 
-async function mockOpenDialog(application: ElectronApplication, selectedPath: string) {
-  await application.evaluate(
-    ({ dialog }, filePaths) => {
-      dialog.showOpenDialog = () => Promise.resolve({ canceled: false, filePaths })
-    },
-    [selectedPath],
-  )
-}
-
-async function launchApplication(profilePath: string, selectedPath: string | undefined) {
-  const application = await electron.launch({
-    args: [path.resolve(".vite/build/main.js"), `--user-data-dir=${profilePath}`],
-  })
-
-  try {
-    if (selectedPath) await mockOpenDialog(application, selectedPath)
-    return { application, page: await application.firstWindow() }
-  } catch (error) {
-    await application.close().catch(() => undefined)
-    throw error
-  }
-}
-
 export async function launchTestApplication({
   createOpenPath,
   workspacePrefix,
@@ -57,4 +34,27 @@ export async function launchTestApplication({
     await rm(workspace, { recursive: true, force: true })
     throw error
   }
+}
+
+async function launchApplication(profilePath: string, selectedPath: string | undefined) {
+  const application = await electron.launch({
+    args: [path.resolve(".vite/build/main.js"), `--user-data-dir=${profilePath}`],
+  })
+
+  try {
+    if (selectedPath) await mockOpenDialog(application, selectedPath)
+    return { application, page: await application.firstWindow() }
+  } catch (error) {
+    await application.close().catch(() => undefined)
+    throw error
+  }
+}
+
+async function mockOpenDialog(application: ElectronApplication, selectedPath: string) {
+  await application.evaluate(
+    ({ dialog }, filePaths) => {
+      dialog.showOpenDialog = () => Promise.resolve({ canceled: false, filePaths })
+    },
+    [selectedPath],
+  )
 }

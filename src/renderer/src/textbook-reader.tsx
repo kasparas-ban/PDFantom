@@ -58,6 +58,7 @@ function PdfPage({ document, onTextAnalyzed, pageNumber, scale }: PdfPageProps) 
       transform: outputScale === 1 ? undefined : [outputScale, 0, 0, outputScale, 0, 0],
       viewport,
     })
+
     let textLayer: TextLayer | undefined
     let active = true
 
