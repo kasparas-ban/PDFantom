@@ -23,6 +23,66 @@ type PdfPageProps = {
   readonly scale: number
 }
 
+export function TextbookReader({ textbook }: TextbookReaderProps) {
+  const zoom = useAppConfig((state) => state.zoom)
+
+  const [document, setDocument] = useState<PDFDocumentProxy | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    setDocument(null)
+    setError(null)
+
+    const loadingTask = getDocument({
+      data: textbook.bytes.slice(0),
+      useWorkerFetch: false,
+    })
+    let active = true
+
+    void loadingTask.promise
+      .then((loadedDocument) => {
+        if (active) setDocument(loadedDocument)
+      })
+      .catch(() => {
+        if (active) setError("This PDF could not be opened.")
+      })
+
+    return () => {
+      active = false
+      void loadingTask.destroy()
+    }
+  }, [textbook])
+
+  if (error) {
+    return (
+      <p className="mx-auto my-8 max-w-152 text-center text-destructive" role="alert">
+        {error}
+      </p>
+    )
+  }
+
+  if (!document) {
+    return (
+      <p className="mx-auto my-8 max-w-152 text-center text-muted-foreground">
+        Opening {textbook.name}…
+      </p>
+    )
+  }
+
+  return (
+    <section
+      className="flex h-full w-full overflow-auto bg-[#e7e7e5] p-7 dark:bg-[#171716]"
+      aria-label="PDF reader"
+    >
+      <div className="pdfViewer mx-auto w-max">
+        {Array.from({ length: document.numPages }, (_, index) => (
+          <PdfPage document={document} key={index + 1} pageNumber={index + 1} scale={zoom} />
+        ))}
+      </div>
+    </section>
+  )
+}
+
 function PdfPage({ document, pageNumber, scale }: PdfPageProps) {
   const [page, setPage] = useState<PDFPageProxy | null>(null)
   const [canvas, setCanvas] = useState<HTMLCanvasElement | null>(null)
@@ -99,68 +159,5 @@ function PdfPage({ document, pageNumber, scale }: PdfPageProps) {
         {pageNumber}
       </span>
     </article>
-  )
-}
-
-export function TextbookReader({ textbook }: TextbookReaderProps) {
-  const [document, setDocument] = useState<PDFDocumentProxy | null>(null)
-  const [error, setError] = useState<string | null>(null)
-
-  const zoom = useAppConfig((state) => state.zoom)
-
-  useEffect(() => {
-    setDocument(null)
-    setError(null)
-
-    const loadingTask = getDocument({
-      data: textbook.bytes.slice(0),
-      useWorkerFetch: false,
-    })
-    let active = true
-
-    void loadingTask.promise
-      .then((loadedDocument) => {
-        if (active) setDocument(loadedDocument)
-      })
-      .catch(() => {
-        if (active) setError("This PDF could not be opened.")
-      })
-
-    return () => {
-      active = false
-      void loadingTask.destroy()
-    }
-  }, [textbook])
-
-  if (error) {
-    return (
-      <p className="mx-auto my-8 max-w-152 text-center text-destructive" role="alert">
-        {error}
-      </p>
-    )
-  }
-
-  if (!document) {
-    return (
-      <p className="mx-auto my-8 max-w-152 text-center text-muted-foreground">
-        Opening {textbook.name}…
-      </p>
-    )
-  }
-
-  return (
-    <section
-      className="flex h-full w-full overflow-auto bg-[#e7e7e5] p-7 dark:bg-[#171716]"
-      aria-label="PDF reader"
-    >
-      <div className="mb-3 text-center text-[0.7rem] text-muted-foreground">
-        {document.numPages === 1 ? "1 page" : `${document.numPages} pages`}
-      </div>
-      <div className="pdfViewer mx-auto w-max">
-        {Array.from({ length: document.numPages }, (_, index) => (
-          <PdfPage document={document} key={index + 1} pageNumber={index + 1} scale={zoom} />
-        ))}
-      </div>
-    </section>
   )
 }
