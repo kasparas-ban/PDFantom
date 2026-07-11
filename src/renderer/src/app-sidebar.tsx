@@ -29,25 +29,25 @@ export function AppSidebar({ onClose, onOpenTextbook, textbook }: AppSidebarProp
 
       <div className="flex min-h-0 flex-1 flex-col px-2.5 pb-2">
         <div className="mb-3 flex items-center gap-2 px-2">
-          <img alt="" className="size-6 rounded-md" src={pdfantomLogo} />
-          <h1 className="text-[0.95rem] font-semibold tracking-[-0.01em]">PDFantom</h1>
+          <img alt="" className="size-8 rounded-md" src={pdfantomLogo} />
+          <h1 className="font-semibold">PDFantom</h1>
         </div>
 
-        <nav aria-label="Primary" className="space-y-0.5">
+        <nav aria-label="Primary" className="space-y-0.5 font-semibold text-gray-600">
           <Button
-            className="w-full justify-start gap-2 px-2 font-normal"
+            className="w-full justify-start gap-2 px-2 hover:bg-sidebar-accent"
             onClick={onOpenTextbook}
             type="button"
             variant="ghost"
           >
             <FilePlus2 />
-            Open textbook
+            Open PDF
           </Button>
         </nav>
 
         <div className="mt-6 min-h-0 flex-1">
           <div className="mb-1.5 flex items-center justify-between px-2">
-            <p className="text-xs font-medium text-muted-foreground">Textbook</p>
+            <p className="text-md font-semibold text-gray-400">Documents</p>
           </div>
           {textbook ? (
             <div

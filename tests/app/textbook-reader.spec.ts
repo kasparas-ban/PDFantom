@@ -6,6 +6,26 @@ import { launchTestApplication } from "./launch-application"
 
 const textbookFixture = path.resolve("tests/fixtures/pdfs/textbook-mock.pdf")
 
+test("toggles the sidebar", async () => {
+  const application = await launchTestApplication({ workspacePrefix: "pdfantom-sidebar" })
+
+  try {
+    const { page } = application
+    const sidebar = page.getByRole("complementary")
+    await expect(sidebar).toBeVisible()
+
+    await page.getByRole("button", { name: "Hide sidebar" }).click()
+
+    await expect(sidebar).toBeHidden()
+
+    await page.getByRole("button", { name: "Show sidebar" }).click()
+
+    await expect(sidebar).toBeVisible()
+  } finally {
+    await application.close()
+  }
+})
+
 test("opens, reads, and selects text without a Model Provider", async () => {
   const application = await launchTestApplication({
     openPath: textbookFixture,

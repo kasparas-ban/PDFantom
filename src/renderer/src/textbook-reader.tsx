@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react"
-import { Minus, PanelLeftClose, Plus } from "lucide-react"
+import { Minus, Plus } from "lucide-react"
 import {
   getDocument,
   GlobalWorkerOptions,
@@ -11,6 +11,7 @@ import workerSource from "pdfjs-dist/build/pdf.worker.min.mjs?url"
 
 import { Button } from "@/components/ui/button"
 import type { OpenedTextbook } from "../../shared/textbook-api"
+import { CollapsedSidebarToggle } from "./collapsed-sidebar-toggle"
 
 GlobalWorkerOptions.workerSrc = workerSource
 
@@ -178,16 +179,7 @@ export function TextbookReader({ onShowSidebar, sidebarOpen, textbook }: Textboo
       <header className="window-drag-region grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-4 border-b border-border/70 bg-background px-3">
         <div className="window-no-drag flex min-w-0 items-center gap-2 pl-1">
           {!sidebarOpen && (
-            <Button
-              aria-label="Show sidebar"
-              className="text-muted-foreground"
-              onClick={onShowSidebar}
-              size="icon-sm"
-              type="button"
-              variant="ghost"
-            >
-              <PanelLeftClose className="rotate-180" />
-            </Button>
+            <CollapsedSidebarToggle onShowSidebar={onShowSidebar} />
           )}
           <h2 className="truncate text-[0.82rem] font-medium">{textbook.name}</h2>
         </div>
