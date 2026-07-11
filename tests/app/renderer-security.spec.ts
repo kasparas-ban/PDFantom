@@ -48,7 +48,7 @@ test("the renderer uses hardened BrowserWindow preferences", async ({ applicatio
 
 test("the renderer exposes only the allowlisted preload API", async ({ application }) => {
   const { page } = application
-  await expect(page.getByRole("button", { name: "Open textbook" })).toBeVisible()
+  await expect(page.getByRole("button", { name: "Choose a PDF" })).toBeVisible()
 
   const boundary = await page.evaluate(() => {
     const rendererWindow = window as Window & {
@@ -67,10 +67,56 @@ test("the renderer exposes only the allowlisted preload API", async ({ applicati
   })
 
   expect(boundary).toEqual({
-    apiProperties: ["openTextbook"],
+    apiProperties: ["getIsFullScreen", "onFullScreenChange", "openTextbook"],
     apiSymbols: [],
     exposedGlobals: [],
   })
+})
+
+test("the renderer receives full-screen state changes", async ({ application }) => {
+  const { electronApplication, page } = application
+
+  await expect(page.evaluate(() => window.pdfantom.getIsFullScreen())).resolves.toBe(false)
+
+  const enteredFullScreen = page.evaluate(
+    () =>
+      new Promise<boolean>((resolve) => {
+        const unsubscribe = window.pdfantom.onFullScreenChange((isFullScreen) => {
+          unsubscribe()
+          resolve(isFullScreen)
+        })
+      }),
+  )
+
+  await electronApplication.evaluate(({ BrowserWindow }) => {
+    const window = BrowserWindow.getAllWindows()[0]
+    if (!window) throw new Error("No application window is available")
+
+    window.setFullScreen(true)
+  })
+
+  await expect(enteredFullScreen).resolves.toBe(true)
+  await expect(page.evaluate(() => window.pdfantom.getIsFullScreen())).resolves.toBe(true)
+
+  const leftFullScreen = page.evaluate(
+    () =>
+      new Promise<boolean>((resolve) => {
+        const unsubscribe = window.pdfantom.onFullScreenChange((isFullScreen) => {
+          unsubscribe()
+          resolve(isFullScreen)
+        })
+      }),
+  )
+
+  await electronApplication.evaluate(({ BrowserWindow }) => {
+    const window = BrowserWindow.getAllWindows()[0]
+    if (!window) throw new Error("No application window is available")
+
+    window.setFullScreen(false)
+  })
+
+  await expect(leftFullScreen).resolves.toBe(false)
+  await expect(page.evaluate(() => window.pdfantom.getIsFullScreen())).resolves.toBe(false)
 })
 
 test("the renderer CSP blocks network connections before a request is sent", async ({

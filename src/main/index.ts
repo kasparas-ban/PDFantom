@@ -4,6 +4,7 @@ import { app, BrowserWindow } from "electron"
 
 import { rendererEntryUrl } from "./renderer-entry"
 import { registerTextbookBoundary } from "./textbook-boundary"
+import { registerWindowBoundary } from "./window-boundary"
 
 function createWindow(rendererUrl: string) {
   const window = new BrowserWindow({
@@ -43,6 +44,7 @@ void app.whenReady().then(() => {
   const window = createWindow(rendererUrl)
 
   registerTextbookBoundary(window, rendererUrl)
+  registerWindowBoundary(window, rendererUrl)
   window.webContents.session.setPermissionRequestHandler((_webContents, _permission, callback) =>
     callback(false),
   )

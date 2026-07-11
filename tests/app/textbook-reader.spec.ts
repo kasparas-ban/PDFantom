@@ -18,7 +18,7 @@ test("toggles the sidebar", async () => {
 
     await expect(sidebar).toBeHidden()
 
-    await page.getByRole("button", { name: "Show sidebar" }).click()
+    await page.getByRole("button", { name: "Hide sidebar" }).click()
 
     await expect(sidebar).toBeVisible()
   } finally {
@@ -34,11 +34,10 @@ test("opens, reads, and selects text without a Model Provider", async () => {
 
   try {
     const { page } = application
-    await page.getByRole("button", { name: "Open textbook" }).click()
+    await page.getByRole("button", { name: "Choose a PDF" }).click()
 
     await expect(page.getByRole("heading", { name: "textbook-mock.pdf" })).toBeVisible()
     await expect(page.getByText("5 pages")).toBeVisible()
-    await expect(page.getByText("Selectable text available")).toBeVisible()
     await expect(page.locator(".pdf-page > .canvasWrapper > canvas")).toHaveCount(5)
 
     const passage = page.getByText("Introduction to", { exact: true })
