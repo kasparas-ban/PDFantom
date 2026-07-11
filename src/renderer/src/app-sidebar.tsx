@@ -1,0 +1,69 @@
+import { BookOpen, FilePlus2, PanelLeftClose } from "lucide-react"
+
+import { Button } from "@/components/ui/button"
+import pdfantomLogo from "../../../assets/pdfantom-logo.svg?no-inline"
+import type { OpenedTextbook } from "../../shared/textbook-api"
+
+type AppSidebarProps = {
+  readonly onClose: () => void
+  readonly onOpenTextbook: () => void
+  readonly textbook: OpenedTextbook | null
+}
+
+export function AppSidebar({ onClose, onOpenTextbook, textbook }: AppSidebarProps) {
+  return (
+    <aside className="flex w-64 shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground shadow-[inset_-1px_0_rgb(255_255_255/28%)]">
+      <div className="window-drag-region flex h-12 shrink-0 items-center justify-end px-3">
+        <Button
+          aria-label="Hide sidebar"
+          className="window-no-drag text-muted-foreground"
+          onClick={onClose}
+          size="icon-sm"
+          title="Hide sidebar"
+          type="button"
+          variant="ghost"
+        >
+          <PanelLeftClose />
+        </Button>
+      </div>
+
+      <div className="flex min-h-0 flex-1 flex-col px-2.5 pb-2">
+        <div className="mb-3 flex items-center gap-2 px-2">
+          <img alt="" className="size-6 rounded-md" src={pdfantomLogo} />
+          <h1 className="text-[0.95rem] font-semibold tracking-[-0.01em]">PDFantom</h1>
+        </div>
+
+        <nav aria-label="Primary" className="space-y-0.5">
+          <Button
+            className="w-full justify-start gap-2 px-2 font-normal"
+            onClick={onOpenTextbook}
+            type="button"
+            variant="ghost"
+          >
+            <FilePlus2 />
+            Open textbook
+          </Button>
+        </nav>
+
+        <div className="mt-6 min-h-0 flex-1">
+          <div className="mb-1.5 flex items-center justify-between px-2">
+            <p className="text-xs font-medium text-muted-foreground">Textbook</p>
+          </div>
+          {textbook ? (
+            <div
+              aria-current="page"
+              className="flex w-full items-center gap-2 rounded-lg bg-sidebar-accent px-2 py-1.5 text-left text-sm text-sidebar-accent-foreground"
+            >
+              <BookOpen className="size-4 shrink-0 text-muted-foreground" />
+              <span className="min-w-0 flex-1 truncate">{textbook.name}</span>
+            </div>
+          ) : (
+            <div className="px-2 py-2 text-xs leading-relaxed text-muted-foreground">
+              Open a PDF to begin reading.
+            </div>
+          )}
+        </div>
+      </div>
+    </aside>
+  )
+}

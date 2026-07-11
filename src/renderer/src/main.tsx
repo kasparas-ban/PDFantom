@@ -1,9 +1,11 @@
 import { StrictMode, useEffect, useState } from "react"
 import { createRoot } from "react-dom/client"
+import { FilePlus2, PanelLeftClose } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import pdfantomLogo from "../../../assets/pdfantom-logo.svg?no-inline"
 import type { OpenedTextbook } from "../../shared/textbook-api"
+import { AppSidebar } from "./app-sidebar"
 import { TextbookReader } from "./textbook-reader"
 
 import "pdfjs-dist/web/pdf_viewer.css"
@@ -12,6 +14,7 @@ import "./styles.css"
 function App() {
   const [textbook, setTextbook] = useState<OpenedTextbook | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [sidebarOpen, setSidebarOpen] = useState(true)
 
   // TODO: Implement this in a nicer way
   useEffect(() => {
@@ -36,44 +39,67 @@ function App() {
   }
 
   return (
-    <main className="min-h-screen bg-background text-foreground">
-      <header className="flex items-center justify-between border-b bg-background/90 px-6 py-4 backdrop-blur">
-        <div className="flex items-center gap-3">
-          <img alt="" className="size-10 rounded-[10px]" src={pdfantomLogo} />
-          <div>
-            <p className="m-0 text-[0.72rem] font-bold tracking-[0.13em] text-muted-foreground uppercase">
-              PDFantom
-            </p>
-            <h1 className="m-0 text-[1.05rem] font-semibold">Textbook reader</h1>
+    <main className="flex h-screen overflow-hidden bg-background text-foreground">
+      {sidebarOpen && (
+        <AppSidebar
+          onClose={() => setSidebarOpen(false)}
+          onOpenTextbook={openTextbook}
+          textbook={textbook}
+        />
+      )}
+
+      <section className="min-w-0 flex-1">
+        {error && (
+          <div className="absolute top-4 left-1/2 z-20 -translate-x-1/2 rounded-lg border bg-background px-4 py-2 text-sm text-destructive shadow-sm" role="alert">
+            {error}
           </div>
-        </div>
-        <Button className="rounded-full px-4" type="button" onClick={openTextbook}>
-          Open textbook
-        </Button>
-      </header>
+        )}
 
-      {error && (
-        <p className="mx-auto my-8 max-w-152 text-center text-destructive" role="alert">
-          {error}
-        </p>
-      )}
-
-      {textbook ? (
-        <TextbookReader textbook={textbook} />
-      ) : (
-        <section className="mx-auto mt-[14vh] max-w-lg text-center">
-          <img
-            alt=""
-            aria-hidden="true"
-            className="mx-auto mb-6 size-28 rounded-[28px]"
-            src={pdfantomLogo}
+        {textbook ? (
+          <TextbookReader
+            onShowSidebar={() => setSidebarOpen(true)}
+            sidebarOpen={sidebarOpen}
+            textbook={textbook}
           />
-          <h2 className="text-2xl font-semibold tracking-tight">Open a textbook to begin</h2>
-          <p className="mt-2 text-muted-foreground">
-            Reading local PDFs does not require a model provider.
-          </p>
-        </section>
-      )}
+        ) : (
+          <div className="grid h-full grid-rows-[3rem_minmax(0,1fr)]">
+            <header className="window-drag-region flex items-center border-b border-border/70 px-3">
+              {!sidebarOpen && (
+                <Button
+                  aria-label="Show sidebar"
+                  className="window-no-drag text-muted-foreground"
+                  onClick={() => setSidebarOpen(true)}
+                  size="icon-sm"
+                  type="button"
+                  variant="ghost"
+                >
+                  <PanelLeftClose className="rotate-180" />
+                </Button>
+              )}
+            </header>
+            <section className="flex items-center justify-center px-8 pb-[8vh] text-center">
+              <div className="max-w-md">
+                <img
+                  alt=""
+                  aria-hidden="true"
+                  className="mx-auto mb-6 size-14 rounded-2xl opacity-65 grayscale"
+                  src={pdfantomLogo}
+                />
+                <h2 className="text-[1.75rem] font-medium tracking-[-0.035em]">
+                  Open a textbook in PDFantom
+                </h2>
+                <p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-muted-foreground">
+                  Read and select text from local PDFs. Your textbooks stay on this Mac.
+                </p>
+                <Button className="mt-6 rounded-xl px-4" onClick={openTextbook} type="button">
+                  <FilePlus2 />
+                  Choose a PDF
+                </Button>
+              </div>
+            </section>
+          </div>
+        )}
+      </section>
     </main>
   )
 }

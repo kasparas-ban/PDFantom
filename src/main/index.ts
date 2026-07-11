@@ -7,11 +7,14 @@ import { registerTextbookBoundary } from "./textbook-boundary"
 
 function createWindow(rendererUrl: string) {
   const window = new BrowserWindow({
+    backgroundColor: "#f6f5f3",
     width: 1280,
     height: 820,
     minWidth: 760,
     minHeight: 560,
     title: "PDFantom",
+    titleBarStyle: "hiddenInset",
+    trafficLightPosition: { x: 16, y: 16 },
     webPreferences: {
       allowRunningInsecureContent: false,
       contextIsolation: true,

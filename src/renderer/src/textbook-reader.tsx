@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react"
-import { Minus, Plus } from "lucide-react"
+import { Minus, PanelLeftClose, Plus } from "lucide-react"
 import {
   getDocument,
   GlobalWorkerOptions,
@@ -15,6 +15,8 @@ import type { OpenedTextbook } from "../../shared/textbook-api"
 GlobalWorkerOptions.workerSrc = workerSource
 
 type TextbookReaderProps = {
+  readonly onShowSidebar: () => void
+  readonly sidebarOpen: boolean
   readonly textbook: OpenedTextbook
 }
 
@@ -95,7 +97,7 @@ function PdfPage({ document, onTextAnalyzed, pageNumber, scale }: PdfPageProps) 
   return (
     <article
       aria-label={`Page ${pageNumber}`}
-      className="page pdf-page relative mx-auto mb-6 overflow-hidden rounded-[2px] border-0 shadow-[0_7px_24px_rgba(35,45,39,0.18)]"
+      className="page pdf-page relative mx-auto mb-7 overflow-hidden rounded-[3px] border-0 shadow-[0_2px_4px_rgba(24,24,23,0.08),0_12px_32px_rgba(24,24,23,0.13)]"
       style={viewport ? { height: viewport.height, width: viewport.width } : undefined}
     >
       <div className="canvasWrapper">
@@ -103,7 +105,7 @@ function PdfPage({ document, onTextAnalyzed, pageNumber, scale }: PdfPageProps) 
       </div>
       <div className="textLayer" ref={setTextContainer} />
       <span
-        className="pointer-events-none absolute right-2.5 bottom-2.5 z-2 rounded-full bg-neutral-950/80 px-2 py-1 text-[0.68rem] leading-none text-white"
+        className="pointer-events-none absolute right-2.5 bottom-2.5 z-2 rounded-md bg-neutral-950/72 px-1.5 py-1 text-[0.65rem] leading-none text-white"
         aria-hidden="true"
       >
         {pageNumber}
@@ -112,7 +114,7 @@ function PdfPage({ document, onTextAnalyzed, pageNumber, scale }: PdfPageProps) 
   )
 }
 
-export function TextbookReader({ textbook }: TextbookReaderProps) {
+export function TextbookReader({ onShowSidebar, sidebarOpen, textbook }: TextbookReaderProps) {
   const [document, setDocument] = useState<PDFDocumentProxy | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [scale, setScale] = useState(1.15)
@@ -170,50 +172,69 @@ export function TextbookReader({ textbook }: TextbookReaderProps) {
 
   return (
     <section
-      className="grid h-[calc(100vh-77px)] grid-rows-[auto_minmax(0,1fr)]"
+      className="grid h-full grid-rows-[3rem_minmax(0,1fr)]"
       aria-label="Textbook reader"
     >
-      <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-4 border-b bg-muted/50 px-6 py-2.5">
-        <div className="min-w-0">
-          <h2 className="truncate text-[0.95rem] font-semibold">{textbook.name}</h2>
-          <p className="text-[0.78rem] text-muted-foreground">
-            {document.numPages === 1 ? "1 page" : `${document.numPages} pages`}
-          </p>
+      <header className="window-drag-region grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-4 border-b border-border/70 bg-background px-3">
+        <div className="window-no-drag flex min-w-0 items-center gap-2 pl-1">
+          {!sidebarOpen && (
+            <Button
+              aria-label="Show sidebar"
+              className="text-muted-foreground"
+              onClick={onShowSidebar}
+              size="icon-sm"
+              type="button"
+              variant="ghost"
+            >
+              <PanelLeftClose className="rotate-180" />
+            </Button>
+          )}
+          <h2 className="truncate text-[0.82rem] font-medium">{textbook.name}</h2>
         </div>
-        <p className="m-0 text-center text-[0.78rem] text-muted-foreground" aria-live="polite">
-          {!analyzedAllPages
-            ? "Checking for selectable text…"
-            : hasSelectableText
-              ? "Selectable text available"
-              : "No selectable text — scanned pages remain viewable"}
-        </p>
-        <div className="flex items-center gap-2 justify-self-end" aria-label="Zoom controls">
+        <div
+          className="window-no-drag flex items-center rounded-lg border border-border/80 bg-muted/50 p-0.5 shadow-xs"
+          aria-label="Zoom controls"
+        >
           <Button
             aria-label="Zoom out"
+            className="size-6 rounded-md"
             disabled={scale <= 0.7}
             onClick={() => setScale((current) => Math.max(0.7, current - 0.15))}
-            size="icon"
+            size="icon-xs"
             type="button"
-            variant="secondary"
+            variant="ghost"
           >
             <Minus />
           </Button>
-          <output className="min-w-12 text-center text-[0.78rem]" aria-label="Zoom level">
+          <output className="min-w-11 text-center text-[0.72rem] tabular-nums" aria-label="Zoom level">
             {Math.round(scale * 100)}%
           </output>
           <Button
             aria-label="Zoom in"
+            className="size-6 rounded-md"
             disabled={scale >= 1.9}
             onClick={() => setScale((current) => Math.min(1.9, current + 0.15))}
-            size="icon"
+            size="icon-xs"
             type="button"
-            variant="secondary"
+            variant="ghost"
           >
             <Plus />
           </Button>
         </div>
-      </div>
-      <div className="overflow-auto bg-neutral-300 p-6 dark:bg-neutral-950">
+        <div className="window-no-drag flex items-center justify-self-end">
+          <p className="hidden text-[0.72rem] text-muted-foreground min-[980px]:block" aria-live="polite">
+            {!analyzedAllPages
+              ? "Checking text…"
+              : hasSelectableText
+                ? "Selectable text available"
+                : "Scanned document"}
+          </p>
+        </div>
+      </header>
+      <div className="overflow-auto bg-[#e7e7e5] p-7 dark:bg-[#171716]">
+        <div className="mb-3 text-center text-[0.7rem] text-muted-foreground">
+          {document.numPages === 1 ? "1 page" : `${document.numPages} pages`}
+        </div>
         <div className="pdfViewer mx-auto w-max">
           {Array.from({ length: document.numPages }, (_, index) => (
             <PdfPage
