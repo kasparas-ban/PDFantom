@@ -7,7 +7,7 @@ import pdfantomLogo from "../../../assets/pdfantom-logo.svg?no-inline"
 import { PDFControls } from "./pdf-controls"
 import { AppSidebar } from "./sidebar/app-sidebar"
 import { AppConfigProvider, useAppConfig } from "./store/app-config-provider"
-import { TextbookReader } from "./textbook-reader"
+import { DocumentReader } from "./document-reader"
 import { TopControl } from "./top-control"
 
 import "pdfjs-dist/web/pdf_viewer.css"
@@ -31,13 +31,13 @@ function App() {
     return () => colorScheme.removeEventListener("change", syncColorScheme)
   }, [])
 
-  const openTextbook = async () => {
+  const openDocument = async () => {
     setError(null)
     try {
-      const openedTextbook = await window.pdfantom.openTextbook()
-      if (openedTextbook) setActivePDF(openedTextbook)
+      const openedDocument = await window.pdfantom.openDocument()
+      if (openedDocument) setActivePDF(openedDocument)
     } catch {
-      setError("The textbook could not be opened.")
+      setError("The document could not be opened.")
     }
   }
 
@@ -45,7 +45,7 @@ function App() {
     <main className="flex h-screen bg-background text-foreground">
       {isSidePanelOpen && (
         <div className="h-full w-64 shrink-0">
-          <AppSidebar onOpenTextbook={openTextbook} />
+          <AppSidebar onOpenDocument={openDocument} />
         </div>
       )}
 
@@ -55,7 +55,7 @@ function App() {
         </div>
 
         <div className="flex h-full w-full">
-          <PDFCanvas error={error} openTextbook={openTextbook} />
+          <PDFCanvas error={error} openDocument={openDocument} />
         </div>
       </section>
 
@@ -64,7 +64,7 @@ function App() {
   )
 }
 
-function PDFCanvas({ error, openTextbook }: { error: string | null; openTextbook: () => void }) {
+function PDFCanvas({ error, openDocument }: { error: string | null; openDocument: () => void }) {
   const activePDF = useAppConfig((state) => state.activePDF)
 
   return (
@@ -79,7 +79,7 @@ function PDFCanvas({ error, openTextbook }: { error: string | null; openTextbook
       )}
 
       {activePDF ? (
-        <TextbookReader textbook={activePDF} />
+        <DocumentReader document={activePDF} />
       ) : (
         <div className="flex h-full w-full items-center justify-center">
           <section className="flex items-center justify-center px-8 pb-[8vh] text-center">
@@ -96,7 +96,7 @@ function PDFCanvas({ error, openTextbook }: { error: string | null; openTextbook
               <p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-muted-foreground">
                 Read and select text from local PDFs. Your PDFs stay on this Mac.
               </p>
-              <Button className="mt-6 rounded-xl px-4" onClick={openTextbook} type="button">
+              <Button className="mt-6 rounded-xl px-4" onClick={openDocument} type="button">
                 <FilePlus2 />
                 Choose a PDF
               </Button>

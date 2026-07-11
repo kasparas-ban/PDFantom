@@ -3,15 +3,15 @@ import path from "node:path"
 
 import { dialog, ipcMain, type BrowserWindow } from "electron"
 
-import { OPEN_TEXTBOOK_CHANNEL } from "../shared/textbook-api"
+import { OPEN_DOCUMENT_CHANNEL } from "../shared/document-api"
 import { isTrustedRenderer } from "./trusted-renderer"
 
 const PDF_HEADER = "%PDF-"
 
-export function registerTextbookBoundary(window: BrowserWindow, rendererUrl: string) {
-  ipcMain.handle(OPEN_TEXTBOOK_CHANNEL, async (event) => {
+export function registerDocumentBoundary(window: BrowserWindow, rendererUrl: string) {
+  ipcMain.handle(OPEN_DOCUMENT_CHANNEL, async (event) => {
     if (!isTrustedRenderer(event, window, rendererUrl)) {
-      throw new Error("Textbook access was denied for an untrusted sender.")
+      throw new Error("Document access was denied for an untrusted sender.")
     }
 
     const selectedPath = await choosePdf(window)
@@ -23,7 +23,7 @@ async function choosePdf(window: BrowserWindow) {
   const result = await dialog.showOpenDialog(window, {
     filters: [{ name: "PDF documents", extensions: ["pdf"] }],
     properties: ["openFile"],
-    title: "Open a textbook",
+    title: "Open a document",
   })
 
   return result.canceled ? null : (result.filePaths[0] ?? null)

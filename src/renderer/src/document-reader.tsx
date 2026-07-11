@@ -8,13 +8,13 @@ import {
 } from "pdfjs-dist"
 import workerSource from "pdfjs-dist/build/pdf.worker.min.mjs?url"
 
-import type { OpenedTextbook } from "../../shared/textbook-api"
+import type { OpenedDocument } from "../../shared/document-api"
 import { useAppConfig } from "./store/app-config-provider"
 
 GlobalWorkerOptions.workerSrc = workerSource
 
-type TextbookReaderProps = {
-  readonly textbook: OpenedTextbook
+type DocumentReaderProps = {
+  readonly document: OpenedDocument
 }
 
 type PdfPageProps = {
@@ -23,7 +23,7 @@ type PdfPageProps = {
   readonly scale: number
 }
 
-export function TextbookReader({ textbook }: TextbookReaderProps) {
+export function DocumentReader({ document: openedDocument }: DocumentReaderProps) {
   const zoom = useAppConfig((state) => state.zoom)
 
   const [document, setDocument] = useState<PDFDocumentProxy | null>(null)
@@ -34,7 +34,7 @@ export function TextbookReader({ textbook }: TextbookReaderProps) {
     setError(null)
 
     const loadingTask = getDocument({
-      data: textbook.bytes.slice(0),
+      data: openedDocument.bytes.slice(0),
       useWorkerFetch: false,
     })
     let active = true
@@ -51,7 +51,7 @@ export function TextbookReader({ textbook }: TextbookReaderProps) {
       active = false
       void loadingTask.destroy()
     }
-  }, [textbook])
+  }, [openedDocument])
 
   if (error) {
     return (
@@ -64,7 +64,7 @@ export function TextbookReader({ textbook }: TextbookReaderProps) {
   if (!document) {
     return (
       <p className="mx-auto my-8 max-w-152 text-center text-muted-foreground">
-        Opening {textbook.name}…
+        Opening {openedDocument.name}…
       </p>
     )
   }

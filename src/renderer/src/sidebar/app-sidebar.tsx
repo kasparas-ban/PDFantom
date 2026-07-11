@@ -5,10 +5,10 @@ import { useAppConfig } from "@/store/app-config-provider"
 import pdfantomLogo from "../../../../assets/pdfantom-logo.svg?no-inline"
 
 type AppSidebarProps = {
-  readonly onOpenTextbook: () => void
+  readonly onOpenDocument: () => void
 }
 
-export function AppSidebar({ onOpenTextbook }: AppSidebarProps) {
+export function AppSidebar({ onOpenDocument }: AppSidebarProps) {
   const activePDF = useAppConfig((state) => state.activePDF)
 
   return (
@@ -24,7 +24,7 @@ export function AppSidebar({ onOpenTextbook }: AppSidebarProps) {
         <nav aria-label="Primary" className="space-y-0.5 font-semibold text-gray-600">
           <Button
             className="w-full justify-start gap-2 px-2 hover:bg-sidebar-accent"
-            onClick={onOpenTextbook}
+            onClick={onOpenDocument}
             type="button"
             variant="ghost"
           >

@@ -3,7 +3,7 @@ import path from "node:path"
 import { app, BrowserWindow } from "electron"
 
 import { rendererEntryUrl } from "./renderer-entry"
-import { registerTextbookBoundary } from "./textbook-boundary"
+import { registerDocumentBoundary } from "./document-boundary"
 import { registerWindowBoundary } from "./window-boundary"
 
 function createWindow(rendererUrl: string) {
@@ -43,7 +43,7 @@ void app.whenReady().then(() => {
   const rendererUrl = rendererEntryUrl()
   const window = createWindow(rendererUrl)
 
-  registerTextbookBoundary(window, rendererUrl)
+  registerDocumentBoundary(window, rendererUrl)
   registerWindowBoundary(window, rendererUrl)
   window.webContents.session.setPermissionRequestHandler((_webContents, _permission, callback) =>
     callback(false),

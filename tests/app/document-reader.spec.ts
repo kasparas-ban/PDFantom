@@ -4,7 +4,7 @@ import { expect, test } from "@playwright/test"
 
 import { launchTestApplication } from "./launch-application"
 
-const textbookFixture = path.resolve("tests/fixtures/pdfs/textbook-mock.pdf")
+const documentFixture = path.resolve("tests/fixtures/pdfs/document-mock.pdf")
 
 test("toggles the sidebar", async () => {
   const application = await launchTestApplication({ workspacePrefix: "pdfantom-sidebar" })
@@ -28,7 +28,7 @@ test("toggles the sidebar", async () => {
 
 test("opens, reads, and selects text without a Model Provider", async () => {
   const application = await launchTestApplication({
-    openPath: textbookFixture,
+    openPath: documentFixture,
     workspacePrefix: "pdfantom-reader",
   })
 
@@ -36,7 +36,7 @@ test("opens, reads, and selects text without a Model Provider", async () => {
     const { page } = application
     await page.getByRole("button", { name: "Choose a PDF" }).click()
 
-    await expect(page.getByRole("heading", { name: "textbook-mock.pdf" })).toBeVisible()
+    await expect(page.getByRole("heading", { name: "document-mock.pdf" })).toBeVisible()
     await expect(page.getByText("5 pages")).toBeVisible()
     await expect(page.locator(".pdf-page > .canvasWrapper > canvas")).toHaveCount(5)
 

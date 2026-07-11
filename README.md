@@ -1,6 +1,6 @@
 # PDFantom
 
-A secure, local-first macOS textbook reader.
+A secure, local-first macOS document reader.
 
 ## Development
 

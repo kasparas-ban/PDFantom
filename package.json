@@ -2,7 +2,7 @@
   "name": "pdfantom",
   "version": "0.1.0",
   "private": true,
-  "description": "A secure, local-first macOS textbook reader",
+  "description": "A secure, local-first macOS document reader",
   "main": ".vite/build/main.js",
   "scripts": {
     "start": "electron-forge start",

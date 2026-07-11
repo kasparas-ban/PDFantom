@@ -1,7 +1,7 @@
 import { contextBridge, ipcRenderer } from "electron"
 
 import { RENDERER_API_GLOBAL, type RendererApi } from "../shared/renderer-api"
-import { OPEN_TEXTBOOK_CHANNEL } from "../shared/textbook-api"
+import { OPEN_DOCUMENT_CHANNEL } from "../shared/document-api"
 import {
   FULL_SCREEN_CHANGED_CHANNEL,
   GET_FULL_SCREEN_CHANNEL,
@@ -18,7 +18,7 @@ const rendererApi: RendererApi = {
 
     return () => ipcRenderer.removeListener(FULL_SCREEN_CHANGED_CHANNEL, handler)
   },
-  openTextbook: () => ipcRenderer.invoke(OPEN_TEXTBOOK_CHANNEL),
+  openDocument: () => ipcRenderer.invoke(OPEN_DOCUMENT_CHANNEL),
 }
 
 contextBridge.exposeInMainWorld(RENDERER_API_GLOBAL, rendererApi)

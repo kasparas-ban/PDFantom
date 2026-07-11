@@ -1,13 +1,13 @@
 import { createStore } from "zustand/vanilla"
 
-import { OpenedTextbook } from "../../../shared/textbook-api"
+import { OpenedDocument } from "../../../shared/document-api"
 
 export type AppConfigState = {
   isSidePanelOpen: boolean
   toggleSidePanel: () => void
 
-  activePDF: OpenedTextbook | null
-  setActivePDF: (activePDF: OpenedTextbook | null) => void
+  activePDF: OpenedDocument | null
+  setActivePDF: (activePDF: OpenedDocument | null) => void
 
   zoom: number
   setZoom: (zoomLevel: number) => void

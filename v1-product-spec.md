@@ -1,10 +1,10 @@
-# Guided Textbook Study — v1 Product and Architecture Spec
+# Guided Document Study — v1 Product and Architecture Spec
 
 ## Product statement
 
-A free, open-source macOS desktop app for students who read PDF textbooks and want to discuss selected material with a language model of their choice. The app combines a focused PDF reader with generic chat, sends requests directly to cloud model providers using student-owned API keys, and keeps study history on the device.
+A free, open-source macOS desktop app for students who read PDF documents and want to discuss selected material with a language model of their choice. The app combines a focused PDF reader with generic chat, sends requests directly to cloud model providers using student-owned API keys, and keeps study history on the device.
 
-The first version is successful when a student can open a selectable textbook, select one or more passages, see exactly what page context will be sent, ask a question, and receive a streamed, well-formatted response that remains available after restarting the app.
+The first version is successful when a student can open a selectable document, select one or more passages, see exactly what page context will be sent, ask a question, and receive a streamed, well-formatted response that remains available after restarting the app.
 
 ## Primary workflow
 
@@ -20,13 +20,13 @@ The first version is successful when a student can open a selectable textbook, s
 
 ## v1 scope
 
-### Textbook reader
+### Document reader
 
 - macOS only.
 - Open local PDFs without copying them into an app-managed library.
-- Identify a Textbook by a content fingerprint rather than path.
+- Identify a Document by a content fingerprint rather than path.
 - Reconnect moved or renamed identical files to their Study History.
-- Treat different content at an old path as a different Textbook.
+- Treat different content at an old path as a different Document.
 - Support PDFs with selectable text; render image-only scans but do not offer OCR or region selection.
 - Use PDF.js for rendering, selectable text, text extraction, navigation, and page-image generation.
 - Focused reader features: recents, page navigation, zoom, fit page/width, search, thumbnails or outline, and selection.
@@ -34,7 +34,7 @@ The first version is successful when a student can open a selectable textbook, s
 
 ### Conversation and context
 
-- One Textbook may have many Conversations; each Conversation belongs to exactly one Textbook.
+- One Document may have many Conversations; each Conversation belongs to exactly one Document.
 - Generic chat only. The app does not impose tutoring, Socratic, explanation, or solution modes.
 - Any Student Message may contain zero or more Context Attachments.
 - A Context Attachment contains a Selection plus the textual and visual content of every page touched by that Selection.
@@ -43,8 +43,8 @@ The first version is successful when a student can open a selectable textbook, s
 - Persist the exact page image supplied with a sent message.
 - Retain a page image while at least one message references it; remove the unreferenced asset when related Conversations are deleted.
 - On follow-ups, send the text transcript, prior quoted Selections, and page references. Send page images only for the current message unless an earlier attachment is explicitly reattached.
-- Whole-textbook indexing, embeddings, retrieval, and automatic “relevant context” search are deferred.
-- Textbook citations and a “grounded vs general knowledge” indicator are deferred.
+- Whole-document indexing, embeddings, retrieval, and automatic “relevant context” search are deferred.
+- Document citations and a “grounded vs general knowledge” indicator are deferred.
 
 ### Assistant behavior and rendering
 
@@ -73,7 +73,7 @@ The first version is successful when a student can open a selectable textbook, s
 
 - One resizable split window: PDF viewer on the left, collapsible chat on the right.
 - Persist divider position.
-- Do not cover selected textbook content when opening chat.
+- Do not cover selected document content when opening chat.
 - Use Base UI for accessible headless components.
 - Use Tailwind as the primary styling approach over semantic CSS variables.
 - Use plain CSS for PDF.js layers and precise interactions where appropriate.
@@ -106,14 +106,14 @@ flowchart LR
 
 ### Preload boundary
 
-- A narrow, typed API for file selection, textbook access, Study History operations, credential operations, and model-request lifecycle.
+- A narrow, typed API for file selection, document access, Study History operations, credential operations, and model-request lifecycle.
 - Validate all arguments and IPC senders.
 - Never expose raw `ipcRenderer` or generic filesystem/network functions.
 
 ### Main process
 
 - Application lifecycle and native file dialogs.
-- Textbook fingerprinting and source-file access.
+- Document fingerprinting and source-file access.
 - SQLite repositories and migrations.
 - Reference-counted content-addressed page-image store.
 - Keychain access.
@@ -125,8 +125,8 @@ flowchart LR
 
 | Record                 | Key relationships and retained data                                                                                     |
 | ---------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| Textbook               | Content fingerprint, current source reference, metadata, last reading position                                          |
-| Conversation           | Belongs to one Textbook; title, timestamps, copied Assistant Instructions                                               |
+| Document               | Content fingerprint, current source reference, metadata, last reading position                                          |
+| Conversation           | Belongs to one Document; title, timestamps, copied Assistant Instructions                                               |
 | Student Message        | Belongs to one Conversation; text, order, status, zero or more Context Attachments                                      |
 | Assistant Message      | Belongs to one Conversation; rendered source text, status, Provider and Model provenance, usage metadata when available |
 | Context Attachment     | Selection quote, page range, extracted Page Context, references to persisted page assets                                |
@@ -144,7 +144,7 @@ Store structured records in SQLite. Store page images as content-addressed files
 - Keep Provider Credentials only in Keychain and main-process memory for the minimum request lifetime.
 - Never include credentials in Study History, diagnostic logs, crash reports, exports, or renderer state.
 - Before sending, make every Context Attachment visible and removable.
-- State clearly that message text and attached textbook content go to the chosen Model Provider under that provider's terms.
+- State clearly that message text and attached document content go to the chosen Model Provider under that provider's terms.
 - No app-operated analytics or telemetry in v1.
 
 ## Technology choices
@@ -166,12 +166,12 @@ Store structured records in SQLite. Store page images as content-addressed files
 - Windows or Linux builds.
 - Accounts, collaboration, cloud sync, or a project backend.
 - OCR or scanned-document selection.
-- Whole-textbook RAG, embeddings, or multi-textbook Conversations.
+- Whole-document RAG, embeddings, or multi-document Conversations.
 - Persistent PDF annotations or document editing.
 - Built-in tutoring modes or pedagogical policy.
 - User-defined Skills.
 - Local models.
-- Verified textbook citations.
+- Verified document citations.
 - Supporting arbitrary untested provider model IDs.
 
 ## Acceptance criteria
@@ -180,7 +180,7 @@ Store structured records in SQLite. Store page images as content-addressed files
 2. Selecting text and choosing **Ask about this** produces a removable attachment without sending automatically.
 3. A cross-page Selection records the correct quote, page range, extracted page text, and page images.
 4. Multiple Context Attachments can be composed; oversized requests are blocked with an actionable Supported Model capability message.
-5. The send preview makes all textbook content destined for the provider visible.
+5. The send preview makes all document content destined for the provider visible.
 6. OpenAI, Anthropic, and Gemini each stream a response through the same Conversation UI using student-owned credentials.
 7. Stop cancels provider generation and retains an incomplete Assistant Message.
 8. Switching Models affects the next request and records the producing Model on its Assistant Message.
@@ -198,7 +198,7 @@ Store structured records in SQLite. Store page images as content-addressed files
 3. **Durable study history** — content fingerprints, SQLite schema, conversations, reading position, content-addressed page assets, deletion cleanup.
 4. **End-to-end model path** — Keychain, curated Model catalog, AI SDK Core, one provider through streaming/Stop/errors, sanitized rich rendering.
 5. **Provider breadth** — Anthropic and Gemini adapters, multimodal parity, capability warnings, model switching and provenance.
-6. **Release hardening** — security tests, large-textbook performance, migration tests, accessibility, reduced motion, packaging, signing, and notarization.
+6. **Release hardening** — security tests, large-document performance, migration tests, accessibility, reduced motion, packaging, signing, and notarization.
 
 Each slice should leave a runnable macOS app and include unit tests for domain rules, integration tests for persistence/provider mapping, and end-to-end coverage of its primary Student workflow.
 
