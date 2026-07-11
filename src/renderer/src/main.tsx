@@ -43,8 +43,6 @@ function App() {
 
   return (
     <main className="flex h-screen bg-background text-foreground">
-      <TopControl />
-
       {isSidePanelOpen && (
         <div className="h-full w-64 shrink-0">
           <AppSidebar onOpenTextbook={openTextbook} />
@@ -60,6 +58,8 @@ function App() {
           <PDFCanvas error={error} openTextbook={openTextbook} />
         </div>
       </section>
+
+      <TopControl />
     </main>
   )
 }
