@@ -5,6 +5,7 @@ import { createRoot } from "react-dom/client"
 import { Button } from "@/components/ui/button"
 import pdfantomLogo from "../../../assets/pdfantom-logo.svg?no-inline"
 import type { OpenedTextbook } from "../../shared/textbook-api"
+import { AppConfigProvider, useAppConfig } from "./app-config-provider"
 import { AppSidebar } from "./sidebar/app-sidebar"
 import { TextbookReader } from "./textbook-reader"
 import { TopControl } from "./top-control"
@@ -15,7 +16,9 @@ import "./styles.css"
 function App() {
   const [textbook, setTextbook] = useState<OpenedTextbook | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [sidebarOpen, setSidebarOpen] = useState(true)
+  const isSidePanelOpen = useAppConfig((state) => state.isSidePanelOpen)
+  const setSidePanelOpen = useAppConfig((state) => state.setSidePanelOpen)
+  const toggleSidePanel = useAppConfig((state) => state.toggleSidePanel)
 
   // TODO: Implement this in a nicer way
   useEffect(() => {
@@ -41,11 +44,11 @@ function App() {
 
   return (
     <main className="flex h-screen overflow-hidden bg-background text-foreground">
-      <TopControl onToggleSidebar={() => setSidebarOpen((prev) => !prev)} />
+      <TopControl onToggleSidebar={toggleSidePanel} />
 
-      {sidebarOpen && (
+      {isSidePanelOpen && (
         <AppSidebar
-          onClose={() => setSidebarOpen(false)}
+          onClose={() => setSidePanelOpen(false)}
           onOpenTextbook={openTextbook}
           textbook={textbook}
         />
@@ -108,6 +111,8 @@ function EmptyCanvasContents({
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <App />
+    <AppConfigProvider>
+      <App />
+    </AppConfigProvider>
   </StrictMode>,
 )
