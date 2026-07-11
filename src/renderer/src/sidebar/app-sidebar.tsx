@@ -1,8 +1,8 @@
-import { BookOpen, FilePlus2, PanelLeftClose } from "lucide-react"
+import { BookOpen, FilePlus2 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
-import pdfantomLogo from "../../../assets/pdfantom-logo.svg?no-inline"
-import type { OpenedTextbook } from "../../shared/textbook-api"
+import pdfantomLogo from "../../../../assets/pdfantom-logo.svg?no-inline"
+import type { OpenedTextbook } from "../../../shared/textbook-api"
 
 type AppSidebarProps = {
   readonly onClose: () => void
@@ -10,25 +10,11 @@ type AppSidebarProps = {
   readonly textbook: OpenedTextbook | null
 }
 
-export function AppSidebar({ onClose, onOpenTextbook, textbook }: AppSidebarProps) {
+export function AppSidebar({ onOpenTextbook, textbook }: AppSidebarProps) {
   return (
     <aside className="flex w-64 shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground shadow-[inset_-1px_0_rgb(255_255_255/28%)]">
-      <div className="window-drag-region flex h-12 shrink-0 items-center justify-end px-3">
-        <Button
-          aria-label="Hide sidebar"
-          className="window-no-drag text-muted-foreground"
-          onClick={onClose}
-          size="icon-sm"
-          title="Hide sidebar"
-          type="button"
-          variant="ghost"
-        >
-          <PanelLeftClose />
-        </Button>
-      </div>
-
-      <div className="flex min-h-0 flex-1 flex-col px-2.5 pb-2">
-        <div className="mb-3 flex items-center gap-2 px-2">
+      <div className="flex min-h-0 flex-1 flex-col px-2 pt-12 pb-2">
+        <div className="mb-3 flex items-center gap-2 px-1">
           <img alt="" className="size-8 rounded-md" src={pdfantomLogo} />
           <h1 className="font-semibold">PDFantom</h1>
         </div>

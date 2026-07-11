@@ -5,9 +5,9 @@ import { createRoot } from "react-dom/client"
 import { Button } from "@/components/ui/button"
 import pdfantomLogo from "../../../assets/pdfantom-logo.svg?no-inline"
 import type { OpenedTextbook } from "../../shared/textbook-api"
-import { AppSidebar } from "./app-sidebar"
-import { CollapsedSidebarToggle } from "./collapsed-sidebar-toggle"
+import { AppSidebar } from "./sidebar/app-sidebar"
 import { TextbookReader } from "./textbook-reader"
+import { TopControl } from "./top-control"
 
 import "pdfjs-dist/web/pdf_viewer.css"
 import "./styles.css"
@@ -41,6 +41,8 @@ function App() {
 
   return (
     <main className="flex h-screen overflow-hidden bg-background text-foreground">
+      <TopControl onToggleSidebar={() => setSidebarOpen((prev) => !prev)} />
+
       {sidebarOpen && (
         <AppSidebar
           onClose={() => setSidebarOpen(false)}
@@ -49,13 +51,7 @@ function App() {
         />
       )}
 
-      <EmptyCanvasContents
-        error={error}
-        textbook={textbook}
-        sidebarOpen={sidebarOpen}
-        setSidebarOpen={setSidebarOpen}
-        openTextbook={openTextbook}
-      />
+      <EmptyCanvasContents error={error} textbook={textbook} openTextbook={openTextbook} />
     </main>
   )
 }
@@ -63,14 +59,10 @@ function App() {
 function EmptyCanvasContents({
   error,
   textbook,
-  sidebarOpen,
-  setSidebarOpen,
   openTextbook,
 }: {
   error: string | null
   textbook: OpenedTextbook | null
-  sidebarOpen: boolean
-  setSidebarOpen: (sidebarOpen: boolean) => void
   openTextbook: () => void
 }) {
   return (
@@ -85,18 +77,9 @@ function EmptyCanvasContents({
       )}
 
       {textbook ? (
-        <TextbookReader
-          onShowSidebar={() => setSidebarOpen(true)}
-          sidebarOpen={sidebarOpen}
-          textbook={textbook}
-        />
+        <TextbookReader textbook={textbook} />
       ) : (
         <div className="grid h-full grid-rows-[3rem_minmax(0,1fr)]">
-          <header className="window-drag-region flex items-center border-b border-border/70 px-3">
-            {!sidebarOpen && (
-              <CollapsedSidebarToggle onShowSidebar={() => setSidebarOpen(true)} />
-            )}
-          </header>
           <section className="flex items-center justify-center px-8 pb-[8vh] text-center">
             <div className="max-w-md">
               <img

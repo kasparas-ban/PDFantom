@@ -11,13 +11,10 @@ import workerSource from "pdfjs-dist/build/pdf.worker.min.mjs?url"
 
 import { Button } from "@/components/ui/button"
 import type { OpenedTextbook } from "../../shared/textbook-api"
-import { CollapsedSidebarToggle } from "./collapsed-sidebar-toggle"
 
 GlobalWorkerOptions.workerSrc = workerSource
 
 type TextbookReaderProps = {
-  readonly onShowSidebar: () => void
-  readonly sidebarOpen: boolean
   readonly textbook: OpenedTextbook
 }
 
@@ -115,7 +112,7 @@ function PdfPage({ document, onTextAnalyzed, pageNumber, scale }: PdfPageProps) 
   )
 }
 
-export function TextbookReader({ onShowSidebar, sidebarOpen, textbook }: TextbookReaderProps) {
+export function TextbookReader({ textbook }: TextbookReaderProps) {
   const [document, setDocument] = useState<PDFDocumentProxy | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [scale, setScale] = useState(1.15)
@@ -172,15 +169,9 @@ export function TextbookReader({ onShowSidebar, sidebarOpen, textbook }: Textboo
   const hasSelectableText = Object.values(textByPage).some(Boolean)
 
   return (
-    <section
-      className="grid h-full grid-rows-[3rem_minmax(0,1fr)]"
-      aria-label="Textbook reader"
-    >
+    <section className="grid h-full grid-rows-[3rem_minmax(0,1fr)]" aria-label="Textbook reader">
       <header className="window-drag-region grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-4 border-b border-border/70 bg-background px-3">
         <div className="window-no-drag flex min-w-0 items-center gap-2 pl-1">
-          {!sidebarOpen && (
-            <CollapsedSidebarToggle onShowSidebar={onShowSidebar} />
-          )}
           <h2 className="truncate text-[0.82rem] font-medium">{textbook.name}</h2>
         </div>
         <div
@@ -198,7 +189,10 @@ export function TextbookReader({ onShowSidebar, sidebarOpen, textbook }: Textboo
           >
             <Minus />
           </Button>
-          <output className="min-w-11 text-center text-[0.72rem] tabular-nums" aria-label="Zoom level">
+          <output
+            className="min-w-11 text-center text-[0.72rem] tabular-nums"
+            aria-label="Zoom level"
+          >
             {Math.round(scale * 100)}%
           </output>
           <Button
@@ -214,7 +208,10 @@ export function TextbookReader({ onShowSidebar, sidebarOpen, textbook }: Textboo
           </Button>
         </div>
         <div className="window-no-drag flex items-center justify-self-end">
-          <p className="hidden text-[0.72rem] text-muted-foreground min-[980px]:block" aria-live="polite">
+          <p
+            className="hidden text-[0.72rem] text-muted-foreground min-[980px]:block"
+            aria-live="polite"
+          >
             {!analyzedAllPages
               ? "Checking text…"
               : hasSelectableText
