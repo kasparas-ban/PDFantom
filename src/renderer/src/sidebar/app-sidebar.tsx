@@ -5,7 +5,6 @@ import pdfantomLogo from "../../../../assets/pdfantom-logo.svg?no-inline"
 import type { OpenedTextbook } from "../../../shared/textbook-api"
 
 type AppSidebarProps = {
-  readonly onClose: () => void
   readonly onOpenTextbook: () => void
   readonly textbook: OpenedTextbook | null
 }

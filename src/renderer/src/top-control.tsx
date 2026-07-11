@@ -1,21 +1,24 @@
 import { PanelLeftClose } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
+import { useAppConfig } from "./store/app-config-provider"
 
-export function TopControl({ onToggleSidebar }: { onToggleSidebar: () => void }) {
+export function TopControl() {
   return (
     <div className="absolute top-2.5 left-20">
-      <TopControlContents onToggleSidebar={onToggleSidebar} />
+      <TopControlContents />
     </div>
   )
 }
 
-function TopControlContents({ onToggleSidebar }: { onToggleSidebar: () => void }) {
+function TopControlContents() {
+  const toggleSidePanel = useAppConfig((state) => state.toggleSidePanel)
+
   return (
     <Button
       aria-label="Hide sidebar"
       className="window-no-drag text-muted-foreground"
-      onClick={onToggleSidebar}
+      onClick={toggleSidePanel}
       size="icon-sm"
       title="Hide sidebar"
       type="button"
