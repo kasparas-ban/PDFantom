@@ -149,6 +149,59 @@ test("navigates document pages", async ({ application }) => {
   await expect(reader.pageNumber).toHaveValue("4")
 })
 
+test("navigates document pages with the arrow keys", async ({ application }) => {
+  await application.selectOpenPath(documentFixture)
+  const reader = new DocumentReaderDriver(application.page)
+
+  await reader.openSelectedDocument()
+  await expect(reader.pageNumber).toHaveValue("1")
+  await expect(reader.pageNumber).toBeEnabled()
+
+  await application.page.keyboard.press("ArrowRight")
+  await expect(reader.pageNumber).toHaveValue("2")
+
+  await application.page.keyboard.press("ArrowLeft")
+  await expect(reader.pageNumber).toHaveValue("1")
+
+  await application.page.keyboard.press("ArrowLeft")
+  await expect(reader.pageNumber).toHaveValue("1")
+})
+
+test("keeps arrow keys available while editing the page number", async ({ application }) => {
+  await application.selectOpenPath(documentFixture)
+  const reader = new DocumentReaderDriver(application.page)
+
+  await reader.openSelectedDocument()
+  await reader.goToPage(2)
+  await reader.pageNumber.press("ArrowRight")
+
+  await expect(reader.pageNumber).toHaveValue("2")
+})
+
+test("navigates double-page spreads with one arrow-key press", async ({ application }) => {
+  await application.selectOpenPath(documentFixture)
+  const reader = new DocumentReaderDriver(application.page)
+
+  await reader.openSelectedDocument()
+  await expect(reader.renderedPages).toHaveCount(5)
+  await reader.pageViewButton.click()
+
+  await application.page.keyboard.press("ArrowRight")
+  await expect(reader.pageNumber).toHaveValue("3")
+  await expectSpreadFullyVisible(reader, 3, 4)
+
+  await application.page.keyboard.press("ArrowRight")
+  await expect(reader.pageNumber).toHaveValue("5")
+
+  await application.page.keyboard.press("ArrowLeft")
+  await expect(reader.pageNumber).toHaveValue("3")
+  await expectSpreadFullyVisible(reader, 3, 4)
+
+  await application.page.keyboard.press("ArrowLeft")
+  await expect(reader.pageNumber).toHaveValue("1")
+  await expectSpreadFullyVisible(reader, 1, 2)
+})
+
 test("renders page spacing and bottom padding", async ({ application }) => {
   await application.selectOpenPath(documentFixture)
   const reader = new DocumentReaderDriver(application.page)
