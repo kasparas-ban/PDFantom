@@ -202,7 +202,7 @@ test("navigates double-page spreads with one arrow-key press", async ({ applicat
   await expectSpreadFullyVisible(reader, 1, 2)
 })
 
-test("renders page spacing and bottom padding", async ({ application }) => {
+test("renders compact page spacing and bottom padding", async ({ application }) => {
   await application.selectOpenPath(documentFixture)
   const reader = new DocumentReaderDriver(application.page)
 
@@ -210,8 +210,8 @@ test("renders page spacing and bottom padding", async ({ application }) => {
   await expect(reader.renderedPages).toHaveCount(5)
 
   const pageLayout = await reader.pageLayout()
-  expect(pageLayout.gap).toBeGreaterThanOrEqual(24)
-  expect(pageLayout.bottomPadding).toBeGreaterThanOrEqual(24)
+  expect(pageLayout.gap).toBe(10)
+  expect(pageLayout.bottomPadding).toBe(14)
 })
 
 test("toggles between single and double page views with one control", async ({ application }) => {
