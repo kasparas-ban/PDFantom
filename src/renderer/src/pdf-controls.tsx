@@ -30,11 +30,11 @@ export function PDFControls() {
         <div className="window-no-drag flex items-center gap-2 justify-self-center">
           <PageControls />
 
+          <ZoomControls />
+
           <PageViewControl />
 
           <PageFitControl />
-
-          <ZoomControls />
         </div>
       </div>
     </header>
