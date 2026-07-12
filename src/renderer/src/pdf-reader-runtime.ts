@@ -180,6 +180,7 @@ export function createPDFReaderRuntime({
         abortSignal: abortController.signal,
         container,
         eventBus,
+        removePageBorders: true,
         viewer,
       }
       pdfViewer = new PDFViewer(viewerOptions)

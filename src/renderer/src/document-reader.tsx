@@ -65,7 +65,7 @@ export function DocumentReader({ document }: DocumentReaderProps) {
         className="absolute inset-0 overflow-auto outline-none"
         ref={containerRef}
       >
-        <div className="pdfViewer pdf-reader-viewer pt-7" ref={viewerRef} />
+        <div className="pdfViewer pdf-reader-viewer pt-1" ref={viewerRef} />
       </div>
 
       {status.state !== "ready" && (

@@ -153,6 +153,20 @@ export class DocumentReaderDriver {
     })
   }
 
+  firstPageHorizontalVisibility() {
+    return this.renderedPages.first().evaluate((page) => {
+      const reader = page.closest<HTMLElement>('[aria-label="PDF reader"]')
+      if (!reader) throw new Error("PDF reader container was not found")
+
+      const pageBounds = page.getBoundingClientRect()
+      const readerBounds = reader.getBoundingClientRect()
+      return {
+        left: pageBounds.left - readerBounds.left,
+        right: readerBounds.right - pageBounds.right,
+      }
+    })
+  }
+
   setReaderSize(size: { height?: number; width?: number }) {
     return this.page.locator('[aria-label="PDF reader"]').evaluate((reader, value) => {
       if (value.height !== undefined) reader.style.height = `${value.height}px`

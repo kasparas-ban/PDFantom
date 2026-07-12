@@ -138,7 +138,7 @@
 }
 
 .pdf-reader-viewer {
-  --pdfViewer-padding-bottom: 28px;
-  --page-margin: 28px auto 0;
+  --pdfViewer-padding-bottom: 4px;
+  --page-margin: 4px auto 0;
   --page-border: 0;
 }

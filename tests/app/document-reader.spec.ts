@@ -168,6 +168,12 @@ test("fits the document to the page or reader width", async ({ application }) =>
     .poll(async () => (await reader.firstPageSize()).width)
     .toBeGreaterThan(pageFitSize.width)
   const pageWidthSize = await reader.firstPageSize()
+  await expect
+    .poll(async () => {
+      const { left, right } = await reader.firstPageHorizontalVisibility()
+      return Math.max(left, right)
+    })
+    .toBeLessThanOrEqual(1)
   await expect(reader.zoomLevel).not.toHaveText("100%")
 
   await reader.zoomInButton.click()
