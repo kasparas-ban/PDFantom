@@ -69,6 +69,36 @@ test("renders page spacing and bottom padding", async ({ application }) => {
   expect(pageLayout.bottomPadding).toBeGreaterThanOrEqual(24)
 })
 
+test("fits the document to the page or reader width", async ({ application }) => {
+  await application.selectOpenPath(documentFixture)
+  const reader = new DocumentReaderDriver(application.page)
+
+  await reader.openSelectedDocument()
+  await expect(reader.renderedPages).toHaveCount(5)
+
+  await expect(reader.pageFitButton).toHaveAccessibleName("Fit to page")
+  await reader.pageFitButton.click()
+  await expect(reader.pageFitButton).toHaveAccessibleName("Fit to width")
+  const pageFitSize = await reader.firstPageSize()
+  const pageFitVisibility = await reader.firstPageVisibility()
+  expect(pageFitVisibility.top).toBeGreaterThanOrEqual(0)
+  expect(pageFitVisibility.bottom).toBeLessThanOrEqual(0)
+
+  await reader.pageFitButton.click()
+  await expect(reader.pageFitButton).toHaveAccessibleName("Fit to page")
+  await expect
+    .poll(async () => (await reader.firstPageSize()).width)
+    .toBeGreaterThan(pageFitSize.width)
+  const pageWidthSize = await reader.firstPageSize()
+  await expect(reader.zoomLevel).not.toHaveText("100%")
+
+  await reader.zoomInButton.click()
+  await expect(reader.pageFitButton).toHaveAccessibleName("Fit to page")
+  await expect
+    .poll(async () => (await reader.firstPageSize()).width)
+    .toBeGreaterThan(pageWidthSize.width)
+})
+
 test("reports a PDF loading failure", async ({ application }) => {
   await application.selectOpenPath(invalidDocumentFixture)
   const reader = new DocumentReaderDriver(application.page)

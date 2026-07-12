@@ -14,18 +14,21 @@ type DocumentReaderProps = {
 
 export function DocumentReader({ document }: DocumentReaderProps) {
   const zoom = useReaderSession((state) => state.zoom)
+  const scalePreset = useReaderSession((state) => state.scalePreset)
   const currentPage = useReaderSession((state) => state.currentPage)
   const reportCurrentPage = useReaderSession((state) => state.reportCurrentPage)
   const reportPageCount = useReaderSession((state) => state.reportPageCount)
+  const reportZoom = useReaderSession((state) => state.reportZoom)
 
   const [status, setStatus] = useState<PDFReaderStatus>({ state: "opening" })
   const containerRef = useRef<HTMLDivElement>(null)
   const viewerRef = useRef<HTMLDivElement>(null)
   const runtimeRef = useRef<PDFReaderRuntime>(null)
-  const zoomRef = useRef(zoom)
+  const scaleRef = useRef(scalePreset ?? zoom)
   const currentPageRef = useRef(currentPage)
 
-  zoomRef.current = zoom
+  const scale = scalePreset ?? zoom
+  scaleRef.current = scale
   currentPageRef.current = currentPage
 
   useEffect(() => {
@@ -36,20 +39,21 @@ export function DocumentReader({ document }: DocumentReaderProps) {
       document,
       onPageChange: reportCurrentPage,
       onPageCountChange: reportPageCount,
+      onScaleChange: reportZoom,
       onStatusChange: setStatus,
       viewer: viewerRef.current,
     })
     runtimeRef.current = runtime
-    runtime.setZoom(zoomRef.current)
+    runtime.setScale(scaleRef.current)
     runtime.goToPage(currentPageRef.current)
 
     return () => {
       runtime.destroy()
       runtimeRef.current = null
     }
-  }, [document, reportCurrentPage, reportPageCount])
+  }, [document, reportCurrentPage, reportPageCount, reportZoom])
 
-  useEffect(() => runtimeRef.current?.setZoom(zoom), [zoom])
+  useEffect(() => runtimeRef.current?.setScale(scale), [scale])
   useEffect(() => runtimeRef.current?.goToPage(currentPage), [currentPage])
 
   return (

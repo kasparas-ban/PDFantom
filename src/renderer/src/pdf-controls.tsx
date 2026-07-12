@@ -4,6 +4,7 @@ import { Button } from "./components/ui/button"
 import { useIsFullScreen } from "./hooks/useIsFullScreen"
 import { cn } from "./lib/utils"
 import { PageControls } from "./page-controls"
+import { PageFitControl } from "./page-fit-control"
 import { useAppConfig } from "./store/app-config-provider"
 import { useReaderSession } from "./store/reader-session-provider"
 
@@ -31,6 +32,8 @@ export function PDFControls() {
 
         <div className="window-no-drag flex items-center gap-2 justify-self-center">
           <PageControls />
+
+          <PageFitControl />
 
           <div
             className="flex items-center rounded-lg border border-border/80 bg-muted/50 p-0.5 shadow-xs"

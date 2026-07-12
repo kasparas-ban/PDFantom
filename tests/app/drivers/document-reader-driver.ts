@@ -23,6 +23,18 @@ export class DocumentReaderDriver {
     return this.page.getByRole("button", { name: "Next page" })
   }
 
+  get pageFitButton() {
+    return this.page.getByRole("button", { name: /Fit to (page|width)/ })
+  }
+
+  get zoomInButton() {
+    return this.page.getByRole("button", { name: "Zoom in" })
+  }
+
+  get zoomLevel() {
+    return this.page.getByRole("status", { name: "Zoom level" })
+  }
+
   toggleSidebar() {
     return this.page.getByRole("button", { name: "Hide sidebar" }).click()
   }
@@ -66,6 +78,27 @@ export class DocumentReaderDriver {
 
   firstPageCanvas() {
     return this.renderedPages.first().locator(".canvasWrapper > canvas")
+  }
+
+  firstPageSize() {
+    return this.renderedPages.first().evaluate((page) => {
+      const bounds = page.getBoundingClientRect()
+      return { height: bounds.height, width: bounds.width }
+    })
+  }
+
+  firstPageVisibility() {
+    return this.renderedPages.first().evaluate((page) => {
+      const reader = page.closest<HTMLElement>('[aria-label="PDF reader"]')
+      if (!reader) throw new Error("PDF reader container was not found")
+
+      const pageBounds = page.getBoundingClientRect()
+      const readerBounds = reader.getBoundingClientRect()
+      return {
+        bottom: pageBounds.bottom - readerBounds.bottom,
+        top: pageBounds.top - readerBounds.top,
+      }
+    })
   }
 
   pageLayout() {

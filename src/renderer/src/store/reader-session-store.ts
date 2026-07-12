@@ -1,6 +1,7 @@
 import { createStore } from "zustand/vanilla"
 
 import type { OpenedDocument } from "../../../shared/document-api"
+import type { PDFScalePreset } from "../pdf-reader-runtime"
 
 export type ReaderSessionState = {
   activeDocument: OpenedDocument | null
@@ -14,6 +15,9 @@ export type ReaderSessionState = {
 
   zoom: number
   setZoom: (zoom: number) => void
+  reportZoom: (zoom: number) => void
+  scalePreset: PDFScalePreset | null
+  setScalePreset: (scalePreset: PDFScalePreset) => void
 }
 
 export const createReaderSessionStore = () =>
@@ -52,7 +56,10 @@ export const createReaderSessionStore = () =>
       }),
 
     zoom: 1,
-    setZoom: (zoom) => set({ zoom }),
+    setZoom: (zoom) => set({ scalePreset: null, zoom }),
+    reportZoom: (zoom) => set({ zoom }),
+    scalePreset: null,
+    setScalePreset: (scalePreset) => set({ scalePreset }),
   }))
 
 export type ReaderSessionStore = ReturnType<typeof createReaderSessionStore>
