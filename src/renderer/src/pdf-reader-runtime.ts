@@ -20,8 +20,8 @@ export type PDFReaderStatus =
 
 export type PDFScalePreset = "page-fit" | "page-width"
 
-export const MIN_PDF_SCALE = 0.7
-export const MAX_PDF_SCALE = 1.9
+export const MIN_PDF_SCALE = 0.25
+export const MAX_PDF_SCALE = 5
 const PINCH_RENDER_DELAY = 400
 
 type PDFScale = number | PDFScalePreset
@@ -69,6 +69,13 @@ export function createPDFReaderRuntime({
       pdfViewer.currentScale = requestedScale
     } else {
       pdfViewer.currentScaleValue = requestedScale
+      const boundedScale = Math.min(
+        MAX_PDF_SCALE,
+        Math.max(MIN_PDF_SCALE, pdfViewer.currentScale),
+      )
+      if (pdfViewer.currentScale !== boundedScale) {
+        pdfViewer.currentScale = boundedScale
+      }
     }
   }
 

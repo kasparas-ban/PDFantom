@@ -115,6 +115,59 @@ test("zooms around the trackpad pinch position", async ({ application }) => {
   expect(Math.abs(pointAfter.y - pinch.pointBefore.y)).toBeLessThanOrEqual(12)
 })
 
+test("caps zoom at 500%", async ({ application }) => {
+  await application.selectOpenPath(documentFixture)
+  const reader = new DocumentReaderDriver(application.page)
+
+  await reader.openSelectedDocument()
+  await expect(reader.renderedPages).toHaveCount(5)
+
+  await reader.pinchFirstPage(10, 100)
+
+  await expect(reader.zoomLevel).toHaveText("500%")
+  await expect(reader.zoomInButton).toBeDisabled()
+})
+
+test("caps zoom out at 25%", async ({ application }) => {
+  await application.selectOpenPath(documentFixture)
+  const reader = new DocumentReaderDriver(application.page)
+
+  await reader.openSelectedDocument()
+  await expect(reader.renderedPages).toHaveCount(5)
+
+  await reader.pinchFirstPage(0.1, 100)
+
+  await expect(reader.zoomLevel).toHaveText("25%")
+  await expect(reader.zoomOutButton).toBeDisabled()
+})
+
+test("caps fit-to-width zoom at 500%", async ({ application }) => {
+  await application.selectOpenPath(documentFixture)
+  const reader = new DocumentReaderDriver(application.page)
+
+  await reader.openSelectedDocument()
+  await expect(reader.renderedPages).toHaveCount(5)
+
+  await reader.setReaderSize({ width: 5_000 })
+  await reader.pageFitButton.click()
+  await reader.pageFitButton.click()
+
+  await expect(reader.zoomLevel).toHaveText("500%")
+})
+
+test("caps fit-to-page zoom at 25%", async ({ application }) => {
+  await application.selectOpenPath(documentFixture)
+  const reader = new DocumentReaderDriver(application.page)
+
+  await reader.openSelectedDocument()
+  await expect(reader.renderedPages).toHaveCount(5)
+
+  await reader.setReaderSize({ height: 100 })
+  await reader.pageFitButton.click()
+
+  await expect(reader.zoomLevel).toHaveText("25%")
+})
+
 test("leaves a fit preset when trackpad pinching", async ({ application }) => {
   await application.selectOpenPath(documentFixture)
   const reader = new DocumentReaderDriver(application.page)

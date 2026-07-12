@@ -31,6 +31,10 @@ export class DocumentReaderDriver {
     return this.page.getByRole("button", { name: "Zoom in" })
   }
 
+  get zoomOutButton() {
+    return this.page.getByRole("button", { name: "Zoom out" })
+  }
+
   get zoomLevel() {
     return this.page.getByRole("status", { name: "Zoom level" })
   }
@@ -99,6 +103,13 @@ export class DocumentReaderDriver {
         top: pageBounds.top - readerBounds.top,
       }
     })
+  }
+
+  setReaderSize(size: { height?: number; width?: number }) {
+    return this.page.locator('[aria-label="PDF reader"]').evaluate((reader, value) => {
+      if (value.height !== undefined) reader.style.height = `${value.height}px`
+      if (value.width !== undefined) reader.style.width = `${value.width}px`
+    }, size)
   }
 
   async pinchFirstPage(scaleFactor: number, steps = 10) {
