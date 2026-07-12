@@ -1,7 +1,5 @@
-import { expect, test as base } from "@playwright/test"
-
-import { launchTestApplication } from "./launch-application"
 import { startRequestProbe } from "./request-probe"
+import { expect, test } from "./test"
 
 declare global {
   namespace Electron {
@@ -11,22 +9,6 @@ declare global {
     }
   }
 }
-
-const test = base.extend<{
-  application: Awaited<ReturnType<typeof launchTestApplication>>
-}>({
-  application: async ({ playwright: _playwright }, provide) => {
-    const application = await launchTestApplication({
-      workspacePrefix: "pdfantom-security",
-    })
-
-    try {
-      await provide(application)
-    } finally {
-      await application.close()
-    }
-  },
-})
 
 test("the renderer uses hardened BrowserWindow preferences", async ({ application }) => {
   const preferences = await application.electronApplication.evaluate(({ BrowserWindow }) => {
@@ -87,7 +69,6 @@ test("the renderer receives full-screen state changes", async ({ application }) 
         })
       }),
   )
-
   await electronApplication.evaluate(({ BrowserWindow }) => {
     const window = BrowserWindow.getAllWindows()[0]
     if (!window) throw new Error("No application window is available")
@@ -107,7 +88,6 @@ test("the renderer receives full-screen state changes", async ({ application }) 
         })
       }),
   )
-
   await electronApplication.evaluate(({ BrowserWindow }) => {
     const window = BrowserWindow.getAllWindows()[0]
     if (!window) throw new Error("No application window is available")
@@ -122,10 +102,10 @@ test("the renderer receives full-screen state changes", async ({ application }) 
 test("the renderer CSP blocks network connections before a request is sent", async ({
   application,
 }) => {
+  const { page } = application
   const probe = await startRequestProbe()
 
   try {
-    const { page } = application
     const policy = await page
       .locator('meta[http-equiv="Content-Security-Policy"]')
       .getAttribute("content")

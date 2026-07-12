@@ -5,23 +5,22 @@ import path from "node:path"
 import { _electron as electron, type ElectronApplication } from "@playwright/test"
 
 type LaunchTestApplicationOptions = {
-  readonly openPath?: string
   readonly workspacePrefix: string
 }
 
 export async function launchTestApplication({
-  openPath,
   workspacePrefix,
 }: LaunchTestApplicationOptions) {
   const workspace = await mkdtemp(path.join(os.tmpdir(), `${workspacePrefix}-`))
 
   try {
     const profilePath = path.join(workspace, "profile")
-    const { application, page } = await launchApplication(profilePath, openPath)
+    const { application, page } = await launchApplication(profilePath)
 
     return {
       electronApplication: application,
       page,
+      selectOpenPath: (selectedPath: string) => mockOpenDialog(application, selectedPath),
       close: async () => {
         try {
           await application.close()
@@ -36,13 +35,12 @@ export async function launchTestApplication({
   }
 }
 
-async function launchApplication(profilePath: string, selectedPath: string | undefined) {
+async function launchApplication(profilePath: string) {
   const application = await electron.launch({
     args: [path.resolve(".vite/build/main.js"), `--user-data-dir=${profilePath}`],
   })
 
   try {
-    if (selectedPath) await mockOpenDialog(application, selectedPath)
     return { application, page: await application.firstWindow() }
   } catch (error) {
     await application.close().catch(() => undefined)
