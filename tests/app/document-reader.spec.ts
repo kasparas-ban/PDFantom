@@ -99,6 +99,48 @@ test("fits the document to the page or reader width", async ({ application }) =>
     .toBeGreaterThan(pageWidthSize.width)
 })
 
+test("zooms around the trackpad pinch position", async ({ application }) => {
+  await application.selectOpenPath(documentFixture)
+  const reader = new DocumentReaderDriver(application.page)
+
+  await reader.openSelectedDocument()
+  await expect(reader.renderedPages).toHaveCount(5)
+
+  const pinch = await reader.pinchFirstPage(1.2, 100)
+  expect(pinch.defaultPrevented).toBe(true)
+  await expect(reader.zoomLevel).toHaveText("119%")
+
+  const pointAfter = await reader.firstPagePoint(0.5, 0.35)
+  expect(pointAfter.x).toBeCloseTo(pinch.pointBefore.x, 0)
+  expect(Math.abs(pointAfter.y - pinch.pointBefore.y)).toBeLessThanOrEqual(12)
+})
+
+test("leaves a fit preset when trackpad pinching", async ({ application }) => {
+  await application.selectOpenPath(documentFixture)
+  const reader = new DocumentReaderDriver(application.page)
+
+  await reader.openSelectedDocument()
+  await expect(reader.renderedPages).toHaveCount(5)
+
+  await reader.pageFitButton.click()
+  await expect(reader.pageFitButton).toHaveAccessibleName("Fit to width")
+
+  await reader.pinchFirstPage(1.1)
+  await expect(reader.pageFitButton).toHaveAccessibleName("Fit to page")
+})
+
+test("does not treat physical Control scrolling as a pinch", async ({ application }) => {
+  await application.selectOpenPath(documentFixture)
+  const reader = new DocumentReaderDriver(application.page)
+
+  await reader.openSelectedDocument()
+  await expect(reader.renderedPages).toHaveCount(5)
+
+  const ctrlScroll = await reader.ctrlScrollFirstPage()
+  expect(ctrlScroll.defaultPrevented).toBe(false)
+  await expect(reader.zoomLevel).toHaveText("100%")
+})
+
 test("reports a PDF loading failure", async ({ application }) => {
   await application.selectOpenPath(invalidDocumentFixture)
   const reader = new DocumentReaderDriver(application.page)

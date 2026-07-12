@@ -101,6 +101,63 @@ export class DocumentReaderDriver {
     })
   }
 
+  async pinchFirstPage(scaleFactor: number, steps = 10) {
+    return this.dispatchZoomWheelGesture(scaleFactor, steps, false)
+  }
+
+  async ctrlScrollFirstPage() {
+    return this.dispatchZoomWheelGesture(1.1, 10, true)
+  }
+
+  private async dispatchZoomWheelGesture(
+    scaleFactor: number,
+    steps: number,
+    physicalCtrlKey: boolean,
+  ) {
+    return this.renderedPages.first().evaluate((page, options) => {
+      const pageBounds = page.getBoundingClientRect()
+      const clientX = pageBounds.left + pageBounds.width * 0.5
+      const clientY = pageBounds.top + pageBounds.height * 0.35
+      const pointBefore = { x: clientX, y: clientY }
+      const eventScaleFactor = options.scaleFactor ** (1 / options.steps)
+      let defaultPrevented = false
+      if (options.physicalCtrlKey) {
+        window.dispatchEvent(new KeyboardEvent("keydown", { key: "Control" }))
+      }
+      for (let index = 0; index < options.steps; index += 1) {
+        const event = new WheelEvent("wheel", {
+          bubbles: true,
+          cancelable: true,
+          clientX,
+          clientY,
+          ctrlKey: true,
+          deltaMode: WheelEvent.DOM_DELTA_PIXEL,
+          deltaY: -100 * Math.log(eventScaleFactor),
+        })
+        page.dispatchEvent(event)
+        defaultPrevented ||= event.defaultPrevented
+      }
+      if (options.physicalCtrlKey) {
+        window.dispatchEvent(new KeyboardEvent("keyup", { key: "Control" }))
+      }
+
+      return { clientX, clientY, defaultPrevented, pointBefore }
+    }, { physicalCtrlKey, scaleFactor, steps })
+  }
+
+  firstPagePoint(xRatio: number, yRatio: number) {
+    return this.renderedPages.first().evaluate(
+      (page, { xRatio: requestedXRatio, yRatio: requestedYRatio }) => {
+        const bounds = page.getBoundingClientRect()
+        return {
+          x: bounds.left + bounds.width * requestedXRatio,
+          y: bounds.top + bounds.height * requestedYRatio,
+        }
+      },
+      { xRatio, yRatio },
+    )
+  }
+
   pageLayout() {
     return this.renderedPages.evaluateAll((pages) => {
       const reader = pages[0].closest<HTMLElement>('[aria-label="PDF reader"]')

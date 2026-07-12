@@ -5,6 +5,7 @@ import { useIsFullScreen } from "./hooks/useIsFullScreen"
 import { cn } from "./lib/utils"
 import { PageControls } from "./page-controls"
 import { PageFitControl } from "./page-fit-control"
+import { MAX_PDF_SCALE, MIN_PDF_SCALE } from "./pdf-reader-runtime"
 import { useAppConfig } from "./store/app-config-provider"
 import { useReaderSession } from "./store/reader-session-provider"
 
@@ -42,8 +43,8 @@ export function PDFControls() {
             <Button
               aria-label="Zoom out"
               className="size-6 rounded-md"
-              disabled={zoom <= 0.7}
-              onClick={() => setZoom(Math.max(0.7, zoom - 0.15))}
+              disabled={zoom <= MIN_PDF_SCALE}
+              onClick={() => setZoom(Math.max(MIN_PDF_SCALE, zoom - 0.15))}
               size="icon-xs"
               type="button"
               variant="ghost"
@@ -59,8 +60,8 @@ export function PDFControls() {
             <Button
               aria-label="Zoom in"
               className="size-6 rounded-md"
-              disabled={zoom >= 1.9}
-              onClick={() => setZoom(Math.min(1.9, zoom + 0.15))}
+              disabled={zoom >= MAX_PDF_SCALE}
+              onClick={() => setZoom(Math.min(MAX_PDF_SCALE, zoom + 0.15))}
               size="icon-xs"
               type="button"
               variant="ghost"

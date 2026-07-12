@@ -19,6 +19,7 @@ export function DocumentReader({ document }: DocumentReaderProps) {
   const reportCurrentPage = useReaderSession((state) => state.reportCurrentPage)
   const reportPageCount = useReaderSession((state) => state.reportPageCount)
   const reportZoom = useReaderSession((state) => state.reportZoom)
+  const setZoom = useReaderSession((state) => state.setZoom)
 
   const [status, setStatus] = useState<PDFReaderStatus>({ state: "opening" })
   const containerRef = useRef<HTMLDivElement>(null)
@@ -39,6 +40,7 @@ export function DocumentReader({ document }: DocumentReaderProps) {
       document,
       onPageChange: reportCurrentPage,
       onPageCountChange: reportPageCount,
+      onPinchZoom: setZoom,
       onScaleChange: reportZoom,
       onStatusChange: setStatus,
       viewer: viewerRef.current,
@@ -51,7 +53,7 @@ export function DocumentReader({ document }: DocumentReaderProps) {
       runtime.destroy()
       runtimeRef.current = null
     }
-  }, [document, reportCurrentPage, reportPageCount, reportZoom])
+  }, [document, reportCurrentPage, reportPageCount, reportZoom, setZoom])
 
   useEffect(() => runtimeRef.current?.setScale(scale), [scale])
   useEffect(() => runtimeRef.current?.goToPage(currentPage), [currentPage])
