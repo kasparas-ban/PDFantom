@@ -1,109 +1,56 @@
 import { useEffect, useRef, useState } from "react"
-import { getDocument, GlobalWorkerOptions, type PDFDocumentProxy } from "pdfjs-dist"
-import workerSource from "pdfjs-dist/build/pdf.worker.min.mjs?url"
-import { EventBus, PDFViewer } from "pdfjs-dist/web/pdf_viewer.mjs"
 
 import type { OpenedDocument } from "../../shared/document-api"
-import { useAppConfig } from "./store/app-config-provider"
-
-declare module "pdfjs-dist/web/pdf_viewer.mjs" {
-  // eslint-disable-next-line typescript/consistent-type-definitions -- Declaration merging requires an interface.
-  interface PDFViewer {
-    setDocument(pdfDocument: PDFDocumentProxy | null): void
-  }
-}
-
-GlobalWorkerOptions.workerSrc = workerSource
+import {
+  createPDFReaderRuntime,
+  type PDFReaderRuntime,
+  type PDFReaderStatus,
+} from "./pdf-reader-runtime"
+import { useReaderSession } from "./store/reader-session-provider"
 
 type DocumentReaderProps = {
   readonly document: OpenedDocument
 }
 
-export function DocumentReader({ document: openedDocument }: DocumentReaderProps) {
-  const zoom = useAppConfig((state) => state.zoom)
+export function DocumentReader({ document }: DocumentReaderProps) {
+  const zoom = useReaderSession((state) => state.zoom)
+  const currentPage = useReaderSession((state) => state.currentPage)
+  const reportCurrentPage = useReaderSession((state) => state.reportCurrentPage)
+  const reportPageCount = useReaderSession((state) => state.reportPageCount)
 
-  const [document, setDocument] = useState<PDFDocumentProxy | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  const [status, setStatus] = useState<PDFReaderStatus>({ state: "opening" })
   const containerRef = useRef<HTMLDivElement>(null)
   const viewerRef = useRef<HTMLDivElement>(null)
-  const pdfViewerRef = useRef<PDFViewer>(null)
+  const runtimeRef = useRef<PDFReaderRuntime>(null)
   const zoomRef = useRef(zoom)
+  const currentPageRef = useRef(currentPage)
 
   zoomRef.current = zoom
+  currentPageRef.current = currentPage
 
   useEffect(() => {
-    setDocument(null)
-    setError(null)
+    if (!containerRef.current || !viewerRef.current) return
 
-    const loadingTask = getDocument({
-      data: openedDocument.bytes.slice(0),
-      useWorkerFetch: false,
-    })
-    let active = true
-
-    void loadingTask.promise
-      .then((loadedDocument) => {
-        if (active) setDocument(loadedDocument)
-      })
-      .catch(() => {
-        if (active) setError("This PDF could not be opened.")
-      })
-
-    return () => {
-      active = false
-      void loadingTask.destroy()
-    }
-  }, [openedDocument])
-
-  useEffect(() => {
-    if (!document || !containerRef.current || !viewerRef.current) return
-
-    const abortController = new AbortController()
-    const eventBus = new EventBus()
-    const viewerOptions = {
-      abortSignal: abortController.signal,
+    const runtime = createPDFReaderRuntime({
       container: containerRef.current,
-      eventBus,
+      document,
+      onPageChange: reportCurrentPage,
+      onPageCountChange: reportPageCount,
+      onStatusChange: setStatus,
       viewer: viewerRef.current,
-    }
-    const pdfViewer = new PDFViewer(viewerOptions)
-    const setInitialScale = () => {
-      pdfViewer.currentScale = zoomRef.current
-    }
-
-    pdfViewerRef.current = pdfViewer
-    eventBus.on("pagesinit", setInitialScale)
-    pdfViewer.setDocument(document)
+    })
+    runtimeRef.current = runtime
+    runtime.setZoom(zoomRef.current)
+    runtime.goToPage(currentPageRef.current)
 
     return () => {
-      eventBus.off("pagesinit", setInitialScale)
-      pdfViewer.setDocument(null)
-      abortController.abort()
-      pdfViewer.cleanup()
-      pdfViewerRef.current = null
+      runtime.destroy()
+      runtimeRef.current = null
     }
-  }, [document])
+  }, [document, reportCurrentPage, reportPageCount])
 
-  useEffect(() => {
-    const pdfViewer = pdfViewerRef.current
-    if (pdfViewer?.pagesCount) pdfViewer.currentScale = zoom
-  }, [zoom])
-
-  if (error) {
-    return (
-      <p className="mx-auto my-8 max-w-152 text-center text-destructive" role="alert">
-        {error}
-      </p>
-    )
-  }
-
-  if (!document) {
-    return (
-      <p className="mx-auto my-8 max-w-152 text-center text-muted-foreground">
-        Opening {openedDocument.name}…
-      </p>
-    )
-  }
+  useEffect(() => runtimeRef.current?.setZoom(zoom), [zoom])
+  useEffect(() => runtimeRef.current?.goToPage(currentPage), [currentPage])
 
   return (
     <section className="relative h-full w-full bg-[#e7e7e5] dark:bg-[#171716]">
@@ -114,6 +61,20 @@ export function DocumentReader({ document: openedDocument }: DocumentReaderProps
       >
         <div className="pdfViewer pdf-reader-viewer pt-7" ref={viewerRef} />
       </div>
+
+      {status.state !== "ready" && (
+        <div className="absolute inset-0 z-10 flex items-start justify-center bg-background">
+          {status.state === "failed" ? (
+            <p className="mx-auto my-8 max-w-152 text-center text-destructive" role="alert">
+              {status.message}
+            </p>
+          ) : (
+            <p className="mx-auto my-8 max-w-152 text-center text-muted-foreground">
+              Opening {document.name}…
+            </p>
+          )}
+        </div>
+      )}
     </section>
   )
 }

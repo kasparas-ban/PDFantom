@@ -7,6 +7,7 @@ import pdfantomLogo from "../../../assets/pdfantom-logo.svg?no-inline"
 import { PDFControls } from "./pdf-controls"
 import { AppSidebar } from "./sidebar/app-sidebar"
 import { AppConfigProvider, useAppConfig } from "./store/app-config-provider"
+import { ReaderSessionProvider, useReaderSession } from "./store/reader-session-provider"
 import { DocumentReader } from "./document-reader"
 import { TopControl } from "./top-control"
 
@@ -14,7 +15,7 @@ import "pdfjs-dist/web/pdf_viewer.css"
 import "./styles.css"
 
 function App() {
-  const setActivePDF = useAppConfig((state) => state.setActivePDF)
+  const openReaderDocument = useReaderSession((state) => state.openDocument)
   const isSidePanelOpen = useAppConfig((state) => state.isSidePanelOpen)
 
   const [error, setError] = useState<string | null>(null)
@@ -35,7 +36,7 @@ function App() {
     setError(null)
     try {
       const openedDocument = await window.pdfantom.openDocument()
-      if (openedDocument) setActivePDF(openedDocument)
+      if (openedDocument) openReaderDocument(openedDocument)
     } catch {
       setError("The document could not be opened.")
     }
@@ -65,7 +66,7 @@ function App() {
 }
 
 function PDFCanvas({ error, openDocument }: { error: string | null; openDocument: () => void }) {
-  const activePDF = useAppConfig((state) => state.activePDF)
+  const activeDocument = useReaderSession((state) => state.activeDocument)
 
   return (
     <>
@@ -78,8 +79,8 @@ function PDFCanvas({ error, openDocument }: { error: string | null; openDocument
         </div>
       )}
 
-      {activePDF ? (
-        <DocumentReader document={activePDF} />
+      {activeDocument ? (
+        <DocumentReader document={activeDocument} />
       ) : (
         <div className="flex h-full w-full items-center justify-center">
           <section className="flex items-center justify-center px-8 pb-[8vh] text-center">
@@ -111,7 +112,9 @@ function PDFCanvas({ error, openDocument }: { error: string | null; openDocument
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <AppConfigProvider>
-      <App />
+      <ReaderSessionProvider>
+        <App />
+      </ReaderSessionProvider>
     </AppConfigProvider>
   </StrictMode>,
 )

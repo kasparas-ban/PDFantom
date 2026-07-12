@@ -1,7 +1,7 @@
 import { BookOpen, FilePlus2 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
-import { useAppConfig } from "@/store/app-config-provider"
+import { useReaderSession } from "@/store/reader-session-provider"
 import pdfantomLogo from "../../../../assets/pdfantom-logo.svg?no-inline"
 
 type AppSidebarProps = {
@@ -9,7 +9,7 @@ type AppSidebarProps = {
 }
 
 export function AppSidebar({ onOpenDocument }: AppSidebarProps) {
-  const activePDF = useAppConfig((state) => state.activePDF)
+  const activeDocument = useReaderSession((state) => state.activeDocument)
 
   return (
     <aside className="flex h-full flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground shadow-[inset_-1px_0_rgb(255_255_255/28%)]">
@@ -37,13 +37,13 @@ export function AppSidebar({ onOpenDocument }: AppSidebarProps) {
           <div className="mb-1.5 flex items-center justify-between px-2">
             <p className="text-md font-semibold text-gray-400">Documents</p>
           </div>
-          {activePDF ? (
+          {activeDocument ? (
             <div
               aria-current="page"
               className="flex w-full items-center gap-2 rounded-lg bg-sidebar-accent px-2 py-1.5 text-left text-sm text-sidebar-accent-foreground"
             >
               <BookOpen className="size-4 shrink-0 text-muted-foreground" />
-              <span className="min-w-0 flex-1 truncate">{activePDF.name}</span>
+              <span className="min-w-0 flex-1 truncate">{activeDocument.name}</span>
             </div>
           ) : (
             <div className="px-2 py-2 text-xs leading-relaxed text-muted-foreground">

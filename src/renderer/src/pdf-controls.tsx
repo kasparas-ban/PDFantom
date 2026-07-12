@@ -3,16 +3,18 @@ import { Minus, Plus } from "lucide-react"
 import { Button } from "./components/ui/button"
 import { useIsFullScreen } from "./hooks/useIsFullScreen"
 import { cn } from "./lib/utils"
+import { PageControls } from "./page-controls"
 import { useAppConfig } from "./store/app-config-provider"
+import { useReaderSession } from "./store/reader-session-provider"
 
 export function PDFControls() {
-  const activePDF = useAppConfig((state) => state.activePDF)
+  const zoom = useReaderSession((state) => state.zoom)
+  const setZoom = useReaderSession((state) => state.setZoom)
+  const activeDocument = useReaderSession((state) => state.activeDocument)
   const isSidePanelOpen = useAppConfig((state) => state.isSidePanelOpen)
-  const zoom = useAppConfig((state) => state.zoom)
-  const setZoom = useAppConfig((state) => state.setZoom)
   const isFullScreen = useIsFullScreen()
 
-  if (!activePDF) return null
+  if (!activeDocument) return null
 
   return (
     <header className="flex h-full w-full">
@@ -24,41 +26,45 @@ export function PDFControls() {
       >
         <div className="window-no-drag flex w-min min-w-0 items-center gap-2 pl-1">
           {!isSidePanelOpen && <div className="mr-1.5 h-5 w-px bg-gray-300" />}
-          <h2 className="truncate text-[0.82rem] font-medium">{activePDF.name}</h2>
+          <h2 className="truncate text-[0.82rem] font-medium">{activeDocument.name}</h2>
         </div>
 
-        <div
-          className="window-no-drag flex items-center rounded-lg border border-border/80 bg-muted/50 p-0.5 shadow-xs"
-          aria-label="Zoom controls"
-        >
-          <Button
-            aria-label="Zoom out"
-            className="size-6 rounded-md"
-            disabled={zoom <= 0.7}
-            onClick={() => setZoom(Math.max(0.7, zoom - 0.15))}
-            size="icon-xs"
-            type="button"
-            variant="ghost"
+        <div className="window-no-drag flex items-center gap-2 justify-self-center">
+          <PageControls />
+
+          <div
+            className="flex items-center rounded-lg border border-border/80 bg-muted/50 p-0.5 shadow-xs"
+            aria-label="Zoom controls"
           >
-            <Minus />
-          </Button>
-          <output
-            className="min-w-11 text-center text-[0.72rem] tabular-nums"
-            aria-label="Zoom level"
-          >
-            {Math.round(zoom * 100)}%
-          </output>
-          <Button
-            aria-label="Zoom in"
-            className="size-6 rounded-md"
-            disabled={zoom >= 1.9}
-            onClick={() => setZoom(Math.min(1.9, zoom + 0.15))}
-            size="icon-xs"
-            type="button"
-            variant="ghost"
-          >
-            <Plus />
-          </Button>
+            <Button
+              aria-label="Zoom out"
+              className="size-6 rounded-md"
+              disabled={zoom <= 0.7}
+              onClick={() => setZoom(Math.max(0.7, zoom - 0.15))}
+              size="icon-xs"
+              type="button"
+              variant="ghost"
+            >
+              <Minus />
+            </Button>
+            <output
+              className="min-w-11 text-center text-[0.72rem] tabular-nums"
+              aria-label="Zoom level"
+            >
+              {Math.round(zoom * 100)}%
+            </output>
+            <Button
+              aria-label="Zoom in"
+              className="size-6 rounded-md"
+              disabled={zoom >= 1.9}
+              onClick={() => setZoom(Math.min(1.9, zoom + 0.15))}
+              size="icon-xs"
+              type="button"
+              variant="ghost"
+            >
+              <Plus />
+            </Button>
+          </div>
         </div>
       </div>
     </header>
