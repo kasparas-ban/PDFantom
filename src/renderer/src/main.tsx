@@ -5,7 +5,7 @@ import { createRoot } from "react-dom/client"
 import { Button } from "@/components/ui/button"
 import pdfantomLogo from "../../../assets/pdfantom-logo.svg?no-inline"
 import { PDFControls } from "./pdf-controls"
-import { AppSidebar } from "./sidebar/app-sidebar"
+import { ResizableAppSidebar } from "./sidebar/resizable-app-sidebar"
 import { AppConfigProvider, useAppConfig } from "./store/app-config-provider"
 import { ReaderSessionProvider, useReaderSession } from "./store/reader-session-provider"
 import { DocumentReader } from "./document-reader"
@@ -45,9 +45,7 @@ function App() {
   return (
     <main className="flex h-screen bg-background text-foreground">
       {isSidePanelOpen && (
-        <div className="h-full w-64 shrink-0">
-          <AppSidebar onOpenDocument={openDocument} />
-        </div>
+        <ResizableAppSidebar onOpenDocument={openDocument} />
       )}
 
       <section className="flex h-full min-w-0 flex-1 flex-col">

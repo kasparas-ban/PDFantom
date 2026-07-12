@@ -7,6 +7,10 @@ export class DocumentReaderDriver {
     return this.page.getByRole("complementary")
   }
 
+  get sidebarResizeHandle() {
+    return this.page.getByRole("separator", { name: "Resize sidebar" })
+  }
+
   get renderedPages() {
     return this.page.locator(".pdfViewer .page")
   }
@@ -41,6 +45,50 @@ export class DocumentReaderDriver {
 
   toggleSidebar() {
     return this.page.getByRole("button", { name: "Hide sidebar" }).click()
+  }
+
+  toggleSidebarProgrammatically() {
+    return this.page
+      .getByRole("button", { name: "Hide sidebar" })
+      .evaluate((button: HTMLButtonElement) => button.click())
+  }
+
+  sidebarWidth() {
+    return this.sidebar.evaluate((sidebar) => sidebar.getBoundingClientRect().width)
+  }
+
+  async resizeSidebarBy(deltaX: number, button: "left" | "right" = "left") {
+    const bounds = await this.sidebarResizeHandle.boundingBox()
+    if (!bounds) throw new Error("Sidebar resize handle was not found")
+
+    const startX = bounds.x + bounds.width / 2
+    const startY = bounds.y + bounds.height / 2
+    await this.page.mouse.move(startX, startY)
+    await this.page.mouse.down({ button })
+    await this.page.mouse.move(startX + deltaX, startY, { steps: 5 })
+    await this.page.mouse.up({ button })
+  }
+
+  async startResizingSidebar() {
+    const bounds = await this.sidebarResizeHandle.boundingBox()
+    if (!bounds) throw new Error("Sidebar resize handle was not found")
+
+    await this.page.mouse.move(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2)
+    await this.page.mouse.down()
+  }
+
+  bodyInteractionStyles() {
+    return this.page.locator("body").evaluate((body) => ({
+      cursor: body.style.cursor,
+      userSelect: body.style.userSelect,
+    }))
+  }
+
+  setBodyInteractionStyles(styles: { cursor: string; userSelect: string }) {
+    return this.page.locator("body").evaluate((body, nextStyles) => {
+      body.style.cursor = nextStyles.cursor
+      body.style.userSelect = nextStyles.userSelect
+    }, styles)
   }
 
   openSelectedDocument() {

@@ -18,6 +18,84 @@ test("toggles the sidebar", async ({ application }) => {
   await expect(reader.sidebar).toBeVisible()
 })
 
+test("preserves the sidebar width when it is collapsed", async ({ application }) => {
+  const reader = new DocumentReaderDriver(application.page)
+  await reader.resizeSidebarBy(80)
+  const resizedWidth = await reader.sidebarWidth()
+
+  await reader.toggleSidebar()
+  await expect(reader.sidebar).toBeHidden()
+  await reader.toggleSidebar()
+
+  await expect(reader.sidebar).toBeVisible()
+  await expect.poll(() => reader.sidebarWidth()).toBe(resizedWidth)
+})
+
+test("resizes the sidebar from its border", async ({ application }) => {
+  const reader = new DocumentReaderDriver(application.page)
+  const initialWidth = await reader.sidebarWidth()
+
+  await reader.resizeSidebarBy(80)
+
+  await expect.poll(() => reader.sidebarWidth()).toBeCloseTo(initialWidth + 80, 0)
+})
+
+test("resizes the sidebar with the keyboard", async ({ application }) => {
+  const reader = new DocumentReaderDriver(application.page)
+  const initialWidth = await reader.sidebarWidth()
+
+  await reader.sidebarResizeHandle.focus()
+  await reader.sidebarResizeHandle.press("ArrowRight")
+
+  await expect.poll(() => reader.sidebarWidth()).toBe(initialWidth + 16)
+})
+
+test("only resizes the sidebar with the primary pointer button", async ({ application }) => {
+  const reader = new DocumentReaderDriver(application.page)
+  const initialWidth = await reader.sidebarWidth()
+
+  await reader.resizeSidebarBy(80, "right")
+
+  await expect.poll(() => reader.sidebarWidth()).toBe(initialWidth)
+})
+
+test("restores body styles when the sidebar is hidden during resizing", async ({ application }) => {
+  const reader = new DocumentReaderDriver(application.page)
+  const originalStyles = { cursor: "crosshair", userSelect: "text" }
+  await reader.setBodyInteractionStyles(originalStyles)
+
+  await reader.startResizingSidebar()
+  await expect.poll(() => reader.bodyInteractionStyles()).toEqual({
+    cursor: "col-resize",
+    userSelect: "none",
+  })
+
+  await reader.toggleSidebarProgrammatically()
+
+  await expect.poll(() => reader.bodyInteractionStyles()).toEqual(originalStyles)
+  await application.page.mouse.up()
+})
+
+test("reclamps the sidebar when the window shrinks", async ({ application }) => {
+  const reader = new DocumentReaderDriver(application.page)
+  await reader.sidebarResizeHandle.focus()
+  await reader.sidebarResizeHandle.press("End")
+  await expect.poll(() => reader.sidebarWidth()).toBe(480)
+
+  await application.electronApplication.evaluate(({ BrowserWindow }) => {
+    BrowserWindow.getAllWindows()[0]?.setSize(760, 820)
+  })
+
+  await expect
+    .poll(async () => application.page.evaluate(() => window.innerWidth - 320))
+    .toBeLessThan(480)
+  const maximumWidth = await application.page.evaluate(() =>
+    Math.max(200, Math.min(480, window.innerWidth - 320)),
+  )
+  await expect.poll(() => reader.sidebarWidth()).toBe(maximumWidth)
+  await expect(reader.sidebarResizeHandle).toHaveAttribute("aria-valuemax", String(maximumWidth))
+})
+
 test("opens and selects text without a Model Provider", async ({ application }) => {
   await application.selectOpenPath(documentFixture)
   const reader = new DocumentReaderDriver(application.page)
