@@ -178,7 +178,8 @@ test("toggles between single and double page views with one control", async ({ a
   await expect(reader.pageViewButton).toHaveAccessibleName("Switch to single-page view")
   await expect(reader.pageFitButton).toHaveAccessibleName("Fit to width")
   expect(await reader.pageTop(1)).toBe(await reader.pageTop(2))
-  expect(await reader.horizontalPageGap(1, 2)).toBeLessThanOrEqual(2)
+  expect(await reader.horizontalPageGap(1, 2)).toBe(2)
+  expect(await reader.horizontalOverflow()).toBe(0)
   await expectSpreadFullyVisible(reader, 1, 2)
   await expect
     .poll(async () => {
@@ -187,6 +188,11 @@ test("toggles between single and double page views with one control", async ({ a
       return (page.width * 2 + 2) / readerSize.width
     })
     .toBeGreaterThan(0.95)
+
+  await reader.pageFitButton.click()
+  await expect(reader.pageFitButton).toHaveAccessibleName("Fit to page")
+  expect(await reader.horizontalOverflow()).toBe(0)
+  await reader.pageFitButton.click()
 
   await reader.setReaderSize({ height: 150, width: 1_000 })
   await expectSpreadFullyVisible(reader, 1, 2)

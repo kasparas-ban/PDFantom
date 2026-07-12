@@ -185,6 +185,12 @@ export class DocumentReaderDriver {
     })
   }
 
+  horizontalOverflow() {
+    return this.page.locator('[aria-label="PDF reader"]').evaluate(
+      (reader) => reader.scrollWidth - reader.clientWidth,
+    )
+  }
+
   async pinchFirstPage(scaleFactor: number, steps = 10) {
     return this.dispatchZoomWheelGesture(scaleFactor, steps, false)
   }

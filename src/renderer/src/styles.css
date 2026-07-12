@@ -150,3 +150,7 @@
 .pdf-reader-viewer.removePageBorders .spread .page {
   margin-inline: 0;
 }
+
+.pdf-reader-viewer.removePageBorders .spread .page + .page {
+  margin-inline-start: 2px;
+}

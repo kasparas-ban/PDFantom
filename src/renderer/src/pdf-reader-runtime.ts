@@ -66,7 +66,11 @@ export function createPDFReaderRuntime({
   let isCtrlKeyDown = false
 
   const fitRequestedSpread = () => {
-    if (!pdfViewer || requestedPageView !== "double" || requestedScale !== "page-fit") {
+    if (
+      !pdfViewer ||
+      requestedPageView !== "double" ||
+      (requestedScale !== "page-fit" && requestedScale !== "page-width")
+    ) {
       return
     }
 
@@ -92,11 +96,13 @@ export function createPDFReaderRuntime({
     const viewerStyle = getComputedStyle(viewer)
     const verticalPadding =
       Number.parseFloat(viewerStyle.paddingTop) + Number.parseFloat(viewerStyle.paddingBottom)
-    const spreadScale = Math.min(
-      (container.clientWidth - fixedGap - FIT_VISIBILITY_MARGIN) / unscaledSpreadWidth,
+    const widthScale =
+      (container.clientWidth - fixedGap - FIT_VISIBILITY_MARGIN) / unscaledSpreadWidth
+    const heightScale =
       (container.clientHeight - verticalPadding - FIT_VISIBILITY_MARGIN) /
-        unscaledSpreadHeight,
-    )
+      unscaledSpreadHeight
+    const spreadScale =
+      requestedScale === "page-width" ? widthScale : Math.min(widthScale, heightScale)
     if (!Number.isFinite(spreadScale) || spreadScale <= 0) return
 
     const cappedScale = Math.min(MAX_PDF_SCALE, spreadScale)
