@@ -24,6 +24,7 @@ export type PDFPageView = "single" | "double"
 export const MIN_PDF_SCALE = 0.25
 export const MAX_PDF_SCALE = 5
 const PINCH_RENDER_DELAY = 400
+const FIT_VISIBILITY_MARGIN = 1
 
 type PDFScale = number | PDFScalePreset
 
@@ -64,6 +65,46 @@ export function createPDFReaderRuntime({
   let pinchDirection = 0
   let isCtrlKeyDown = false
 
+  const fitRequestedSpread = () => {
+    if (!pdfViewer || requestedPageView !== "double" || requestedScale !== "page-fit") {
+      return
+    }
+
+    const requestedPageElement = viewer.querySelector<HTMLElement>(
+      `.page[data-page-number="${requestedPage}"]`,
+    )
+    const spread = requestedPageElement?.closest<HTMLElement>(".spread")
+    if (!spread) return
+
+    const pageBounds = [...spread.querySelectorAll<HTMLElement>(".page")].map((page) =>
+      page.getBoundingClientRect(),
+    )
+    if (pageBounds.length === 0) return
+
+    const occupiedWidth =
+      Math.max(...pageBounds.map(({ right }) => right)) -
+      Math.min(...pageBounds.map(({ left }) => left))
+    const pageWidth = pageBounds.reduce((width, bounds) => width + bounds.width, 0)
+    const fixedGap = Math.max(0, occupiedWidth - pageWidth)
+    const unscaledSpreadWidth = pageWidth / pdfViewer.currentScale
+    const unscaledSpreadHeight =
+      Math.max(...pageBounds.map(({ height }) => height)) / pdfViewer.currentScale
+    const viewerStyle = getComputedStyle(viewer)
+    const verticalPadding =
+      Number.parseFloat(viewerStyle.paddingTop) + Number.parseFloat(viewerStyle.paddingBottom)
+    const spreadScale = Math.min(
+      (container.clientWidth - fixedGap - FIT_VISIBILITY_MARGIN) / unscaledSpreadWidth,
+      (container.clientHeight - verticalPadding - FIT_VISIBILITY_MARGIN) /
+        unscaledSpreadHeight,
+    )
+    if (!Number.isFinite(spreadScale) || spreadScale <= 0) return
+
+    const cappedScale = Math.min(MAX_PDF_SCALE, spreadScale)
+    if (Math.abs(pdfViewer.currentScale - cappedScale) > 0.001) {
+      pdfViewer.currentScale = cappedScale
+    }
+  }
+
   const applyRequestedScale = () => {
     if (!pdfViewer) return
 
@@ -78,20 +119,27 @@ export function createPDFReaderRuntime({
       if (pdfViewer.currentScale !== boundedScale) {
         pdfViewer.currentScale = boundedScale
       }
+      fitRequestedSpread()
     }
   }
 
   const applyRequestedView = () => {
     if (!pdfViewer) return
 
+    const anchoredPage = requestedPage
     pdfViewer.spreadMode =
       requestedPageView === "double" ? SpreadMode.ODD : SpreadMode.NONE
     applyRequestedScale()
-    if (pdfViewer.currentPageNumber !== requestedPage) {
-      pdfViewer.currentPageNumber = requestedPage
+    if (pdfViewer.currentPageNumber !== anchoredPage) {
+      pdfViewer.currentPageNumber = anchoredPage
     }
   }
   const handlePageChange = ({ pageNumber }: { pageNumber: number }) => {
+    const keepsRequestedPageVisible =
+      requestedPageView === "double" &&
+      Math.floor((pageNumber - 1) / 2) === Math.floor((requestedPage - 1) / 2)
+    if (pageNumber !== requestedPage && keepsRequestedPageVisible) return
+
     requestedPage = pageNumber
     onPageChange(pageNumber)
   }
@@ -100,6 +148,9 @@ export function createPDFReaderRuntime({
     onStatusChange({ state: "ready" })
   }
   const handleScaleChange = ({ scale }: { scale: number }) => onScaleChange(scale)
+  const handlePageRendered = () => {
+    fitRequestedSpread()
+  }
   const handleKeyDown = (event: KeyboardEvent) => {
     if (event.key === "Control") isCtrlKeyDown = true
   }
@@ -190,6 +241,7 @@ export function createPDFReaderRuntime({
       pdfViewer = new PDFViewer(viewerOptions)
       eventBus.on("pagesinit", handlePagesInit)
       eventBus.on("pagechanging", handlePageChange)
+      eventBus.on("pagerendered", handlePageRendered)
       eventBus.on("scalechanging", handleScaleChange)
       onPageCountChange(loadedDocument.numPages)
       pdfViewer.setDocument(loadedDocument)
@@ -201,6 +253,7 @@ export function createPDFReaderRuntime({
       destroyed = true
       eventBus?.off("pagesinit", handlePagesInit)
       eventBus?.off("pagechanging", handlePageChange)
+      eventBus?.off("pagerendered", handlePageRendered)
       eventBus?.off("scalechanging", handleScaleChange)
       pdfViewer?.setDocument(null)
       abortController.abort()

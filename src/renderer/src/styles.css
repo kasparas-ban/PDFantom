@@ -145,8 +145,6 @@
 
 .pdf-reader-viewer .spread {
   margin-inline: 0;
-  display: flex;
-  gap: 2px;
 }
 
 .pdf-reader-viewer.removePageBorders .spread .page {

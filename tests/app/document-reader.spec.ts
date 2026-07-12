@@ -6,6 +6,20 @@ import { expect, test } from "./test"
 const documentFixture = path.resolve("tests/fixtures/pdfs/document-mock.pdf")
 const invalidDocumentFixture = path.resolve("tests/fixtures/pdfs/invalid.pdf")
 
+const expectSpreadFullyVisible = async (
+  reader: DocumentReaderDriver,
+  leftPageNumber: number,
+  rightPageNumber: number,
+) => {
+  await expect
+    .poll(async () =>
+      Math.min(
+        ...Object.values(await reader.spreadVisibility(leftPageNumber, rightPageNumber)),
+      ),
+    )
+    .toBeGreaterThanOrEqual(0)
+}
+
 test("toggles the sidebar", async ({ application }) => {
   const reader = new DocumentReaderDriver(application.page)
 
@@ -164,7 +178,18 @@ test("toggles between single and double page views with one control", async ({ a
   await expect(reader.pageViewButton).toHaveAccessibleName("Switch to single-page view")
   await expect(reader.pageFitButton).toHaveAccessibleName("Fit to width")
   expect(await reader.pageTop(1)).toBe(await reader.pageTop(2))
-  expect(await reader.horizontalPageGap(1, 2)).toBe(2)
+  expect(await reader.horizontalPageGap(1, 2)).toBeLessThanOrEqual(2)
+  await expectSpreadFullyVisible(reader, 1, 2)
+  await expect
+    .poll(async () => {
+      const page = await reader.firstPageSize()
+      const readerSize = await reader.readerSize()
+      return (page.width * 2 + 2) / readerSize.width
+    })
+    .toBeGreaterThan(0.95)
+
+  await reader.setReaderSize({ height: 150, width: 1_000 })
+  await expectSpreadFullyVisible(reader, 1, 2)
   await expect
     .poll(async () => {
       const page = await reader.firstPageSize()
@@ -177,6 +202,23 @@ test("toggles between single and double page views with one control", async ({ a
 
   await expect(reader.pageViewButton).toHaveAccessibleName("Switch to double-page view")
   expect(await reader.pageTop(1)).not.toBe(await reader.pageTop(2))
+})
+
+test("keeps the current page in view when switching to double-page view", async ({
+  application,
+}) => {
+  await application.selectOpenPath(documentFixture)
+  const reader = new DocumentReaderDriver(application.page)
+
+  await reader.openSelectedDocument()
+  await expect(reader.renderedPages).toHaveCount(5)
+  await reader.goToPage(4)
+  await expect(reader.pageNumber).toHaveValue("4")
+
+  await reader.pageViewButton.click()
+
+  await expect(reader.pageNumber).toHaveValue("4")
+  await expectSpreadFullyVisible(reader, 3, 4)
 })
 
 test("fits the document to the page or reader width", async ({ application }) => {

@@ -68,7 +68,7 @@ export const createReaderSessionStore = () =>
     togglePageView: () =>
       set((state) =>
         state.pageView === "single"
-          ? { pageView: "double", scalePreset: "page-height" }
+          ? { pageView: "double", scalePreset: "page-fit" }
           : { pageView: "single" },
       ),
   }))

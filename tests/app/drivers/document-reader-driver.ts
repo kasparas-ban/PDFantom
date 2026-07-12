@@ -275,4 +275,24 @@ export class DocumentReaderDriver {
       { leftPageIndex: leftPageNumber - 1, rightPageIndex: rightPageNumber - 1 },
     )
   }
+
+  spreadVisibility(leftPageNumber: number, rightPageNumber: number) {
+    return this.renderedPages.evaluateAll(
+      (pages, { leftPageIndex, rightPageIndex }) => {
+        const reader = pages[0].closest<HTMLElement>('[aria-label="PDF reader"]')
+        if (!reader) throw new Error("PDF reader container was not found")
+
+        const readerBounds = reader.getBoundingClientRect()
+        const leftPage = pages[leftPageIndex].getBoundingClientRect()
+        const rightPage = pages[rightPageIndex].getBoundingClientRect()
+        return {
+          bottom: readerBounds.bottom - Math.max(leftPage.bottom, rightPage.bottom),
+          left: Math.min(leftPage.left, rightPage.left) - readerBounds.left,
+          right: readerBounds.right - Math.max(leftPage.right, rightPage.right),
+          top: Math.min(leftPage.top, rightPage.top) - readerBounds.top,
+        }
+      },
+      { leftPageIndex: leftPageNumber - 1, rightPageIndex: rightPageNumber - 1 },
+    )
+  }
 }
