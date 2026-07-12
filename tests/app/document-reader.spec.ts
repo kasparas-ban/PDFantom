@@ -147,6 +147,38 @@ test("renders page spacing and bottom padding", async ({ application }) => {
   expect(pageLayout.bottomPadding).toBeGreaterThanOrEqual(24)
 })
 
+test("toggles between single and double page views with one control", async ({ application }) => {
+  await application.selectOpenPath(documentFixture)
+  const reader = new DocumentReaderDriver(application.page)
+
+  await reader.openSelectedDocument()
+  await expect(reader.renderedPages).toHaveCount(5)
+
+  await expect(reader.pageViewButton).toHaveCount(1)
+  await expect(reader.pageViewButton).toHaveAccessibleName("Switch to double-page view")
+  expect(await reader.pageTop(1)).not.toBe(await reader.pageTop(2))
+  await reader.setReaderSize({ width: 300 })
+
+  await reader.pageViewButton.click()
+
+  await expect(reader.pageViewButton).toHaveAccessibleName("Switch to single-page view")
+  await expect(reader.pageFitButton).toHaveAccessibleName("Fit to width")
+  expect(await reader.pageTop(1)).toBe(await reader.pageTop(2))
+  expect(await reader.horizontalPageGap(1, 2)).toBe(2)
+  await expect
+    .poll(async () => {
+      const page = await reader.firstPageSize()
+      const readerSize = await reader.readerSize()
+      return page.height / readerSize.height
+    })
+    .toBeGreaterThan(0.9)
+
+  await reader.pageViewButton.click()
+
+  await expect(reader.pageViewButton).toHaveAccessibleName("Switch to double-page view")
+  expect(await reader.pageTop(1)).not.toBe(await reader.pageTop(2))
+})
+
 test("fits the document to the page or reader width", async ({ application }) => {
   await application.selectOpenPath(documentFixture)
   const reader = new DocumentReaderDriver(application.page)

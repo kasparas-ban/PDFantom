@@ -139,6 +139,16 @@
 
 .pdf-reader-viewer {
   --pdfViewer-padding-bottom: 4px;
-  --page-margin: 4px auto 0;
+  --page-margin: 0 auto 0;
   --page-border: 0;
+}
+
+.pdf-reader-viewer .spread {
+  margin-inline: 0;
+  display: flex;
+  gap: 2px;
+}
+
+.pdf-reader-viewer.removePageBorders .spread .page {
+  margin-inline: 0;
 }

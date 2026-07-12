@@ -31,6 +31,10 @@ export class DocumentReaderDriver {
     return this.page.getByRole("button", { name: /Fit to (page|width)/ })
   }
 
+  get pageViewButton() {
+    return this.page.getByRole("button", { name: /Switch to (double|single)-page view/ })
+  }
+
   get zoomInButton() {
     return this.page.getByRole("button", { name: "Zoom in" })
   }
@@ -174,6 +178,13 @@ export class DocumentReaderDriver {
     }, size)
   }
 
+  readerSize() {
+    return this.page.locator('[aria-label="PDF reader"]').evaluate((reader) => {
+      const bounds = reader.getBoundingClientRect()
+      return { height: bounds.height, width: bounds.width }
+    })
+  }
+
   async pinchFirstPage(scaleFactor: number, steps = 10) {
     return this.dispatchZoomWheelGesture(scaleFactor, steps, false)
   }
@@ -248,5 +259,20 @@ export class DocumentReaderDriver {
         bottomPadding: readerBounds.bottom - lastPage.bottom,
       }
     })
+  }
+
+  pageTop(pageNumber: number) {
+    return this.renderedPages.nth(pageNumber - 1).evaluate((page) => page.getBoundingClientRect().top)
+  }
+
+  horizontalPageGap(leftPageNumber: number, rightPageNumber: number) {
+    return this.renderedPages.evaluateAll(
+      (pages, { leftPageIndex, rightPageIndex }) => {
+        const leftPage = pages[leftPageIndex].getBoundingClientRect()
+        const rightPage = pages[rightPageIndex].getBoundingClientRect()
+        return rightPage.left - leftPage.right
+      },
+      { leftPageIndex: leftPageNumber - 1, rightPageIndex: rightPageNumber - 1 },
+    )
   }
 }

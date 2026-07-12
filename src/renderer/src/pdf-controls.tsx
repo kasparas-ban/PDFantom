@@ -5,6 +5,7 @@ import { useIsFullScreen } from "./hooks/useIsFullScreen"
 import { cn } from "./lib/utils"
 import { PageControls } from "./page-controls"
 import { PageFitControl } from "./page-fit-control"
+import { PageViewControl } from "./page-view-control"
 import { MAX_PDF_SCALE, MIN_PDF_SCALE } from "./pdf-reader-runtime"
 import { useAppConfig } from "./store/app-config-provider"
 import { useReaderSession } from "./store/reader-session-provider"
@@ -33,6 +34,8 @@ export function PDFControls() {
 
         <div className="window-no-drag flex items-center gap-2 justify-self-center">
           <PageControls />
+
+          <PageViewControl />
 
           <PageFitControl />
 

@@ -7,7 +7,8 @@ export function PageFitControl() {
   const scalePreset = useReaderSession((state) => state.scalePreset)
   const setScalePreset = useReaderSession((state) => state.setScalePreset)
 
-  const nextPreset = scalePreset === "page-fit" ? "page-width" : "page-fit"
+  const nextPreset =
+    scalePreset === "page-fit" || scalePreset === "page-height" ? "page-width" : "page-fit"
   const { Icon, label } =
     nextPreset === "page-fit"
       ? { Icon: Maximize, label: "Fit to page" }
