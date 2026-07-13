@@ -1,6 +1,7 @@
 import { BookOpen, FilePlus2 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
+import { cn } from "@/lib/utils"
 import { useReaderSession } from "@/store/reader-session-provider"
 import pdfantomLogo from "../../../../assets/pdfantom-logo.svg?no-inline"
 
@@ -45,15 +46,15 @@ export function AppSidebar({ onActivateDocument, onOpenDocument }: AppSidebarPro
             <nav aria-label="Documents" className="space-y-0.5">
               {documents.map((document) => {
                 const isActive =
-                  activeDocument.status !== "none" &&
-                  activeDocument.document.id === document.id
+                  activeDocument.status !== "none" && activeDocument.document.id === document.id
 
                 return (
                   <Button
                     aria-current={isActive ? "page" : undefined}
-                    className={`w-full justify-start gap-2 px-2 font-normal ${
-                      isActive ? "bg-sidebar-accent text-sidebar-accent-foreground" : ""
-                    }`}
+                    className={cn(
+                      "w-full justify-start gap-2 px-2 font-normal hover:bg-sidebar-accent",
+                      isActive && "bg-sidebar-accent text-sidebar-accent-foreground",
+                    )}
                     key={document.id}
                     onClick={() => onActivateDocument(document.id)}
                     title={document.name}
