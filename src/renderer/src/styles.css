@@ -147,6 +147,10 @@
   margin-inline: 0;
 }
 
+.pdf-reader-viewer .textLayer {
+  outline: none;
+}
+
 .pdf-reader-viewer.removePageBorders .spread .page {
   margin-inline: 0;
 }
