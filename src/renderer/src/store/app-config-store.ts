@@ -1,20 +1,26 @@
 import { createStore } from "zustand/vanilla"
 
-export const DEFAULT_SIDE_PANEL_WIDTH = 256
+export const DEFAULT_DOCUMENTS_PANEL_WIDTH = 256
 
 export type AppConfigState = {
-  isSidePanelOpen: boolean
-  setSidePanelWidth: (width: number) => void
-  sidePanelWidth: number
-  toggleSidePanel: () => void
+  documentsPanelWidth: number
+  isChatPanelOpen: boolean
+  isDocumentsPanelOpen: boolean
+  setDocumentsPanelWidth: (width: number) => void
+  toggleChatPanel: () => void
+  toggleDocumentsPanel: () => void
 }
 
 export const createAppConfigStore = () =>
   createStore<AppConfigState>()((set) => ({
-    isSidePanelOpen: true,
-    setSidePanelWidth: (sidePanelWidth) => set({ sidePanelWidth }),
-    sidePanelWidth: DEFAULT_SIDE_PANEL_WIDTH,
-    toggleSidePanel: () => set((state) => ({ isSidePanelOpen: !state.isSidePanelOpen })),
+    documentsPanelWidth: DEFAULT_DOCUMENTS_PANEL_WIDTH,
+    isChatPanelOpen: false,
+    isDocumentsPanelOpen: true,
+    setDocumentsPanelWidth: (documentsPanelWidth) => set({ documentsPanelWidth }),
+    toggleChatPanel: () =>
+      set((state) => ({ isChatPanelOpen: !state.isChatPanelOpen })),
+    toggleDocumentsPanel: () =>
+      set((state) => ({ isDocumentsPanelOpen: !state.isDocumentsPanelOpen })),
   }))
 
 export type AppConfigStore = ReturnType<typeof createAppConfigStore>

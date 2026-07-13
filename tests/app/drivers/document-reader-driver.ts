@@ -3,12 +3,16 @@ import type { Page } from "@playwright/test"
 export class DocumentReaderDriver {
   constructor(private readonly page: Page) {}
 
-  get sidebar() {
-    return this.page.getByRole("complementary")
+  get documentsPanel() {
+    return this.page.getByRole("complementary", { name: "Documents panel" })
   }
 
-  get sidebarResizeHandle() {
-    return this.page.getByRole("separator", { name: "Resize sidebar" })
+  get documentsPanelResizeHandle() {
+    return this.page.getByRole("separator", { name: "Resize documents panel" })
+  }
+
+  get chatPanel() {
+    return this.page.getByRole("complementary", { name: "Chat panel" })
   }
 
   get renderedPages() {
@@ -53,23 +57,27 @@ export class DocumentReaderDriver {
     return this.page.getByRole("status", { name: "Zoom level" })
   }
 
-  toggleSidebar() {
-    return this.page.getByRole("button", { name: "Hide sidebar" }).click()
+  toggleDocumentsPanel(action: "Hide" | "Show") {
+    return this.page.getByRole("button", { name: `${action} documents panel` }).click()
   }
 
-  toggleSidebarProgrammatically() {
+  toggleDocumentsPanelProgrammatically() {
     return this.page
-      .getByRole("button", { name: "Hide sidebar" })
+      .getByRole("button", { name: "Hide documents panel" })
       .evaluate((button: HTMLButtonElement) => button.click())
   }
 
-  sidebarWidth() {
-    return this.sidebar.evaluate((sidebar) => sidebar.getBoundingClientRect().width)
+  toggleChatPanel(action: "Hide" | "Show") {
+    return this.page.getByRole("button", { name: `${action} chat panel` }).click()
   }
 
-  async resizeSidebarBy(deltaX: number, button: "left" | "right" = "left") {
-    const bounds = await this.sidebarResizeHandle.boundingBox()
-    if (!bounds) throw new Error("Sidebar resize handle was not found")
+  documentsPanelWidth() {
+    return this.documentsPanel.evaluate((panel) => panel.getBoundingClientRect().width)
+  }
+
+  async resizeDocumentsPanelBy(deltaX: number, button: "left" | "right" = "left") {
+    const bounds = await this.documentsPanelResizeHandle.boundingBox()
+    if (!bounds) throw new Error("Documents panel resize handle was not found")
 
     const startX = bounds.x + bounds.width / 2
     const startY = bounds.y + bounds.height / 2
@@ -79,9 +87,9 @@ export class DocumentReaderDriver {
     await this.page.mouse.up({ button })
   }
 
-  async startResizingSidebar() {
-    const bounds = await this.sidebarResizeHandle.boundingBox()
-    if (!bounds) throw new Error("Sidebar resize handle was not found")
+  async startResizingDocumentsPanel() {
+    const bounds = await this.documentsPanelResizeHandle.boundingBox()
+    if (!bounds) throw new Error("Documents panel resize handle was not found")
 
     await this.page.mouse.move(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2)
     await this.page.mouse.down()
@@ -106,7 +114,7 @@ export class DocumentReaderDriver {
   }
 
   openAnotherSelectedDocument() {
-    return this.sidebar.getByRole("button", { name: "Open PDF" }).click()
+    return this.documentsPanel.getByRole("button", { name: "Open PDF" }).click()
   }
 
   documentTitle(name: string) {
@@ -114,11 +122,13 @@ export class DocumentReaderDriver {
   }
 
   documentEntry(name: string) {
-    return this.sidebar.getByRole("button", { exact: true, name })
+    return this.documentsPanel.getByRole("button", { exact: true, name })
   }
 
   documentEntries() {
-    return this.sidebar.getByRole("navigation", { name: "Documents" }).getByRole("button")
+    return this.documentsPanel
+      .getByRole("navigation", { name: "Documents" })
+      .getByRole("button")
   }
 
   pageCountLabel(pageCount: number) {

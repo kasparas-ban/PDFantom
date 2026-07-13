@@ -10,7 +10,7 @@ import { ZoomControls } from "./zoom-controls"
 
 export function PDFControls() {
   const activeDocument = useReaderSession((state) => state.activeDocument)
-  const isSidePanelOpen = useAppConfig((state) => state.isSidePanelOpen)
+  const isDocumentsPanelOpen = useAppConfig((state) => state.isDocumentsPanelOpen)
   const isFullScreen = useIsFullScreen()
 
   if (activeDocument.status !== "loaded") return null
@@ -20,11 +20,11 @@ export function PDFControls() {
       <div
         className={cn(
           "grid h-full w-full grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-4 border-b border-border/70 bg-background px-3",
-          !isSidePanelOpen && (isFullScreen ? "pl-11" : "pl-30"),
+          !isDocumentsPanelOpen && (isFullScreen ? "pl-11" : "pl-30"),
         )}
       >
         <div className="window-no-drag flex w-min min-w-0 items-center gap-2 pl-1">
-          {!isSidePanelOpen && <div className="mr-1.5 h-5 w-px bg-gray-300" />}
+          {!isDocumentsPanelOpen && <div className="mr-1.5 h-5 w-px bg-gray-300" />}
           <h2 className="truncate text-[0.82rem] font-medium">
             {activeDocument.document.name}
           </h2>

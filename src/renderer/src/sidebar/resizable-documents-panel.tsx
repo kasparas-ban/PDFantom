@@ -9,30 +9,30 @@ import {
 
 import { Separator } from "@/components/ui/separator"
 import { useAppConfig } from "@/store/app-config-provider"
-import { AppSidebar } from "./app-sidebar"
+import { DocumentsPanel } from "./documents-panel"
 
 const MINIMUM_WIDTH = 200
 const MAXIMUM_WIDTH = 480
 const MINIMUM_READER_WIDTH = 320
 const KEYBOARD_RESIZE_STEP = 16
 
-type ResizableAppSidebarProps = {
+type ResizableDocumentsPanelProps = {
   readonly onActivateDocument: (documentId: string) => void
   readonly onOpenDocument: () => void
 }
 
-type SidebarResizeHandleProps = {
+type DocumentsPanelResizeHandleProps = {
   readonly maximumWidth: number
   readonly onResize: (width: number) => void
   readonly width: number
 }
 
-export function ResizableAppSidebar({
+export function ResizableDocumentsPanel({
   onActivateDocument,
   onOpenDocument,
-}: ResizableAppSidebarProps) {
-  const storedWidth = useAppConfig((state) => state.sidePanelWidth)
-  const setWidth = useAppConfig((state) => state.setSidePanelWidth)
+}: ResizableDocumentsPanelProps) {
+  const storedWidth = useAppConfig((state) => state.documentsPanelWidth)
+  const setWidth = useAppConfig((state) => state.setDocumentsPanelWidth)
   const [maximumWidth, setMaximumWidth] = useState(getMaximumWidth)
   const width = clampWidth(storedWidth, maximumWidth)
 
@@ -51,16 +51,20 @@ export function ResizableAppSidebar({
 
   return (
     <div className="relative h-full shrink-0" style={{ width }}>
-      <AppSidebar
+      <DocumentsPanel
         onActivateDocument={onActivateDocument}
         onOpenDocument={onOpenDocument}
       />
-      <SidebarResizeHandle maximumWidth={maximumWidth} onResize={setWidth} width={width} />
+      <DocumentsPanelResizeHandle maximumWidth={maximumWidth} onResize={setWidth} width={width} />
     </div>
   )
 }
 
-function SidebarResizeHandle({ maximumWidth, onResize, width }: SidebarResizeHandleProps) {
+function DocumentsPanelResizeHandle({
+  maximumWidth,
+  onResize,
+  width,
+}: DocumentsPanelResizeHandleProps) {
   const bodyStylesBeforeResize = useRef<{ cursor: string; userSelect: string } | null>(null)
   const restoreBodyStyles = useCallback(() => {
     const previousStyles = bodyStylesBeforeResize.current
@@ -125,7 +129,7 @@ function SidebarResizeHandle({ maximumWidth, onResize, width }: SidebarResizeHan
 
   return (
     <Separator
-      aria-label="Resize sidebar"
+      aria-label="Resize documents panel"
       aria-orientation="vertical"
       aria-valuemax={maximumWidth}
       aria-valuemin={MINIMUM_WIDTH}

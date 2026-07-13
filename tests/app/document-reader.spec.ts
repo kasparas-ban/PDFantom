@@ -22,81 +22,98 @@ const expectSpreadFullyVisible = async (
     .toBeGreaterThanOrEqual(0)
 }
 
-test("toggles the sidebar", async ({ application }) => {
+test("toggles the Documents panel", async ({ application }) => {
   const reader = new DocumentReaderDriver(application.page)
 
-  await expect(reader.sidebar).toBeVisible()
+  await expect(reader.documentsPanel).toBeVisible()
 
-  await reader.toggleSidebar()
-  await expect(reader.sidebar).toBeHidden()
+  await reader.toggleDocumentsPanel("Hide")
+  await expect(reader.documentsPanel).toBeHidden()
 
-  await reader.toggleSidebar()
-  await expect(reader.sidebar).toBeVisible()
+  await reader.toggleDocumentsPanel("Show")
+  await expect(reader.documentsPanel).toBeVisible()
 })
 
-test("preserves the sidebar width when it is collapsed", async ({ application }) => {
+test("toggles the empty Chat panel", async ({ application }) => {
   const reader = new DocumentReaderDriver(application.page)
-  await reader.resizeSidebarBy(80)
-  const resizedWidth = await reader.sidebarWidth()
 
-  await reader.toggleSidebar()
-  await expect(reader.sidebar).toBeHidden()
-  await reader.toggleSidebar()
+  await expect(reader.chatPanel).toBeHidden()
 
-  await expect(reader.sidebar).toBeVisible()
-  await expect.poll(() => reader.sidebarWidth()).toBe(resizedWidth)
+  await reader.toggleChatPanel("Show")
+  await expect(reader.chatPanel).toBeVisible()
+  await expect(reader.chatPanel).toBeEmpty()
+
+  await reader.toggleChatPanel("Hide")
+  await expect(reader.chatPanel).toBeHidden()
 })
 
-test("resizes the sidebar from its border", async ({ application }) => {
+test("preserves the Documents panel width when it is collapsed", async ({ application }) => {
   const reader = new DocumentReaderDriver(application.page)
-  const initialWidth = await reader.sidebarWidth()
+  await reader.resizeDocumentsPanelBy(80)
+  const resizedWidth = await reader.documentsPanelWidth()
 
-  await reader.resizeSidebarBy(80)
+  await reader.toggleDocumentsPanel("Hide")
+  await expect(reader.documentsPanel).toBeHidden()
+  await reader.toggleDocumentsPanel("Show")
 
-  await expect.poll(() => reader.sidebarWidth()).toBeCloseTo(initialWidth + 80, 0)
+  await expect(reader.documentsPanel).toBeVisible()
+  await expect.poll(() => reader.documentsPanelWidth()).toBe(resizedWidth)
 })
 
-test("resizes the sidebar with the keyboard", async ({ application }) => {
+test("resizes the Documents panel from its border", async ({ application }) => {
   const reader = new DocumentReaderDriver(application.page)
-  const initialWidth = await reader.sidebarWidth()
+  const initialWidth = await reader.documentsPanelWidth()
 
-  await reader.sidebarResizeHandle.focus()
-  await reader.sidebarResizeHandle.press("ArrowRight")
+  await reader.resizeDocumentsPanelBy(80)
 
-  await expect.poll(() => reader.sidebarWidth()).toBe(initialWidth + 16)
+  await expect.poll(() => reader.documentsPanelWidth()).toBeCloseTo(initialWidth + 80, 0)
 })
 
-test("only resizes the sidebar with the primary pointer button", async ({ application }) => {
+test("resizes the Documents panel with the keyboard", async ({ application }) => {
   const reader = new DocumentReaderDriver(application.page)
-  const initialWidth = await reader.sidebarWidth()
+  const initialWidth = await reader.documentsPanelWidth()
 
-  await reader.resizeSidebarBy(80, "right")
+  await reader.documentsPanelResizeHandle.focus()
+  await reader.documentsPanelResizeHandle.press("ArrowRight")
 
-  await expect.poll(() => reader.sidebarWidth()).toBe(initialWidth)
+  await expect.poll(() => reader.documentsPanelWidth()).toBe(initialWidth + 16)
 })
 
-test("restores body styles when the sidebar is hidden during resizing", async ({ application }) => {
+test("only resizes the Documents panel with the primary pointer button", async ({
+  application,
+}) => {
+  const reader = new DocumentReaderDriver(application.page)
+  const initialWidth = await reader.documentsPanelWidth()
+
+  await reader.resizeDocumentsPanelBy(80, "right")
+
+  await expect.poll(() => reader.documentsPanelWidth()).toBe(initialWidth)
+})
+
+test("restores body styles when the Documents panel is hidden during resizing", async ({
+  application,
+}) => {
   const reader = new DocumentReaderDriver(application.page)
   const originalStyles = { cursor: "crosshair", userSelect: "text" }
   await reader.setBodyInteractionStyles(originalStyles)
 
-  await reader.startResizingSidebar()
+  await reader.startResizingDocumentsPanel()
   await expect.poll(() => reader.bodyInteractionStyles()).toEqual({
     cursor: "col-resize",
     userSelect: "none",
   })
 
-  await reader.toggleSidebarProgrammatically()
+  await reader.toggleDocumentsPanelProgrammatically()
 
   await expect.poll(() => reader.bodyInteractionStyles()).toEqual(originalStyles)
   await application.page.mouse.up()
 })
 
-test("reclamps the sidebar when the window shrinks", async ({ application }) => {
+test("reclamps the Documents panel when the window shrinks", async ({ application }) => {
   const reader = new DocumentReaderDriver(application.page)
-  await reader.sidebarResizeHandle.focus()
-  await reader.sidebarResizeHandle.press("End")
-  await expect.poll(() => reader.sidebarWidth()).toBe(480)
+  await reader.documentsPanelResizeHandle.focus()
+  await reader.documentsPanelResizeHandle.press("End")
+  await expect.poll(() => reader.documentsPanelWidth()).toBe(480)
 
   await application.electronApplication.evaluate(({ BrowserWindow }) => {
     BrowserWindow.getAllWindows()[0]?.setSize(760, 820)
@@ -108,8 +125,11 @@ test("reclamps the sidebar when the window shrinks", async ({ application }) => 
   const maximumWidth = await application.page.evaluate(() =>
     Math.max(200, Math.min(480, window.innerWidth - 320)),
   )
-  await expect.poll(() => reader.sidebarWidth()).toBe(maximumWidth)
-  await expect(reader.sidebarResizeHandle).toHaveAttribute("aria-valuemax", String(maximumWidth))
+  await expect.poll(() => reader.documentsPanelWidth()).toBe(maximumWidth)
+  await expect(reader.documentsPanelResizeHandle).toHaveAttribute(
+    "aria-valuemax",
+    String(maximumWidth),
+  )
 })
 
 test("opens and selects text without a Model Provider", async ({ application }) => {
@@ -184,7 +204,7 @@ test("shows a repair state when the active Document changes before relaunch", as
   }
 })
 
-test("persists every opened Document and activates it from the sidebar", async ({
+test("persists every opened Document and activates it from the Documents panel", async ({
   application,
 }) => {
   const workspace = await mkdtemp(path.join(os.tmpdir(), "pdfantom-documents-"))

@@ -5,19 +5,22 @@ import { createRoot } from "react-dom/client"
 import { Button } from "@/components/ui/button"
 import pdfantomLogo from "../../../assets/pdfantom-logo.svg?no-inline"
 import type { ActiveDocumentState, DocumentUnavailableReason } from "../../shared/document-api"
+import { ChatPanelControl } from "./chat-panel-control"
 import { DocumentReader } from "./document-reader"
+import { DocumentsPanelControl } from "./documents-panel-control"
 import { PDFControls } from "./pdf-controls"
-import { ResizableAppSidebar } from "./sidebar/resizable-app-sidebar"
+import { ChatPanel } from "./sidebar/chat-panel"
+import { ResizableDocumentsPanel } from "./sidebar/resizable-documents-panel"
 import { AppConfigProvider, useAppConfig } from "./store/app-config-provider"
 import { ReaderSessionProvider, useReaderSession } from "./store/reader-session-provider"
-import { TopControl } from "./top-control"
 
 import "pdfjs-dist/web/pdf_viewer.css"
 import "./styles.css"
 
 function App() {
   const loadDocumentLibrary = useReaderSession((state) => state.loadDocumentLibrary)
-  const isSidePanelOpen = useAppConfig((state) => state.isSidePanelOpen)
+  const isChatPanelOpen = useAppConfig((state) => state.isChatPanelOpen)
+  const isDocumentsPanelOpen = useAppConfig((state) => state.isDocumentsPanelOpen)
 
   const [error, setError] = useState<string | null>(null)
 
@@ -83,8 +86,11 @@ function App() {
 
   return (
     <main className="flex h-screen bg-background text-foreground">
-      {isSidePanelOpen && (
-        <ResizableAppSidebar onActivateDocument={activateDocument} onOpenDocument={openDocument} />
+      {isDocumentsPanelOpen && (
+        <ResizableDocumentsPanel
+          onActivateDocument={activateDocument}
+          onOpenDocument={openDocument}
+        />
       )}
 
       <section className="flex h-full min-w-0 flex-1 flex-col">
@@ -97,7 +103,10 @@ function App() {
         </div>
       </section>
 
-      <TopControl />
+      {isChatPanelOpen && <ChatPanel />}
+
+      <DocumentsPanelControl />
+      <ChatPanelControl />
     </main>
   )
 }

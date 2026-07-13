@@ -5,18 +5,22 @@ import { cn } from "@/lib/utils"
 import { useReaderSession } from "@/store/reader-session-provider"
 import pdfantomLogo from "../../../../assets/pdfantom-logo.svg?no-inline"
 
-type AppSidebarProps = {
+type DocumentsPanelProps = {
   readonly onActivateDocument: (documentId: string) => void
   readonly onOpenDocument: () => void
 }
 
-export function AppSidebar({ onActivateDocument, onOpenDocument }: AppSidebarProps) {
+export function DocumentsPanel({ onActivateDocument, onOpenDocument }: DocumentsPanelProps) {
   const activeDocument = useReaderSession((state) => state.activeDocument)
   const documents = useReaderSession((state) => state.documents)
   const isDocumentLibraryHydrated = useReaderSession((state) => state.isDocumentLibraryHydrated)
 
   return (
-    <aside className="flex h-full flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground shadow-[inset_-1px_0_rgb(255_255_255/28%)]">
+    <aside
+      aria-label="Documents panel"
+      className="flex h-full flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground shadow-[inset_-1px_0_rgb(255_255_255/28%)]"
+      id="documents-panel"
+    >
       <div aria-label="Window drag area" className="window-drag-region h-12 shrink-0" />
 
       <div className="flex min-h-0 flex-1 flex-col px-2 pb-2">
