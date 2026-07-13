@@ -1,4 +1,4 @@
-import { PanelRightClose, PanelRightOpen } from "lucide-react"
+import { MessageCircleIcon, PanelRightClose } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { useAppConfig } from "./store/app-config-provider"
@@ -21,7 +21,7 @@ export function ChatPanelControl() {
         type="button"
         variant="ghost"
       >
-        {isChatPanelOpen ? <PanelRightClose /> : <PanelRightOpen />}
+        {isChatPanelOpen ? <PanelRightClose /> : <MessageCircleIcon />}
       </Button>
     </div>
   )
