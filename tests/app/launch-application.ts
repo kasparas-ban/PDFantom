@@ -16,14 +16,22 @@ export async function launchTestApplication({
   try {
     const profilePath = path.join(workspace, "profile")
     const { application, page } = await launchApplication(profilePath)
+    let currentApplication = application
 
     return {
       electronApplication: application,
       page,
-      selectOpenPath: (selectedPath: string) => mockOpenDialog(application, selectedPath),
+      selectOpenPath: (selectedPath: string) =>
+        mockOpenDialog(currentApplication, selectedPath),
+      relaunch: async () => {
+        await currentApplication.close()
+        const relaunched = await launchApplication(profilePath)
+        currentApplication = relaunched.application
+        return relaunched
+      },
       close: async () => {
         try {
-          await application.close()
+          await currentApplication.close().catch(() => undefined)
         } finally {
           await rm(workspace, { recursive: true, force: true })
         }

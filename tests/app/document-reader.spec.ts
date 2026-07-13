@@ -1,3 +1,5 @@
+import { appendFile, copyFile, mkdtemp, rm } from "node:fs/promises"
+import os from "node:os"
 import path from "node:path"
 
 import { DocumentReaderDriver } from "./drivers/document-reader-driver"
@@ -122,6 +124,134 @@ test("opens and selects text without a Model Provider", async ({ application }) 
 
   await reader.selectPassage("Introduction to")
   await expect.poll(() => reader.selectedText()).toContain("Introduction to")
+})
+
+test("restores the last open Document at the first page after relaunch", async ({ application }) => {
+  await application.selectOpenPath(documentFixture)
+  const reader = new DocumentReaderDriver(application.page)
+
+  await reader.openSelectedDocument()
+  await expect(reader.documentEntry("document-mock.pdf")).toHaveAttribute(
+    "aria-current",
+    "page",
+  )
+  await expect(reader.renderedPages).toHaveCount(5)
+  await reader.goToPage(4)
+  await expect(reader.pageNumber).toHaveValue("4")
+
+  const relaunched = await application.relaunch()
+  const restoredReader = new DocumentReaderDriver(relaunched.page)
+
+  await expect(restoredReader.documentEntry("document-mock.pdf")).toHaveAttribute(
+    "aria-current",
+    "page",
+  )
+  await expect(restoredReader.documentTitle("document-mock.pdf")).toBeVisible()
+  await expect(restoredReader.renderedPages).toHaveCount(5)
+  await expect(restoredReader.pageNumber).toHaveValue("1")
+})
+
+test("shows a repair state when the active Document changes before relaunch", async ({
+  application,
+}) => {
+  const workspace = await mkdtemp(path.join(os.tmpdir(), "pdfantom-unavailable-document-"))
+  const sourcePath = path.join(workspace, "notes.pdf")
+
+  try {
+    await copyFile(documentFixture, sourcePath)
+    await application.selectOpenPath(sourcePath)
+    const reader = new DocumentReaderDriver(application.page)
+    await reader.openSelectedDocument()
+    await expect(reader.documentTitle("notes.pdf")).toBeVisible()
+
+    await appendFile(sourcePath, "\n% changed after opening\n")
+    const relaunched = await application.relaunch()
+    const restoredReader = new DocumentReaderDriver(relaunched.page)
+
+    await expect(restoredReader.documentEntry("notes.pdf")).toHaveAttribute(
+      "aria-current",
+      "page",
+    )
+    await expect(
+      relaunched.page.getByRole("heading", { name: "notes.pdf is unavailable" }),
+    ).toBeVisible()
+    await expect(
+      relaunched.page.getByText("The file’s contents changed after it was added."),
+    ).toBeVisible()
+    await expect(restoredReader.renderedPages).toHaveCount(0)
+  } finally {
+    await rm(workspace, { force: true, recursive: true })
+  }
+})
+
+test("persists every opened Document and activates it from the sidebar", async ({
+  application,
+}) => {
+  const workspace = await mkdtemp(path.join(os.tmpdir(), "pdfantom-documents-"))
+  const firstDocument = path.join(workspace, "first.pdf")
+  const secondDocument = path.join(workspace, "second.pdf")
+
+  try {
+    await copyFile(documentFixture, firstDocument)
+    await copyFile(documentFixture, secondDocument)
+
+    const reader = new DocumentReaderDriver(application.page)
+    await application.selectOpenPath(firstDocument)
+    await reader.openSelectedDocument()
+    await application.selectOpenPath(secondDocument)
+    await reader.openAnotherSelectedDocument()
+
+    await expect(reader.documentEntry("first.pdf")).toBeVisible()
+    await expect(reader.documentEntry("second.pdf")).toHaveAttribute("aria-current", "page")
+    await expect(reader.documentEntries()).toHaveText(["second.pdf", "first.pdf"])
+
+    await reader.documentEntry("first.pdf").click()
+    await expect(reader.documentEntry("first.pdf")).toHaveAttribute("aria-current", "page")
+    await expect(reader.documentTitle("first.pdf")).toBeVisible()
+    await expect(reader.renderedPages).toHaveCount(5)
+    await expect(reader.documentEntries()).toHaveText(["second.pdf", "first.pdf"])
+
+    await appendFile(secondDocument, "\n% changed after opening\n")
+    const relaunched = await application.relaunch()
+    const restoredReader = new DocumentReaderDriver(relaunched.page)
+
+    await expect(restoredReader.documentEntry("first.pdf")).toHaveAttribute(
+      "aria-current",
+      "page",
+    )
+    await expect(restoredReader.documentEntry("second.pdf")).toHaveAttribute(
+      "title",
+      "second.pdf",
+    )
+    await expect(restoredReader.documentEntries()).toHaveText(["second.pdf", "first.pdf"])
+    await expect(restoredReader.documentTitle("first.pdf")).toBeVisible()
+    await expect(restoredReader.renderedPages).toHaveCount(5)
+
+    await restoredReader.documentEntry("second.pdf").click()
+    await expect(restoredReader.loadingError()).toContainText(
+      "The document is unavailable. Restore the file and try again.",
+    )
+    await expect(restoredReader.documentEntry("first.pdf")).toHaveAttribute(
+      "aria-current",
+      "page",
+    )
+    await expect(restoredReader.documentEntry("second.pdf")).not.toHaveAttribute(
+      "aria-current",
+      "page",
+    )
+    await expect(restoredReader.documentTitle("first.pdf")).toBeVisible()
+
+    await application.selectOpenPath(secondDocument)
+    await restoredReader.openAnotherSelectedDocument()
+    await expect(restoredReader.documentEntry("second.pdf")).toHaveAttribute(
+      "aria-current",
+      "page",
+    )
+    await expect(restoredReader.documentTitle("second.pdf")).toBeVisible()
+    await expect(restoredReader.renderedPages).toHaveCount(5)
+  } finally {
+    await rm(workspace, { force: true, recursive: true })
+  }
 })
 
 test("navigates document pages", async ({ application }) => {

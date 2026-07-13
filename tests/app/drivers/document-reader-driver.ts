@@ -99,8 +99,20 @@ export class DocumentReaderDriver {
     return this.page.getByRole("button", { name: "Choose a PDF" }).click()
   }
 
+  openAnotherSelectedDocument() {
+    return this.sidebar.getByRole("button", { name: "Open PDF" }).click()
+  }
+
   documentTitle(name: string) {
     return this.page.getByRole("heading", { name })
+  }
+
+  documentEntry(name: string) {
+    return this.sidebar.getByRole("button", { exact: true, name })
+  }
+
+  documentEntries() {
+    return this.sidebar.getByRole("navigation", { name: "Documents" }).getByRole("button")
   }
 
   pageCountLabel(pageCount: number) {

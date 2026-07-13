@@ -1,21 +1,22 @@
 import { StrictMode, useEffect, useState } from "react"
-import { FilePlus2 } from "lucide-react"
+import { FilePlus2, FileWarning } from "lucide-react"
 import { createRoot } from "react-dom/client"
 
 import { Button } from "@/components/ui/button"
 import pdfantomLogo from "../../../assets/pdfantom-logo.svg?no-inline"
+import type { ActiveDocumentState, DocumentUnavailableReason } from "../../shared/document-api"
+import { DocumentReader } from "./document-reader"
 import { PDFControls } from "./pdf-controls"
 import { ResizableAppSidebar } from "./sidebar/resizable-app-sidebar"
 import { AppConfigProvider, useAppConfig } from "./store/app-config-provider"
 import { ReaderSessionProvider, useReaderSession } from "./store/reader-session-provider"
-import { DocumentReader } from "./document-reader"
 import { TopControl } from "./top-control"
 
 import "pdfjs-dist/web/pdf_viewer.css"
 import "./styles.css"
 
 function App() {
-  const openReaderDocument = useReaderSession((state) => state.openDocument)
+  const loadDocumentLibrary = useReaderSession((state) => state.loadDocumentLibrary)
   const isSidePanelOpen = useAppConfig((state) => state.isSidePanelOpen)
 
   const [error, setError] = useState<string | null>(null)
@@ -32,20 +33,58 @@ function App() {
     return () => colorScheme.removeEventListener("change", syncColorScheme)
   }, [])
 
+  useEffect(() => {
+    let isCurrent = true
+
+    void window.pdfantom
+      .getDocumentLibrary()
+      .then((snapshot) => {
+        if (isCurrent) loadDocumentLibrary(snapshot)
+      })
+      .catch(() => {
+        if (!isCurrent) return
+        setError("The document library could not be loaded.")
+        loadDocumentLibrary({ activeDocument: { status: "none" }, documents: [] })
+      })
+
+    return () => {
+      isCurrent = false
+    }
+  }, [loadDocumentLibrary])
+
   const openDocument = async () => {
     setError(null)
     try {
-      const openedDocument = await window.pdfantom.openDocument()
-      if (openedDocument) openReaderDocument(openedDocument)
+      const snapshot = await window.pdfantom.openDocument()
+      if (snapshot) {
+        setError(null)
+        loadDocumentLibrary(snapshot)
+      }
     } catch {
       setError("The document could not be opened.")
+    }
+  }
+
+  const activateDocument = async (documentId: string) => {
+    setError(null)
+    try {
+      const snapshot = await window.pdfantom.activateDocument(documentId)
+      setError(null)
+      loadDocumentLibrary(snapshot)
+    } catch {
+      setError("The document is unavailable. Restore the file and try again.")
+      try {
+        loadDocumentLibrary(await window.pdfantom.getDocumentLibrary())
+      } catch {
+        // Keep the current renderer state when the library cannot be refreshed.
+      }
     }
   }
 
   return (
     <main className="flex h-screen bg-background text-foreground">
       {isSidePanelOpen && (
-        <ResizableAppSidebar onOpenDocument={openDocument} />
+        <ResizableAppSidebar onActivateDocument={activateDocument} onOpenDocument={openDocument} />
       )}
 
       <section className="flex h-full min-w-0 flex-1 flex-col">
@@ -65,6 +104,7 @@ function App() {
 
 function PDFCanvas({ error, openDocument }: { error: string | null; openDocument: () => void }) {
   const activeDocument = useReaderSession((state) => state.activeDocument)
+  const isDocumentLibraryHydrated = useReaderSession((state) => state.isDocumentLibraryHydrated)
 
   return (
     <>
@@ -77,8 +117,14 @@ function PDFCanvas({ error, openDocument }: { error: string | null; openDocument
         </div>
       )}
 
-      {activeDocument ? (
-        <DocumentReader document={activeDocument} />
+      {!isDocumentLibraryHydrated ? (
+        <div className="flex h-full w-full items-center justify-center text-sm text-muted-foreground">
+          Restoring document…
+        </div>
+      ) : activeDocument.status === "loaded" ? (
+        <DocumentReader document={activeDocument.document} />
+      ) : activeDocument.status === "unavailable" ? (
+        <UnavailableDocument activeDocument={activeDocument} openDocument={openDocument} />
       ) : (
         <div className="flex h-full w-full items-center justify-center">
           <section className="flex items-center justify-center px-8 pb-[8vh] text-center">
@@ -104,6 +150,47 @@ function PDFCanvas({ error, openDocument }: { error: string | null; openDocument
         </div>
       )}
     </>
+  )
+}
+
+type UnavailableActiveDocument = Extract<ActiveDocumentState, { readonly status: "unavailable" }>
+
+const unavailableDocumentMessages: Record<DocumentUnavailableReason, string> = {
+  "content-mismatch":
+    "The file's contents changed after it was added. Open it again to use the current version.",
+  invalid: "The saved file is no longer a valid PDF. Restore it or choose another file.",
+  missing:
+    "The file was moved or deleted. Restore it to its saved location, or open it again from its new location.",
+  unreadable: "PDFantom cannot read the saved file. Check its permissions, then try again.",
+}
+
+function UnavailableDocument({
+  activeDocument,
+  openDocument,
+}: {
+  activeDocument: UnavailableActiveDocument
+  openDocument: () => void
+}) {
+  return (
+    <div className="flex h-full w-full items-center justify-center">
+      <section className="flex items-center justify-center px-8 pb-[8vh] text-center">
+        <div className="max-w-md">
+          <div className="mx-auto mb-6 flex size-14 items-center justify-center rounded-2xl bg-muted text-muted-foreground">
+            <FileWarning aria-hidden="true" className="size-7" />
+          </div>
+          <h2 className="text-[1.75rem] font-medium tracking-[-0.035em]">
+            {activeDocument.document.name} is unavailable
+          </h2>
+          <p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-muted-foreground">
+            {unavailableDocumentMessages[activeDocument.reason]}
+          </p>
+          <Button className="mt-6 rounded-xl px-4" onClick={openDocument} type="button">
+            <FilePlus2 />
+            Choose a PDF
+          </Button>
+        </div>
+      </section>
+    </div>
   )
 }
 

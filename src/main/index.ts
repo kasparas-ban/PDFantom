@@ -2,11 +2,13 @@ import path from "node:path"
 
 import { app, BrowserWindow } from "electron"
 
+import { DocumentLibrary } from "./document-library"
+import { DocumentRepository } from "./document-repository"
 import { rendererEntryUrl } from "./renderer-entry"
 import { registerDocumentBoundary } from "./document-boundary"
 import { registerWindowBoundary } from "./window-boundary"
 
-function createWindow(rendererUrl: string) {
+function createWindow() {
   const window = new BrowserWindow({
     backgroundColor: "#f6f5f3",
     width: 1280,
@@ -30,8 +32,6 @@ function createWindow(rendererUrl: string) {
   window.webContents.setWindowOpenHandler(() => ({ action: "deny" }))
   window.webContents.on("will-navigate", (event) => event.preventDefault())
 
-  void window.loadURL(rendererUrl)
-
   return window
 }
 
@@ -41,13 +41,20 @@ void app.whenReady().then(() => {
   }
 
   const rendererUrl = rendererEntryUrl()
-  const window = createWindow(rendererUrl)
+  const repository = new DocumentRepository(
+    path.join(app.getPath("userData"), "study-history.sqlite"),
+  )
+  const library = new DocumentLibrary(repository)
+  const window = createWindow()
 
-  registerDocumentBoundary(window, rendererUrl)
+  registerDocumentBoundary(window, rendererUrl, library)
   registerWindowBoundary(window, rendererUrl)
   window.webContents.session.setPermissionRequestHandler((_webContents, _permission, callback) =>
     callback(false),
   )
+  app.once("before-quit", () => repository.close())
+
+  void window.loadURL(rendererUrl)
 })
 
 app.on("window-all-closed", () => app.quit())

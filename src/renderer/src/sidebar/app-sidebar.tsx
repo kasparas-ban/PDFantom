@@ -5,11 +5,14 @@ import { useReaderSession } from "@/store/reader-session-provider"
 import pdfantomLogo from "../../../../assets/pdfantom-logo.svg?no-inline"
 
 type AppSidebarProps = {
+  readonly onActivateDocument: (documentId: string) => void
   readonly onOpenDocument: () => void
 }
 
-export function AppSidebar({ onOpenDocument }: AppSidebarProps) {
+export function AppSidebar({ onActivateDocument, onOpenDocument }: AppSidebarProps) {
   const activeDocument = useReaderSession((state) => state.activeDocument)
+  const documents = useReaderSession((state) => state.documents)
+  const isDocumentLibraryHydrated = useReaderSession((state) => state.isDocumentLibraryHydrated)
 
   return (
     <aside className="flex h-full flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground shadow-[inset_-1px_0_rgb(255_255_255/28%)]">
@@ -24,6 +27,7 @@ export function AppSidebar({ onOpenDocument }: AppSidebarProps) {
         <nav aria-label="Primary" className="space-y-0.5 font-semibold text-gray-600">
           <Button
             className="w-full justify-start gap-2 px-2 hover:bg-sidebar-accent"
+            disabled={!isDocumentLibraryHydrated}
             onClick={onOpenDocument}
             type="button"
             variant="ghost"
@@ -37,17 +41,34 @@ export function AppSidebar({ onOpenDocument }: AppSidebarProps) {
           <div className="mb-1.5 flex items-center justify-between px-2">
             <p className="text-md font-semibold text-gray-400">Documents</p>
           </div>
-          {activeDocument ? (
-            <div
-              aria-current="page"
-              className="flex w-full items-center gap-2 rounded-lg bg-sidebar-accent px-2 py-1.5 text-left text-sm text-sidebar-accent-foreground"
-            >
-              <BookOpen className="size-4 shrink-0 text-muted-foreground" />
-              <span className="min-w-0 flex-1 truncate">{activeDocument.name}</span>
-            </div>
+          {documents.length > 0 ? (
+            <nav aria-label="Documents" className="space-y-0.5">
+              {documents.map((document) => {
+                const isActive =
+                  activeDocument.status !== "none" &&
+                  activeDocument.document.id === document.id
+
+                return (
+                  <Button
+                    aria-current={isActive ? "page" : undefined}
+                    className={`w-full justify-start gap-2 px-2 font-normal ${
+                      isActive ? "bg-sidebar-accent text-sidebar-accent-foreground" : ""
+                    }`}
+                    key={document.id}
+                    onClick={() => onActivateDocument(document.id)}
+                    title={document.name}
+                    type="button"
+                    variant="ghost"
+                  >
+                    <BookOpen className="size-4 shrink-0 text-muted-foreground" />
+                    <span className="min-w-0 flex-1 truncate text-left">{document.name}</span>
+                  </Button>
+                )
+              })}
+            </nav>
           ) : (
             <div className="px-2 py-2 text-xs leading-relaxed text-muted-foreground">
-              Open a PDF to begin reading.
+              {isDocumentLibraryHydrated ? "Open a PDF to begin reading." : "Loading documents…"}
             </div>
           )}
         </div>

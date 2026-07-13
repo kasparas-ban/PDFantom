@@ -17,6 +17,7 @@ const MINIMUM_READER_WIDTH = 320
 const KEYBOARD_RESIZE_STEP = 16
 
 type ResizableAppSidebarProps = {
+  readonly onActivateDocument: (documentId: string) => void
   readonly onOpenDocument: () => void
 }
 
@@ -26,7 +27,10 @@ type SidebarResizeHandleProps = {
   readonly width: number
 }
 
-export function ResizableAppSidebar({ onOpenDocument }: ResizableAppSidebarProps) {
+export function ResizableAppSidebar({
+  onActivateDocument,
+  onOpenDocument,
+}: ResizableAppSidebarProps) {
   const storedWidth = useAppConfig((state) => state.sidePanelWidth)
   const setWidth = useAppConfig((state) => state.setSidePanelWidth)
   const [maximumWidth, setMaximumWidth] = useState(getMaximumWidth)
@@ -47,7 +51,10 @@ export function ResizableAppSidebar({ onOpenDocument }: ResizableAppSidebarProps
 
   return (
     <div className="relative h-full shrink-0" style={{ width }}>
-      <AppSidebar onOpenDocument={onOpenDocument} />
+      <AppSidebar
+        onActivateDocument={onActivateDocument}
+        onOpenDocument={onOpenDocument}
+      />
       <SidebarResizeHandle maximumWidth={maximumWidth} onResize={setWidth} width={width} />
     </div>
   )

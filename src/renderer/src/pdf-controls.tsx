@@ -12,7 +12,7 @@ export function PDFControls() {
   const isSidePanelOpen = useAppConfig((state) => state.isSidePanelOpen)
   const isFullScreen = useIsFullScreen()
 
-  if (!activeDocument) return null
+  if (activeDocument.status !== "loaded") return null
 
   return (
     <header className="flex h-full w-full">
@@ -24,7 +24,9 @@ export function PDFControls() {
       >
         <div className="window-no-drag flex w-min min-w-0 items-center gap-2 pl-1">
           {!isSidePanelOpen && <div className="mr-1.5 h-5 w-px bg-gray-300" />}
-          <h2 className="truncate text-[0.82rem] font-medium">{activeDocument.name}</h2>
+          <h2 className="truncate text-[0.82rem] font-medium">
+            {activeDocument.document.name}
+          </h2>
         </div>
 
         <div className="window-no-drag flex items-center gap-2 justify-self-center">

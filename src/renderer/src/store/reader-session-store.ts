@@ -1,11 +1,17 @@
 import { createStore } from "zustand/vanilla"
 
-import type { OpenedDocument } from "../../../shared/document-api"
+import type {
+  ActiveDocumentState,
+  DocumentLibrarySnapshot,
+  DocumentSummary,
+} from "../../../shared/document-api"
 import type { PDFPageView, PDFScalePreset } from "../pdf-reader-runtime"
 
 export type ReaderSessionState = {
-  activeDocument: OpenedDocument | null
-  openDocument: (document: OpenedDocument | null) => void
+  activeDocument: ActiveDocumentState
+  documents: readonly DocumentSummary[]
+  isDocumentLibraryHydrated: boolean
+  loadDocumentLibrary: (snapshot: DocumentLibrarySnapshot) => void
 
   currentPage: number
   pageCount: number
@@ -25,8 +31,17 @@ export type ReaderSessionState = {
 
 export const createReaderSessionStore = () =>
   createStore<ReaderSessionState>()((set, get) => ({
-    activeDocument: null,
-    openDocument: (activeDocument) => set({ activeDocument, currentPage: 1, pageCount: 0 }),
+    activeDocument: { status: "none" },
+    documents: [],
+    isDocumentLibraryHydrated: false,
+    loadDocumentLibrary: ({ activeDocument, documents }) =>
+      set({
+        activeDocument,
+        currentPage: 1,
+        documents,
+        isDocumentLibraryHydrated: true,
+        pageCount: 0,
+      }),
 
     currentPage: 1,
     pageCount: 0,

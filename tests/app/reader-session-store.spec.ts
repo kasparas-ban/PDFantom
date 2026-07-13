@@ -22,17 +22,45 @@ test("owns page navigation invariants", () => {
 
 test("starts each document with a fresh navigation session", () => {
   const store = createReaderSessionStore()
-  const document = { bytes: new ArrayBuffer(0), name: "example.pdf" }
+  const document = {
+    bytes: new ArrayBuffer(0),
+    id: "document-1",
+    name: "example.pdf",
+  }
 
   store.getState().setZoom(1.3)
-  store.getState().openDocument(document)
+  store.getState().loadDocumentLibrary({
+    activeDocument: { document, status: "loaded" },
+    documents: [{ id: document.id, name: document.name }],
+  })
   store.getState().reportPageCount(5)
   store.getState().requestPage(4)
-  store.getState().openDocument({ ...document, name: "next.pdf" })
+  store.getState().loadDocumentLibrary({
+    activeDocument: {
+      document: {
+        ...document,
+        id: "document-2",
+        name: "next.pdf",
+      },
+      status: "loaded",
+    },
+    documents: [
+      { id: "document-2", name: "next.pdf" },
+      { id: document.id, name: document.name },
+    ],
+  })
 
   expect(store.getState()).toMatchObject({
-    activeDocument: { name: "next.pdf" },
+    activeDocument: {
+      document: { id: "document-2", name: "next.pdf" },
+      status: "loaded",
+    },
     currentPage: 1,
+    documents: [
+      { id: "document-2", name: "next.pdf" },
+      { id: "document-1", name: "example.pdf" },
+    ],
+    isDocumentLibraryHydrated: true,
     pageCount: 0,
     zoom: 1.3,
   })

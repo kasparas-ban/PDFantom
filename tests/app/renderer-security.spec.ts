@@ -49,7 +49,13 @@ test("the renderer exposes only the allowlisted preload API", async ({ applicati
   })
 
   expect(boundary).toEqual({
-    apiProperties: ["getIsFullScreen", "onFullScreenChange", "openDocument"],
+    apiProperties: [
+      "activateDocument",
+      "getDocumentLibrary",
+      "getIsFullScreen",
+      "onFullScreenChange",
+      "openDocument",
+    ],
     apiSymbols: [],
     exposedGlobals: [],
   })

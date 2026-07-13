@@ -1,21 +1,37 @@
-import { readFile } from "node:fs/promises"
-import path from "node:path"
+import { dialog, ipcMain, type BrowserWindow, type IpcMainInvokeEvent } from "electron"
 
-import { dialog, ipcMain, type BrowserWindow } from "electron"
-
-import { OPEN_DOCUMENT_CHANNEL } from "../shared/document-api"
+import {
+  ACTIVATE_DOCUMENT_CHANNEL,
+  GET_DOCUMENT_LIBRARY_CHANNEL,
+  OPEN_DOCUMENT_CHANNEL,
+} from "../shared/document-api"
+import { DocumentLibrary } from "./document-library"
 import { isTrustedRenderer } from "./trusted-renderer"
 
-const PDF_HEADER = "%PDF-"
+export function registerDocumentBoundary(
+  window: BrowserWindow,
+  rendererUrl: string,
+  library: DocumentLibrary,
+) {
+  ipcMain.handle(GET_DOCUMENT_LIBRARY_CHANNEL, async (event) => {
+    assertTrustedRenderer(event, window, rendererUrl)
+    return library.getSnapshot()
+  })
 
-export function registerDocumentBoundary(window: BrowserWindow, rendererUrl: string) {
   ipcMain.handle(OPEN_DOCUMENT_CHANNEL, async (event) => {
-    if (!isTrustedRenderer(event, window, rendererUrl)) {
-      throw new Error("Document access was denied for an untrusted sender.")
-    }
+    assertTrustedRenderer(event, window, rendererUrl)
 
     const selectedPath = await choosePdf(window)
-    return selectedPath ? readPdf(selectedPath) : null
+    if (!selectedPath) return null
+
+    return library.openDocument(selectedPath)
+  })
+
+  ipcMain.handle(ACTIVATE_DOCUMENT_CHANNEL, async (event, documentId: unknown) => {
+    assertTrustedRenderer(event, window, rendererUrl)
+    assertDocumentId(documentId)
+
+    return library.activateDocument(documentId)
   })
 }
 
@@ -29,16 +45,18 @@ async function choosePdf(window: BrowserWindow) {
   return result.canceled ? null : (result.filePaths[0] ?? null)
 }
 
-async function readPdf(filePath: string) {
-  if (path.extname(filePath).toLowerCase() !== ".pdf") {
-    throw new Error("The selected file is not a PDF.")
+function assertTrustedRenderer(
+  event: IpcMainInvokeEvent,
+  window: BrowserWindow,
+  rendererUrl: string,
+) {
+  if (!isTrustedRenderer(event, window, rendererUrl)) {
+    throw new Error("Document access was denied for an untrusted sender.")
   }
+}
 
-  const file = await readFile(filePath)
-  if (file.subarray(0, PDF_HEADER.length).toString("ascii") !== PDF_HEADER) {
-    throw new Error("The selected file does not contain a valid PDF header.")
+function assertDocumentId(documentId: unknown): asserts documentId is string {
+  if (typeof documentId !== "string" || documentId.length === 0 || documentId.length > 200) {
+    throw new Error("The Document identifier is invalid.")
   }
-
-  const bytes = Uint8Array.from(file).buffer
-  return { bytes, name: path.basename(filePath) }
 }
