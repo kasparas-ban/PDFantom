@@ -42,9 +42,88 @@ test("toggles the empty Chat panel", async ({ application }) => {
   await reader.toggleChatPanel("Show")
   await expect(reader.chatPanel).toBeVisible()
   await expect(reader.chatPanel).toBeEmpty()
+  await expect(reader.chatPanelResizeHandle).toBeVisible()
 
   await reader.toggleChatPanel("Hide")
   await expect(reader.chatPanel).toBeHidden()
+})
+
+test("restores the Chat panel width after relaunch", async ({ application }) => {
+  const reader = new DocumentReaderDriver(application.page)
+  await reader.toggleChatPanel("Show")
+  await reader.resizeChatPanelBy(80)
+  await application.electronApplication.evaluate(({ BrowserWindow }) => {
+    BrowserWindow.getAllWindows()[0]?.setSize(900, 820)
+  })
+  const resizedWidth = await reader.chatPanelWidth()
+
+  const relaunched = await application.relaunch()
+  const restoredReader = new DocumentReaderDriver(relaunched.page)
+  await relaunched.application.evaluate(({ BrowserWindow }) => {
+    BrowserWindow.getAllWindows()[0]?.setSize(900, 820)
+  })
+
+  await expect(restoredReader.chatPanel).toBeVisible()
+  await expect.poll(() => restoredReader.chatPanelWidth()).toBe(resizedWidth)
+})
+
+test("preserves the Chat panel width when it is collapsed", async ({ application }) => {
+  const reader = new DocumentReaderDriver(application.page)
+  await reader.toggleChatPanel("Show")
+  await reader.resizeChatPanelBy(80)
+  const resizedWidth = await reader.chatPanelWidth()
+
+  await reader.toggleChatPanel("Hide")
+  await expect(reader.chatPanel).toBeHidden()
+  await reader.toggleChatPanel("Show")
+
+  await expect(reader.chatPanel).toBeVisible()
+  await expect.poll(() => reader.chatPanelWidth()).toBe(resizedWidth)
+})
+
+test("resizes the Chat panel from its border", async ({ application }) => {
+  const reader = new DocumentReaderDriver(application.page)
+  await reader.toggleChatPanel("Show")
+  const initialWidth = await reader.chatPanelWidth()
+
+  await reader.resizeChatPanelBy(80)
+
+  await expect.poll(() => reader.chatPanelWidth()).toBeCloseTo(initialWidth + 80, 0)
+})
+
+test("resizes the Chat panel with the keyboard", async ({ application }) => {
+  const reader = new DocumentReaderDriver(application.page)
+  await reader.toggleChatPanel("Show")
+  const initialWidth = await reader.chatPanelWidth()
+
+  await reader.chatPanelResizeHandle.focus()
+  await reader.chatPanelResizeHandle.press("ArrowLeft")
+
+  await expect.poll(() => reader.chatPanelWidth()).toBe(initialWidth + 16)
+})
+
+test("restores preferred panel widths after a temporary window constraint", async ({
+  application,
+}) => {
+  const reader = new DocumentReaderDriver(application.page)
+  await reader.toggleChatPanel("Show")
+  await reader.documentsPanelResizeHandle.focus()
+  await reader.documentsPanelResizeHandle.press("End")
+  await expect.poll(() => reader.documentsPanelWidth()).toBe(480)
+  const preferredChatPanelWidth = await reader.chatPanelWidth()
+
+  await application.electronApplication.evaluate(({ BrowserWindow }) => {
+    BrowserWindow.getAllWindows()[0]?.setSize(1000, 820)
+  })
+
+  await expect.poll(() => reader.readerAreaWidth()).toBeCloseTo(320, 0)
+
+  await application.electronApplication.evaluate(({ BrowserWindow }) => {
+    BrowserWindow.getAllWindows()[0]?.setSize(1280, 820)
+  })
+
+  await expect.poll(() => reader.documentsPanelWidth()).toBe(480)
+  await expect.poll(() => reader.chatPanelWidth()).toBe(preferredChatPanelWidth)
 })
 
 test("preserves the Documents panel width when it is collapsed", async ({ application }) => {

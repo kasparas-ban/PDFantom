@@ -15,6 +15,10 @@ export class DocumentReaderDriver {
     return this.page.getByRole("complementary", { name: "Chat panel" })
   }
 
+  get chatPanelResizeHandle() {
+    return this.page.getByRole("separator", { name: "Resize chat panel" })
+  }
+
   get renderedPages() {
     return this.page.locator(".pdfViewer .page")
   }
@@ -75,6 +79,14 @@ export class DocumentReaderDriver {
     return this.documentsPanel.evaluate((panel) => panel.getBoundingClientRect().width)
   }
 
+  chatPanelWidth() {
+    return this.chatPanel.evaluate((panel) => panel.getBoundingClientRect().width)
+  }
+
+  readerAreaWidth() {
+    return this.page.locator("main > section").evaluate((reader) => reader.getBoundingClientRect().width)
+  }
+
   async resizeDocumentsPanelBy(deltaX: number, button: "left" | "right" = "left") {
     const bounds = await this.documentsPanelResizeHandle.boundingBox()
     if (!bounds) throw new Error("Documents panel resize handle was not found")
@@ -85,6 +97,18 @@ export class DocumentReaderDriver {
     await this.page.mouse.down({ button })
     await this.page.mouse.move(startX + deltaX, startY, { steps: 5 })
     await this.page.mouse.up({ button })
+  }
+
+  async resizeChatPanelBy(deltaWidth: number) {
+    const bounds = await this.chatPanelResizeHandle.boundingBox()
+    if (!bounds) throw new Error("Chat panel resize handle was not found")
+
+    const startX = bounds.x + bounds.width / 2
+    const startY = bounds.y + bounds.height / 2
+    await this.page.mouse.move(startX, startY)
+    await this.page.mouse.down()
+    await this.page.mouse.move(startX - deltaWidth, startY, { steps: 5 })
+    await this.page.mouse.up()
   }
 
   async startResizingDocumentsPanel() {

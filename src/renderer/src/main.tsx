@@ -9,7 +9,8 @@ import { ChatPanelControl } from "./chat-panel-control"
 import { DocumentReader } from "./document-reader"
 import { DocumentsPanelControl } from "./documents-panel-control"
 import { PDFControls } from "./pdf-controls"
-import { ChatPanel } from "./sidebar/chat-panel"
+import { resolveReaderWorkspaceLayout } from "./reader-workspace-layout"
+import { ResizableChatPanel } from "./sidebar/resizable-chat-panel"
 import { ResizableDocumentsPanel } from "./sidebar/resizable-documents-panel"
 import { AppConfigProvider, useAppConfig } from "./store/app-config-provider"
 import { ReaderSessionProvider, useReaderSession } from "./store/reader-session-provider"
@@ -21,8 +22,25 @@ function App() {
   const loadDocumentLibrary = useReaderSession((state) => state.loadDocumentLibrary)
   const isChatPanelOpen = useAppConfig((state) => state.isChatPanelOpen)
   const isDocumentsPanelOpen = useAppConfig((state) => state.isDocumentsPanelOpen)
+  const lastResizedPanel = useAppConfig((state) => state.lastResizedPanel)
+  const preferredChatPanelWidth = useAppConfig((state) => state.preferredChatPanelWidth)
+  const preferredDocumentsPanelWidth = useAppConfig(
+    (state) => state.preferredDocumentsPanelWidth,
+  )
+  const setChatPanelWidth = useAppConfig((state) => state.setChatPanelWidth)
+  const setDocumentsPanelWidth = useAppConfig((state) => state.setDocumentsPanelWidth)
+  const [viewportWidth, setViewportWidth] = useState(() => window.innerWidth)
 
   const [error, setError] = useState<string | null>(null)
+
+  const panelLayout = resolveReaderWorkspaceLayout({
+    isChatPanelOpen,
+    isDocumentsPanelOpen,
+    lastResizedPanel,
+    preferredChatPanelWidth,
+    preferredDocumentsPanelWidth,
+    viewportWidth,
+  })
 
   // TODO: Implement this in a nicer way
   useEffect(() => {
@@ -34,6 +52,13 @@ function App() {
     syncColorScheme()
     colorScheme.addEventListener("change", syncColorScheme)
     return () => colorScheme.removeEventListener("change", syncColorScheme)
+  }, [])
+
+  useEffect(() => {
+    const updateViewportWidth = () => setViewportWidth(window.innerWidth)
+
+    window.addEventListener("resize", updateViewportWidth)
+    return () => window.removeEventListener("resize", updateViewportWidth)
   }, [])
 
   useEffect(() => {
@@ -88,8 +113,11 @@ function App() {
     <main className="flex h-screen bg-background text-foreground">
       {isDocumentsPanelOpen && (
         <ResizableDocumentsPanel
+          maximumWidth={panelLayout.documentsPanel.maximumWidth}
           onActivateDocument={activateDocument}
           onOpenDocument={openDocument}
+          onWidthChange={setDocumentsPanelWidth}
+          width={panelLayout.documentsPanel.width}
         />
       )}
 
@@ -103,7 +131,13 @@ function App() {
         </div>
       </section>
 
-      {isChatPanelOpen && <ChatPanel />}
+      {isChatPanelOpen && (
+        <ResizableChatPanel
+          maximumWidth={panelLayout.chatPanel.maximumWidth}
+          onWidthChange={setChatPanelWidth}
+          width={panelLayout.chatPanel.width}
+        />
+      )}
 
       <DocumentsPanelControl />
       <ChatPanelControl />
