@@ -1,6 +1,5 @@
-import { Maximize, MoveHorizontal } from "lucide-react"
-
 import { Button } from "./components/ui/button"
+import { FitPageIcon } from "./icons/fit-page-icon"
 import { useReaderSession } from "./store/reader-session-provider"
 
 export function PageFitControl() {
@@ -9,10 +8,7 @@ export function PageFitControl() {
 
   const nextPreset =
     scalePreset === "page-fit" || scalePreset === "page-height" ? "page-width" : "page-fit"
-  const { Icon, label } =
-    nextPreset === "page-fit"
-      ? { Icon: Maximize, label: "Fit to page" }
-      : { Icon: MoveHorizontal, label: "Fit to width" }
+  const label = nextPreset === "page-fit" ? "Fit to page" : "Fit to width"
 
   return (
     <Button
@@ -24,7 +20,7 @@ export function PageFitControl() {
       type="button"
       variant="outline"
     >
-      <Icon />
+      <FitPageIcon className={nextPreset === "page-width" ? "rotate-90" : undefined} />
     </Button>
   )
 }

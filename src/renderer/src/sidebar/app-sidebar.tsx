@@ -1,4 +1,4 @@
-import { BookOpen, FilePlus2 } from "lucide-react"
+import { Book, FilePlus2 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
@@ -61,7 +61,7 @@ export function AppSidebar({ onActivateDocument, onOpenDocument }: AppSidebarPro
                     type="button"
                     variant="ghost"
                   >
-                    <BookOpen className="size-4 shrink-0 text-muted-foreground" />
+                    <Book className="size-4 shrink-0 text-muted-foreground" />
                     <span className="min-w-0 flex-1 truncate text-left">{document.name}</span>
                   </Button>
                 )
