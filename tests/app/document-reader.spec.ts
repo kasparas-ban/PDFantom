@@ -176,7 +176,7 @@ test("shows a repair state when the active Document changes before relaunch", as
       relaunched.page.getByRole("heading", { name: "notes.pdf is unavailable" }),
     ).toBeVisible()
     await expect(
-      relaunched.page.getByText("The file’s contents changed after it was added."),
+      relaunched.page.getByText("The file's contents changed after it was added."),
     ).toBeVisible()
     await expect(restoredReader.renderedPages).toHaveCount(0)
   } finally {
@@ -342,6 +342,77 @@ test("renders compact page spacing and bottom padding", async ({ application }) 
   const pageLayout = await reader.pageLayout()
   expect(pageLayout.gap).toBe(10)
   expect(pageLayout.bottomPadding).toBe(14)
+})
+
+test("lays out single pages vertically or horizontally with one control", async ({
+  application,
+}) => {
+  await application.selectOpenPath(documentFixture)
+  const reader = new DocumentReaderDriver(application.page)
+
+  await reader.openSelectedDocument()
+  await expect(reader.renderedPages).toHaveCount(5)
+
+  await expect(reader.pageLayoutButton).toHaveCount(1)
+  await expect(reader.pageLayoutButton).toHaveAccessibleName(
+    "Switch to horizontal page layout",
+  )
+  expect(await reader.pageTop(1)).not.toBe(await reader.pageTop(2))
+
+  await reader.pageLayoutButton.click()
+
+  await expect(reader.pageLayoutButton).toHaveAccessibleName("Switch to vertical page layout")
+  await expect.poll(async () => (await reader.pageTop(2)) - (await reader.pageTop(1))).toBe(0)
+  await expect.poll(() => reader.horizontalPageGap(1, 2)).toBeGreaterThan(0)
+  await reader.pageFitButton.click()
+  await expect
+    .poll(async () => {
+      const gutters = await reader.pageVerticalGutters(1)
+      return Math.abs(gutters.top - gutters.bottom)
+    })
+    .toBeLessThanOrEqual(2)
+
+  await reader.pageLayoutButton.click()
+
+  await expect(reader.pageLayoutButton).toHaveAccessibleName(
+    "Switch to horizontal page layout",
+  )
+  await expect
+    .poll(async () => (await reader.pageTop(2)) - (await reader.pageTop(1)))
+    .toBeGreaterThan(0)
+})
+
+test("lays out double-page spreads vertically or horizontally with gutters", async ({
+  application,
+}) => {
+  await application.selectOpenPath(documentFixture)
+  const reader = new DocumentReaderDriver(application.page)
+
+  await reader.openSelectedDocument()
+  await expect(reader.renderedPages).toHaveCount(5)
+  await reader.pageViewButton.click()
+
+  await expect.poll(async () => (await reader.pageTop(2)) - (await reader.pageTop(1))).toBe(0)
+  await expect.poll(() => reader.verticalPageGap(1, 3)).toBeGreaterThanOrEqual(8)
+
+  await reader.pageLayoutButton.click()
+
+  await expect(reader.pageLayoutButton).toHaveAccessibleName("Switch to vertical page layout")
+  await expect.poll(async () => (await reader.pageTop(3)) - (await reader.pageTop(1))).toBe(0)
+  await expect.poll(() => reader.horizontalPageGap(2, 3)).toBeGreaterThan(0)
+  await expect
+    .poll(async () => {
+      const gutters = await reader.pageVerticalGutters(1)
+      return Math.abs(gutters.top - gutters.bottom)
+    })
+    .toBeLessThanOrEqual(2)
+
+  await reader.pageLayoutButton.click()
+
+  await expect(reader.pageLayoutButton).toHaveAccessibleName(
+    "Switch to horizontal page layout",
+  )
+  await expect.poll(() => reader.verticalPageGap(1, 3)).toBeGreaterThanOrEqual(8)
 })
 
 test("toggles between single and double page views with one control", async ({ application }) => {

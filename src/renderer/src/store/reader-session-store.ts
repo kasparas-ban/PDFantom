@@ -5,7 +5,7 @@ import type {
   DocumentLibrarySnapshot,
   DocumentSummary,
 } from "../../../shared/document-api"
-import type { PDFPageView, PDFScalePreset } from "../pdf-reader-runtime"
+import type { PDFPageLayout, PDFPageView, PDFScalePreset } from "../pdf-reader-runtime"
 
 export type ReaderSessionState = {
   activeDocument: ActiveDocumentState
@@ -27,6 +27,9 @@ export type ReaderSessionState = {
 
   pageView: PDFPageView
   togglePageView: () => void
+
+  pageLayout: PDFPageLayout
+  togglePageLayout: () => void
 }
 
 export const createReaderSessionStore = () =>
@@ -86,6 +89,12 @@ export const createReaderSessionStore = () =>
           ? { pageView: "double", scalePreset: "page-fit" }
           : { pageView: "single" },
       ),
+
+    pageLayout: "vertical",
+    togglePageLayout: () =>
+      set((state) => ({
+        pageLayout: state.pageLayout === "vertical" ? "horizontal" : "vertical",
+      })),
   }))
 
 export type ReaderSessionStore = ReturnType<typeof createReaderSessionStore>

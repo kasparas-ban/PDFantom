@@ -1,6 +1,6 @@
 import { getDocument, GlobalWorkerOptions, type PDFDocumentProxy } from "pdfjs-dist"
 import workerSource from "pdfjs-dist/build/pdf.worker.min.mjs?url"
-import { EventBus, PDFViewer, SpreadMode } from "pdfjs-dist/web/pdf_viewer.mjs"
+import { EventBus, PDFViewer, ScrollMode, SpreadMode } from "pdfjs-dist/web/pdf_viewer.mjs"
 
 import type { OpenedDocument } from "../../shared/document-api"
 
@@ -19,6 +19,7 @@ export type PDFReaderStatus =
   | { state: "failed"; message: string }
 
 export type PDFScalePreset = "page-fit" | "page-height" | "page-width"
+export type PDFPageLayout = "vertical" | "horizontal"
 export type PDFPageView = "single" | "double"
 
 export const MIN_PDF_SCALE = 0.25
@@ -59,6 +60,7 @@ export function createPDFReaderRuntime({
   let eventBus: EventBus | null = null
   let pdfViewer: PDFViewer | null = null
   let requestedPage = 1
+  let requestedPageLayout: PDFPageLayout = "vertical"
   let requestedPageView: PDFPageView = "single"
   let requestedScale: PDFScale = 1
   let pendingPinchFactor = 1
@@ -129,10 +131,12 @@ export function createPDFReaderRuntime({
     }
   }
 
-  const applyRequestedView = () => {
+  const applyRequestedLayout = () => {
     if (!pdfViewer) return
 
     const anchoredPage = requestedPage
+    pdfViewer.scrollMode =
+      requestedPageLayout === "horizontal" ? ScrollMode.HORIZONTAL : ScrollMode.VERTICAL
     pdfViewer.spreadMode =
       requestedPageView === "double" ? SpreadMode.ODD : SpreadMode.NONE
     applyRequestedScale()
@@ -150,7 +154,7 @@ export function createPDFReaderRuntime({
     onPageChange(pageNumber)
   }
   const handlePagesInit = () => {
-    applyRequestedView()
+    applyRequestedLayout()
     onStatusChange({ state: "ready" })
   }
   const handleScaleChange = ({ scale }: { scale: number }) => onScaleChange(scale)
@@ -277,9 +281,13 @@ export function createPDFReaderRuntime({
       requestedScale = scale
       if (pdfViewer?.pagesCount) applyRequestedScale()
     },
+    setPageLayout: (pageLayout: PDFPageLayout) => {
+      requestedPageLayout = pageLayout
+      if (pdfViewer?.pagesCount) applyRequestedLayout()
+    },
     setPageView: (pageView: PDFPageView) => {
       requestedPageView = pageView
-      if (pdfViewer?.pagesCount) applyRequestedView()
+      if (pdfViewer?.pagesCount) applyRequestedLayout()
     },
   }
 }

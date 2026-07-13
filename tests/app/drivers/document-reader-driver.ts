@@ -35,6 +35,12 @@ export class DocumentReaderDriver {
     return this.page.getByRole("button", { name: /Switch to (double|single)-page view/ })
   }
 
+  get pageLayoutButton() {
+    return this.page.getByRole("button", {
+      name: /Switch to (horizontal|vertical) page layout/,
+    })
+  }
+
   get zoomInButton() {
     return this.page.getByRole("button", { name: "Zoom in" })
   }
@@ -292,6 +298,31 @@ export class DocumentReaderDriver {
       },
       { leftPageIndex: leftPageNumber - 1, rightPageIndex: rightPageNumber - 1 },
     )
+  }
+
+  verticalPageGap(upperPageNumber: number, lowerPageNumber: number) {
+    return this.renderedPages.evaluateAll(
+      (pages, { lowerPageIndex, upperPageIndex }) => {
+        const upperPage = pages[upperPageIndex].getBoundingClientRect()
+        const lowerPage = pages[lowerPageIndex].getBoundingClientRect()
+        return lowerPage.top - upperPage.bottom
+      },
+      { lowerPageIndex: lowerPageNumber - 1, upperPageIndex: upperPageNumber - 1 },
+    )
+  }
+
+  pageVerticalGutters(pageNumber: number) {
+    return this.renderedPages.nth(pageNumber - 1).evaluate((page) => {
+      const reader = page.closest<HTMLElement>('[aria-label="PDF reader"]')
+      if (!reader) throw new Error("PDF reader container was not found")
+
+      const pageBounds = page.getBoundingClientRect()
+      const readerBounds = reader.getBoundingClientRect()
+      return {
+        bottom: readerBounds.bottom - pageBounds.bottom,
+        top: pageBounds.top - readerBounds.top,
+      }
+    })
   }
 
   spreadVisibility(leftPageNumber: number, rightPageNumber: number) {

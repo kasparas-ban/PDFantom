@@ -16,6 +16,7 @@ export function DocumentReader({ document }: DocumentReaderProps) {
   const zoom = useReaderSession((state) => state.zoom)
   const scalePreset = useReaderSession((state) => state.scalePreset)
   const currentPage = useReaderSession((state) => state.currentPage)
+  const pageLayout = useReaderSession((state) => state.pageLayout)
   const pageView = useReaderSession((state) => state.pageView)
   const reportCurrentPage = useReaderSession((state) => state.reportCurrentPage)
   const reportPageCount = useReaderSession((state) => state.reportPageCount)
@@ -28,11 +29,13 @@ export function DocumentReader({ document }: DocumentReaderProps) {
   const runtimeRef = useRef<PDFReaderRuntime>(null)
   const scaleRef = useRef(scalePreset ?? zoom)
   const currentPageRef = useRef(currentPage)
+  const pageLayoutRef = useRef(pageLayout)
   const pageViewRef = useRef(pageView)
 
   const scale = scalePreset ?? zoom
   scaleRef.current = scale
   currentPageRef.current = currentPage
+  pageLayoutRef.current = pageLayout
   pageViewRef.current = pageView
 
   useEffect(() => {
@@ -50,6 +53,7 @@ export function DocumentReader({ document }: DocumentReaderProps) {
     })
     runtimeRef.current = runtime
     runtime.setScale(scaleRef.current)
+    runtime.setPageLayout(pageLayoutRef.current)
     runtime.setPageView(pageViewRef.current)
     runtime.goToPage(currentPageRef.current)
 
@@ -60,6 +64,7 @@ export function DocumentReader({ document }: DocumentReaderProps) {
   }, [document, reportCurrentPage, reportPageCount, reportZoom, setZoom])
 
   useEffect(() => runtimeRef.current?.setScale(scale), [scale])
+  useEffect(() => runtimeRef.current?.setPageLayout(pageLayout), [pageLayout])
   useEffect(() => runtimeRef.current?.setPageView(pageView), [pageView])
   useEffect(() => runtimeRef.current?.goToPage(currentPage), [currentPage])
 
