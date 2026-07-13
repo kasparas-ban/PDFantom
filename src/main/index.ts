@@ -2,11 +2,22 @@ import path from "node:path"
 
 import { app, BrowserWindow } from "electron"
 
+import { resolveApplicationLaunchConfiguration } from "../shared/application-launch"
+import { registerDocumentBoundary } from "./document-boundary"
 import { DocumentLibrary } from "./document-library"
 import { DocumentRepository } from "./document-repository"
 import { rendererEntryUrl } from "./renderer-entry"
-import { registerDocumentBoundary } from "./document-boundary"
 import { registerWindowBoundary } from "./window-boundary"
+
+const launchConfiguration = resolveApplicationLaunchConfiguration({
+  commandLine: process.argv,
+  isPackaged: app.isPackaged,
+  platform: process.platform,
+})
+
+if (launchConfiguration.activationPolicy !== undefined) {
+  app.setActivationPolicy(launchConfiguration.activationPolicy)
+}
 
 function createWindow() {
   const window = new BrowserWindow({
@@ -18,6 +29,7 @@ function createWindow() {
     title: "PDFantom",
     titleBarStyle: "hiddenInset",
     trafficLightPosition: { x: 16, y: 16 },
+    show: launchConfiguration.showWindow,
     webPreferences: {
       allowRunningInsecureContent: false,
       contextIsolation: true,
@@ -36,7 +48,7 @@ function createWindow() {
 }
 
 void app.whenReady().then(() => {
-  if (process.platform === "darwin" && !app.isPackaged) {
+  if (launchConfiguration.setDevelopmentDockIcon) {
     app.dock?.setIcon(path.resolve("assets/pdfantom-logo.png"))
   }
 

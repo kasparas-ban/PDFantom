@@ -1,5 +1,6 @@
-import { test as base } from "@playwright/test"
+import { expect, test as base } from "@playwright/test"
 
+import { configuredApplicationWindowMode } from "./application-window-mode"
 import { launchTestApplication } from "./launch-application"
 
 type TestFixtures = {
@@ -8,7 +9,10 @@ type TestFixtures = {
 
 export const test = base.extend<TestFixtures>({
   application: async ({ playwright: _playwright }, provide) => {
-    const application = await launchTestApplication({ workspacePrefix: "pdfantom-test" })
+    const application = await launchTestApplication({
+      workspacePrefix: "pdfantom-test",
+      windowMode: configuredApplicationWindowMode(),
+    })
 
     try {
       await provide(application)
@@ -18,4 +22,10 @@ export const test = base.extend<TestFixtures>({
   },
 })
 
-export { expect } from "@playwright/test"
+test.afterEach(async ({ application }) => {
+  if (application.windowMode === "background") {
+    expect(await application.hasVisibleWindow()).toBe(false)
+  }
+})
+
+export { expect }

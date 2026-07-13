@@ -61,49 +61,55 @@ test("the renderer exposes only the allowlisted preload API", async ({ applicati
   })
 })
 
-test("the renderer receives full-screen state changes", async ({ application }) => {
-  const { electronApplication, page } = application
+test(
+  "the renderer receives full-screen state changes",
+  { tag: "@native-window" },
+  async ({ application }) => {
+    const { electronApplication, page } = application
 
-  await expect(page.evaluate(() => window.pdfantom.getIsFullScreen())).resolves.toBe(false)
+    await expect(page.evaluate(() => window.pdfantom.getIsFullScreen())).resolves.toBe(false)
 
-  const enteredFullScreen = page.evaluate(
-    () =>
-      new Promise<boolean>((resolve) => {
-        const unsubscribe = window.pdfantom.onFullScreenChange((isFullScreen) => {
-          unsubscribe()
-          resolve(isFullScreen)
-        })
-      }),
-  )
-  await electronApplication.evaluate(({ BrowserWindow }) => {
-    const window = BrowserWindow.getAllWindows()[0]
-    if (!window) throw new Error("No application window is available")
+    const enteredFullScreen = page.evaluate(
+      () =>
+        new Promise<boolean>((resolve) => {
+          const unsubscribe = window.pdfantom.onFullScreenChange((isFullScreen) => {
+            unsubscribe()
+            resolve(isFullScreen)
+          })
+        }),
+    )
+    await electronApplication.evaluate(({ BrowserWindow }) => {
+      const window = BrowserWindow.getAllWindows()[0]
+      if (!window) throw new Error("No application window is available")
 
-    window.setFullScreen(true)
-  })
+      window.setFullScreen(true)
+    })
 
-  await expect(enteredFullScreen).resolves.toBe(true)
-  await expect(page.evaluate(() => window.pdfantom.getIsFullScreen())).resolves.toBe(true)
+    await expect(enteredFullScreen).resolves.toBe(true)
+    await expect(page.evaluate(() => window.pdfantom.getIsFullScreen())).resolves.toBe(true)
+    expect(await application.hasVisibleWindow()).toBe(true)
 
-  const leftFullScreen = page.evaluate(
-    () =>
-      new Promise<boolean>((resolve) => {
-        const unsubscribe = window.pdfantom.onFullScreenChange((isFullScreen) => {
-          unsubscribe()
-          resolve(isFullScreen)
-        })
-      }),
-  )
-  await electronApplication.evaluate(({ BrowserWindow }) => {
-    const window = BrowserWindow.getAllWindows()[0]
-    if (!window) throw new Error("No application window is available")
+    const leftFullScreen = page.evaluate(
+      () =>
+        new Promise<boolean>((resolve) => {
+          const unsubscribe = window.pdfantom.onFullScreenChange((isFullScreen) => {
+            unsubscribe()
+            resolve(isFullScreen)
+          })
+        }),
+    )
+    await electronApplication.evaluate(({ BrowserWindow }) => {
+      const window = BrowserWindow.getAllWindows()[0]
+      if (!window) throw new Error("No application window is available")
 
-    window.setFullScreen(false)
-  })
+      window.setFullScreen(false)
+    })
 
-  await expect(leftFullScreen).resolves.toBe(false)
-  await expect(page.evaluate(() => window.pdfantom.getIsFullScreen())).resolves.toBe(false)
-})
+    await expect(leftFullScreen).resolves.toBe(false)
+    await expect(page.evaluate(() => window.pdfantom.getIsFullScreen())).resolves.toBe(false)
+    expect(await application.hasVisibleWindow()).toBe(true)
+  },
+)
 
 test("the renderer CSP blocks network connections before a request is sent", async ({
   application,
@@ -115,9 +121,7 @@ test("the renderer CSP blocks network connections before a request is sent", asy
     const policy = await page
       .locator('meta[http-equiv="Content-Security-Policy"]')
       .getAttribute("content")
-    expect(policy?.split(";").map((directive) => directive.trim())).toContain(
-      "connect-src 'none'",
-    )
+    expect(policy?.split(";").map((directive) => directive.trim())).toContain("connect-src 'none'")
 
     const fetchResult = await page.evaluate(async (url) => {
       try {
@@ -150,9 +154,7 @@ test("the renderer denies user-initiated new windows", async ({ application }) =
   await page.getByRole("button", { name: "Open external window" }).click()
 
   expect(
-    await page.evaluate(
-      () => (window as Window & { popupDenied?: boolean }).popupDenied,
-    ),
+    await page.evaluate(() => (window as Window & { popupDenied?: boolean }).popupDenied),
   ).toBe(true)
 })
 

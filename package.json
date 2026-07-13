@@ -12,7 +12,9 @@
     "package": "electron-forge package",
     "make": "electron-forge make",
     "test": "vp run build && playwright test",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "test:e2e:visible": "PDFANTOM_E2E_WINDOW=visible playwright test",
+    "test:e2e:native-window": "PDFANTOM_E2E_WINDOW=visible playwright test --grep @native-window"
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",
