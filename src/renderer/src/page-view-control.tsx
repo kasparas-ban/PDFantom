@@ -1,6 +1,5 @@
-import { BookOpen, Square } from "lucide-react"
-
 import { Button } from "./components/ui/button"
+import { DoublePageIcon, SinglePageIcon } from "./icons/page-view-icons"
 import { useReaderSession } from "./store/reader-session-provider"
 
 export function PageViewControl() {
@@ -9,8 +8,8 @@ export function PageViewControl() {
 
   const { Icon, label } =
     pageView === "single"
-      ? { Icon: BookOpen, label: "Switch to double-page view" }
-      : { Icon: Square, label: "Switch to single-page view" }
+      ? { Icon: DoublePageIcon, label: "Switch to double-page view" }
+      : { Icon: SinglePageIcon, label: "Switch to single-page view" }
 
   return (
     <Button
