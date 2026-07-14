@@ -15,6 +15,30 @@ export class DocumentReaderDriver {
     return this.page.getByRole("complementary", { name: "Chat panel" })
   }
 
+  get chatMessageInput() {
+    return this.chatPanel.getByRole("textbox", { name: "Message" })
+  }
+
+  get chatEmptyState() {
+    return this.chatPanel.getByText("How can I help you today?")
+  }
+
+  get chatAddAttachmentButton() {
+    return this.chatPanel.getByRole("button", { name: "Add attachment" })
+  }
+
+  get chatModelButton() {
+    return this.chatPanel.getByRole("button", { name: "Choose model" })
+  }
+
+  get chatVoiceInputButton() {
+    return this.chatPanel.getByRole("button", { name: "Voice input" })
+  }
+
+  get chatSendMessageButton() {
+    return this.chatPanel.getByRole("button", { name: "Send message" })
+  }
+
   get chatPanelResizeHandle() {
     return this.page.getByRole("separator", { name: "Resize chat panel" })
   }
@@ -73,6 +97,10 @@ export class DocumentReaderDriver {
 
   toggleChatPanel(action: "Hide" | "Show") {
     return this.page.getByRole("button", { name: `${action} chat panel` }).click()
+  }
+
+  writeChatMessage(message: string) {
+    return this.chatMessageInput.fill(message)
   }
 
   documentsPanelWidth() {

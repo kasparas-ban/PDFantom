@@ -34,14 +34,23 @@ test("toggles the Documents panel", async ({ application }) => {
   await expect(reader.documentsPanel).toBeVisible()
 })
 
-test("toggles the empty Chat panel", async ({ application }) => {
+test("toggles the Chat panel", async ({ application }) => {
   const reader = new DocumentReaderDriver(application.page)
 
   await expect(reader.chatPanel).toBeHidden()
 
   await reader.toggleChatPanel("Show")
   await expect(reader.chatPanel).toBeVisible()
-  await expect(reader.chatPanel).toBeEmpty()
+  await expect(reader.chatEmptyState).toBeVisible()
+  await expect(reader.chatMessageInput).toBeVisible()
+  await expect(reader.chatAddAttachmentButton).toBeDisabled()
+  await expect(reader.chatModelButton).toContainText("GPT-5.4 Nano")
+  await expect(reader.chatModelButton).toBeDisabled()
+  await expect(reader.chatVoiceInputButton).toBeDisabled()
+  await expect(reader.chatSendMessageButton).toBeDisabled()
+  await reader.writeChatMessage("Summarize this document")
+  await expect(reader.chatMessageInput).toHaveValue("Summarize this document")
+  await expect(reader.chatSendMessageButton).toBeEnabled()
   await expect(reader.chatPanelResizeHandle).toBeVisible()
 
   await reader.toggleChatPanel("Hide")

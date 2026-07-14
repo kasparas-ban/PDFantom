@@ -1,6 +1,14 @@
+import { lazy, Suspense } from "react"
+
 import { MINIMUM_PANEL_WIDTH } from "../reader-workspace-layout"
-import { ChatPanel } from "./chat-panel"
+import { ChatPanelShell } from "./chat-panel-shell"
 import { ResizablePanel } from "./resizable-panel"
+
+const ChatPanel = lazy(() =>
+  import("./chat-panel").then(({ ChatPanel: LoadedChatPanel }) => ({
+    default: LoadedChatPanel,
+  })),
+)
 
 type ResizableChatPanelProps = {
   readonly maximumWidth: number
@@ -22,7 +30,9 @@ export function ResizableChatPanel({
       side="right"
       width={width}
     >
-      <ChatPanel />
+      <Suspense fallback={<ChatPanelShell />}>
+        <ChatPanel />
+      </Suspense>
     </ResizablePanel>
   )
 }
