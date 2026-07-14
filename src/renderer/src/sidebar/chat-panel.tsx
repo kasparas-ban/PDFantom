@@ -22,6 +22,7 @@ import {
 } from "lucide-react"
 
 import { OpenAILogo } from "@/components/model-logos"
+import { PdfantomLogo } from "@/components/pdfantom-logo"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { ChatPanelShell } from "./chat-panel-shell"
@@ -47,9 +48,10 @@ function ChatThread() {
     <ThreadPrimitive.Root className="flex min-h-0 flex-1 flex-col">
       <ThreadPrimitive.Viewport className="relative flex min-h-0 flex-1 flex-col overflow-y-auto scroll-smooth px-4 pt-5">
         <AuiIf condition={(state) => state.thread.isEmpty}>
-          <div className="flex flex-1 items-center justify-center px-3 pb-[12vh] text-center">
-            <p className="text-base font-medium text-sidebar-foreground">
-              How can I help you today?
+          <div className="flex flex-1 flex-col items-center justify-center gap-3 px-3 text-center">
+            <PdfantomLogo aria-hidden="true" className="size-24 opacity-70" />
+            <p className="text-base font-medium text-gray-600">
+              What would you like to know about this document?
             </p>
           </div>
         </AuiIf>
@@ -73,7 +75,7 @@ function ChatThread() {
 
 function ChatComposer() {
   return (
-    <ComposerPrimitive.Root className="flex w-full flex-col gap-2 rounded-3xl border border-sidebar-border/80 bg-background/90 p-2 shadow-[0_4px_16px_-8px_rgba(0,0,0,0.16),0_1px_2px_rgba(0,0,0,0.06)] transition-[border-color,box-shadow] focus-within:border-sidebar-ring focus-within:shadow-[0_6px_24px_-8px_rgba(0,0,0,0.2),0_1px_2px_rgba(0,0,0,0.08)]">
+    <ComposerPrimitive.Root className="flex w-full flex-col gap-2 rounded-xl border border-sidebar-border/80 bg-background/90 p-2 shadow-[0_4px_16px_-8px_rgba(0,0,0,0.16),0_1px_2px_rgba(0,0,0,0.06)] transition-[border-color,box-shadow] focus-within:border-sidebar-ring focus-within:shadow-[0_6px_24px_-8px_rgba(0,0,0,0.2),0_1px_2px_rgba(0,0,0,0.08)]">
       <ComposerPrimitive.Input asChild>
         <Textarea
           aria-label="Message"
@@ -108,7 +110,7 @@ function ChatComposer() {
           </Button>
         </div>
 
-        <div className="flex shrink-0 items-center gap-0.5">
+        <div className="flex shrink-0 items-center gap-2">
           <Button
             aria-label="Voice input"
             className="size-7 rounded-full text-muted-foreground active:scale-[0.97]"

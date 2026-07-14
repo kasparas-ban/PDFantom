@@ -20,7 +20,7 @@ export class DocumentReaderDriver {
   }
 
   get chatEmptyState() {
-    return this.chatPanel.getByText("How can I help you today?")
+    return this.chatPanel.getByText("What would you like to know about this document?")
   }
 
   get chatAddAttachmentButton() {
