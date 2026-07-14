@@ -31,6 +31,14 @@ export class DocumentReaderDriver {
     return this.chatPanel.getByRole("button", { name: "Choose model" })
   }
 
+  get chatModelFilterInput() {
+    return this.page.getByRole("textbox", { name: "Filter models" })
+  }
+
+  chatModelOption(name: string) {
+    return this.page.getByRole("menuitemradio", { name })
+  }
+
   get chatVoiceInputButton() {
     return this.chatPanel.getByRole("button", { name: "Voice input" })
   }

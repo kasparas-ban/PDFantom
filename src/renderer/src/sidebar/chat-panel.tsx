@@ -12,7 +12,6 @@ import { AssistantChatTransport, useChatRuntime } from "@assistant-ui/react-ai-s
 import {
   ArrowUpIcon,
   CheckIcon,
-  ChevronDownIcon,
   CopyIcon,
   MicIcon,
   MoreHorizontalIcon,
@@ -21,7 +20,7 @@ import {
   SquareIcon,
 } from "lucide-react"
 
-import { OpenAILogo } from "@/components/model-logos"
+import { ChatModelSelector } from "@/components/chat-model-selector"
 import { PdfantomLogo } from "@/components/pdfantom-logo"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
@@ -96,18 +95,7 @@ function ChatComposer() {
           >
             <PlusIcon />
           </Button>
-          <Button
-            aria-label="Choose model"
-            className="h-7 min-w-0 shrink! justify-start rounded-full px-1.5 text-xs font-medium active:scale-[0.97] disabled:opacity-70"
-            disabled
-            size="sm"
-            type="button"
-            variant="ghost"
-          >
-            <OpenAILogo className="size-3.5 shrink-0" />
-            <span className="min-w-0 truncate">GPT-5.4 Nano</span>
-            <ChevronDownIcon className="size-3 text-muted-foreground" />
-          </Button>
+          <ChatModelSelector />
         </div>
 
         <div className="flex shrink-0 items-center gap-2">
@@ -177,7 +165,9 @@ function AssistantMessage() {
         </AuiIf>
         <MessagePrimitive.Error>
           <ErrorPrimitive.Root className="mt-2 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
-            <ErrorPrimitive.Message />
+            <ErrorPrimitive.Message>
+              Unable to generate response. Please try again later.
+            </ErrorPrimitive.Message>
           </ErrorPrimitive.Root>
         </MessagePrimitive.Error>
       </div>
