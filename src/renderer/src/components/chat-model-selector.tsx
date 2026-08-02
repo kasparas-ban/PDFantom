@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react"
 import { useAui } from "@assistant-ui/react"
-import { ChevronDownIcon, SearchIcon } from "lucide-react"
+import { ChevronDownIcon, CpuIcon, SearchIcon } from "lucide-react"
 
 import { GoogleLogo, GroqLogo, MetaLogo, OpenAILogo, XAILogo } from "@/components/model-logos"
 import {
@@ -30,6 +30,12 @@ const modelOptions = [
     icon: MetaLogo,
   },
   { id: "groq/qwen/qwen3-32b", name: "Qwen3 32B", provider: "Groq", icon: GroqLogo },
+  {
+    id: "nvidia/nemotron-3-ultra-550b-a55b:free",
+    name: "Nemotron 3 Ultra (free)",
+    provider: "NVIDIA",
+    icon: CpuIcon,
+  },
 ] as const
 
 export function ChatModelSelector() {

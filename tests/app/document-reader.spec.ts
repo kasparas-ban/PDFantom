@@ -67,6 +67,19 @@ test("toggles the Chat panel", async ({ application }) => {
   await expect(reader.chatPanel).toBeHidden()
 })
 
+test("selects Nemotron 3 Ultra from the model catalog", async ({ application }) => {
+  const reader = new DocumentReaderDriver(application.page)
+  await reader.toggleChatPanel("Show")
+
+  await reader.chatModelButton.click()
+  await reader.chatModelFilterInput.fill("nemotron")
+  await expect(reader.chatModelOption("Nemotron 3 Ultra (free)")).toBeVisible()
+
+  await reader.chatModelOption("Nemotron 3 Ultra (free)").click()
+
+  await expect(reader.chatModelButton).toContainText("Nemotron 3 Ultra (free)")
+})
+
 test("opens full-screen Settings from Chat and returns to the workspace", async ({
   application,
 }) => {
