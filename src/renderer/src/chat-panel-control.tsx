@@ -1,15 +1,29 @@
-import { MessageCircleIcon, PanelRightClose } from "lucide-react"
+import { MessageCircleIcon, PanelRightClose, SettingsIcon } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { useAppConfig } from "./store/app-config-provider"
 
 export function ChatPanelControl() {
   const isChatPanelOpen = useAppConfig((state) => state.isChatPanelOpen)
+  const openSettings = useAppConfig((state) => state.openSettings)
   const toggleChatPanel = useAppConfig((state) => state.toggleChatPanel)
   const label = `${isChatPanelOpen ? "Hide" : "Show"} chat panel`
 
   return (
-    <div className="absolute top-2.5 right-2.5 z-20">
+    <div className="absolute top-2.5 right-2.5 z-20 flex items-center gap-0.5">
+      {isChatPanelOpen && (
+        <Button
+          aria-label="Open settings"
+          className="window-no-drag text-muted-foreground"
+          onClick={openSettings}
+          size="icon-sm"
+          title="Settings"
+          type="button"
+          variant="ghost"
+        >
+          <SettingsIcon />
+        </Button>
+      )}
       <Button
         aria-controls="chat-panel"
         aria-expanded={isChatPanelOpen}

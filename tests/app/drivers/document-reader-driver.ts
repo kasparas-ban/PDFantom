@@ -51,6 +51,26 @@ export class DocumentReaderDriver {
     return this.page.getByRole("separator", { name: "Resize chat panel" })
   }
 
+  get settingsButton() {
+    return this.page.getByRole("button", { name: "Open settings" })
+  }
+
+  get settings() {
+    return this.page.getByRole("main", { name: "Settings" })
+  }
+
+  get appearanceSettingsButton() {
+    return this.settings.getByRole("button", { name: "Appearance" })
+  }
+
+  get aiProviderSettingsButton() {
+    return this.settings.getByRole("button", { name: "AI Provider" })
+  }
+
+  get backToAppButton() {
+    return this.settings.getByRole("button", { name: "Back to app" })
+  }
+
   get renderedPages() {
     return this.page.locator(".pdfViewer .page")
   }

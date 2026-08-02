@@ -61,9 +61,41 @@ test("toggles the Chat panel", async ({ application }) => {
   await expect(reader.chatMessageInput).toHaveValue("Summarize this document")
   await expect(reader.chatSendMessageButton).toBeEnabled()
   await expect(reader.chatPanelResizeHandle).toBeVisible()
+  await expect(reader.settingsButton).toBeVisible()
 
   await reader.toggleChatPanel("Hide")
   await expect(reader.chatPanel).toBeHidden()
+})
+
+test("opens full-screen Settings from Chat and returns to the workspace", async ({
+  application,
+}) => {
+  const reader = new DocumentReaderDriver(application.page)
+  await reader.toggleChatPanel("Show")
+  await reader.writeChatMessage("Keep this draft")
+
+  await reader.settingsButton.click()
+
+  await expect(reader.settings).toBeVisible()
+  await expect(reader.settings.getByRole("heading", { name: "General" })).toBeVisible()
+  await expect(reader.documentsPanel).toBeHidden()
+  await expect(reader.chatPanel).toBeHidden()
+
+  await reader.aiProviderSettingsButton.click()
+  await expect(reader.settings.getByRole("heading", { name: "AI Provider" })).toBeVisible()
+  await expect(reader.settings.getByLabel("API key")).toBeVisible()
+
+  await reader.appearanceSettingsButton.click()
+  await expect(reader.settings.getByRole("heading", { name: "Appearance" })).toBeVisible()
+  await reader.settings.getByText("Dark", { exact: true }).click()
+  await expect(application.page.locator("html")).toHaveClass(/dark/)
+
+  await reader.backToAppButton.click()
+
+  await expect(reader.settings).toBeHidden()
+  await expect(reader.documentsPanel).toBeVisible()
+  await expect(reader.chatPanel).toBeVisible()
+  await expect(reader.chatMessageInput).toHaveValue("Keep this draft")
 })
 
 test("restores the Chat panel width after relaunch", async ({ application }) => {

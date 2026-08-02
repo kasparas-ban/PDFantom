@@ -12,6 +12,7 @@ import { PDFControls } from "./pdf-controls"
 import { resolveReaderWorkspaceLayout } from "./reader-workspace-layout"
 import { ResizableChatPanel } from "./sidebar/resizable-chat-panel"
 import { ResizableDocumentsPanel } from "./sidebar/resizable-documents-panel"
+import { SettingsView } from "./settings/settings-view"
 import { AppConfigProvider, useAppConfig } from "./store/app-config-provider"
 import { ReaderSessionProvider, useReaderSession } from "./store/reader-session-provider"
 
@@ -22,6 +23,8 @@ function App() {
   const loadDocumentLibrary = useReaderSession((state) => state.loadDocumentLibrary)
   const isChatPanelOpen = useAppConfig((state) => state.isChatPanelOpen)
   const isDocumentsPanelOpen = useAppConfig((state) => state.isDocumentsPanelOpen)
+  const isSettingsOpen = useAppConfig((state) => state.isSettingsOpen)
+  const appearance = useAppConfig((state) => state.appearance)
   const lastResizedPanel = useAppConfig((state) => state.lastResizedPanel)
   const preferredChatPanelWidth = useAppConfig((state) => state.preferredChatPanelWidth)
   const preferredDocumentsPanelWidth = useAppConfig(
@@ -42,17 +45,17 @@ function App() {
     viewportWidth,
   })
 
-  // TODO: Implement this in a nicer way
   useEffect(() => {
     const colorScheme = window.matchMedia("(prefers-color-scheme: dark)")
     const syncColorScheme = () => {
-      document.documentElement.classList.toggle("dark", colorScheme.matches)
+      const isDark = appearance === "dark" || (appearance === "system" && colorScheme.matches)
+      document.documentElement.classList.toggle("dark", isDark)
     }
 
     syncColorScheme()
     colorScheme.addEventListener("change", syncColorScheme)
     return () => colorScheme.removeEventListener("change", syncColorScheme)
-  }, [])
+  }, [appearance])
 
   useEffect(() => {
     const updateViewportWidth = () => setViewportWidth(window.innerWidth)
@@ -110,38 +113,44 @@ function App() {
   }
 
   return (
-    <main className="flex h-screen bg-background text-foreground">
-      {isDocumentsPanelOpen && (
-        <ResizableDocumentsPanel
-          maximumWidth={panelLayout.documentsPanel.maximumWidth}
-          onActivateDocument={activateDocument}
-          onOpenDocument={openDocument}
-          onWidthChange={setDocumentsPanelWidth}
-          width={panelLayout.documentsPanel.width}
-        />
-      )}
+    <>
+      {isSettingsOpen && <SettingsView />}
+      <main
+        aria-hidden={isSettingsOpen || undefined}
+        className={isSettingsOpen ? "hidden" : "flex h-screen bg-background text-foreground"}
+      >
+        {isDocumentsPanelOpen && (
+          <ResizableDocumentsPanel
+            maximumWidth={panelLayout.documentsPanel.maximumWidth}
+            onActivateDocument={activateDocument}
+            onOpenDocument={openDocument}
+            onWidthChange={setDocumentsPanelWidth}
+            width={panelLayout.documentsPanel.width}
+          />
+        )}
 
-      <section className="flex h-full min-w-0 flex-1 flex-col">
-        <div className="window-drag-region h-12">
-          <PDFControls />
-        </div>
+        <section className="flex h-full min-w-0 flex-1 flex-col">
+          <div className="window-drag-region h-12">
+            <PDFControls />
+          </div>
 
-        <div className="flex min-h-0 w-full flex-1">
-          <PDFCanvas error={error} openDocument={openDocument} />
-        </div>
-      </section>
+          <div className="flex min-h-0 w-full flex-1">
+            <PDFCanvas error={error} openDocument={openDocument} />
+          </div>
+        </section>
 
-      {isChatPanelOpen && (
-        <ResizableChatPanel
-          maximumWidth={panelLayout.chatPanel.maximumWidth}
-          onWidthChange={setChatPanelWidth}
-          width={panelLayout.chatPanel.width}
-        />
-      )}
+        {isChatPanelOpen && (
+          <ResizableChatPanel
+            maximumWidth={panelLayout.chatPanel.maximumWidth}
+            onWidthChange={setChatPanelWidth}
+            width={panelLayout.chatPanel.width}
+          />
+        )}
 
-      <DocumentsPanelControl />
-      <ChatPanelControl />
-    </main>
+        <DocumentsPanelControl />
+        <ChatPanelControl />
+      </main>
+    </>
   )
 }
 
