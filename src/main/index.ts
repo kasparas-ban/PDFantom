@@ -1,12 +1,14 @@
 import path from "node:path"
 
-import { app, BrowserWindow } from "electron"
+import { app, BrowserWindow, safeStorage } from "electron"
 
 import { resolveApplicationLaunchConfiguration } from "../shared/application-launch"
 import { registerDocumentBoundary } from "./document-boundary"
 import { DocumentLibrary } from "./document-library"
 import { DocumentRepository } from "./document-repository"
+import { OpenRouterApiKeyStore } from "./openrouter-api-key-store"
 import { rendererEntryUrl } from "./renderer-entry"
+import { registerSettingsBoundary } from "./settings-boundary"
 import { registerWindowBoundary } from "./window-boundary"
 
 const launchConfiguration = resolveApplicationLaunchConfiguration({
@@ -57,9 +59,14 @@ void app.whenReady().then(() => {
     path.join(app.getPath("userData"), "study-history.sqlite"),
   )
   const library = new DocumentLibrary(repository)
+  const apiKeyStore = new OpenRouterApiKeyStore(
+    path.join(app.getPath("userData"), "secrets", "openrouter-api-key"),
+    safeStorage,
+  )
   const window = createWindow()
 
   registerDocumentBoundary(window, rendererUrl, library)
+  registerSettingsBoundary(window, rendererUrl, apiKeyStore)
   registerWindowBoundary(window, rendererUrl)
   window.webContents.session.setPermissionRequestHandler((_webContents, _permission, callback) =>
     callback(false),

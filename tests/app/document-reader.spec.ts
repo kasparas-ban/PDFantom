@@ -83,7 +83,7 @@ test("opens full-screen Settings from Chat and returns to the workspace", async 
 
   await reader.aiProviderSettingsButton.click()
   await expect(reader.settings.getByRole("heading", { name: "AI Provider" })).toBeVisible()
-  await expect(reader.settings.getByLabel("API key")).toBeVisible()
+  await expect(reader.openRouterApiKeyInput).toBeVisible()
 
   await reader.appearanceSettingsButton.click()
   await expect(reader.settings.getByRole("heading", { name: "Appearance" })).toBeVisible()
@@ -96,6 +96,54 @@ test("opens full-screen Settings from Chat and returns to the workspace", async 
   await expect(reader.documentsPanel).toBeVisible()
   await expect(reader.chatPanel).toBeVisible()
   await expect(reader.chatMessageInput).toHaveValue("Keep this draft")
+})
+
+test("securely persists the OpenRouter API key across relaunches", async ({
+  application,
+}) => {
+  const reader = new DocumentReaderDriver(application.page)
+  await reader.toggleChatPanel("Show")
+  await reader.settingsButton.click()
+  await reader.aiProviderSettingsButton.click()
+  await expect(reader.openRouterApiKeyInput).not.toBeEditable()
+
+  await reader.editOpenRouterApiKeyButton.click()
+  await expect(reader.openRouterApiKeyInput).toBeEnabled()
+  await reader.openRouterApiKeyInput.fill("sk-or-v1-example-secret")
+  await reader.saveOpenRouterApiKeyButton.click()
+  await expect(reader.settings.getByText("API key saved securely on this Mac")).toBeVisible()
+
+  const relaunched = await application.relaunch()
+  const restoredReader = new DocumentReaderDriver(relaunched.page)
+  await restoredReader.settingsButton.click()
+  await restoredReader.aiProviderSettingsButton.click()
+
+  await expect(restoredReader.settings.getByText("API key saved securely on this Mac")).toBeVisible()
+  await expect(restoredReader.openRouterApiKeyInput).toHaveValue("")
+  await expect(restoredReader.openRouterApiKeyInput).toHaveAttribute(
+    "placeholder",
+    "••••••••••••••••",
+  )
+
+  await restoredReader.viewOpenRouterApiKeyButton.click()
+  await expect(restoredReader.openRouterApiKeyInput).toHaveValue(
+    "sk-or-v1-example-secret",
+  )
+  await restoredReader.hideOpenRouterApiKeyButton.click()
+  await expect(restoredReader.openRouterApiKeyInput).toHaveValue("")
+
+  await restoredReader.editOpenRouterApiKeyButton.click()
+  await expect(restoredReader.openRouterApiKeyInput).toHaveValue(
+    "sk-or-v1-example-secret",
+  )
+  await restoredReader.openRouterApiKeyInput.fill("sk-or-v1-cancelled-change")
+  await restoredReader.cancelOpenRouterApiKeyButton.click()
+  await expect(restoredReader.openRouterApiKeyInput).toHaveValue("")
+
+  await restoredReader.viewOpenRouterApiKeyButton.click()
+  await expect(restoredReader.openRouterApiKeyInput).toHaveValue(
+    "sk-or-v1-example-secret",
+  )
 })
 
 test("restores the Chat panel width after relaunch", async ({ application }) => {

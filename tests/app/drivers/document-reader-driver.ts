@@ -67,6 +67,30 @@ export class DocumentReaderDriver {
     return this.settings.getByRole("button", { name: "AI Provider" })
   }
 
+  get openRouterApiKeyInput() {
+    return this.settings.getByLabel("API key")
+  }
+
+  get saveOpenRouterApiKeyButton() {
+    return this.settings.getByRole("button", { name: "Save key" })
+  }
+
+  get viewOpenRouterApiKeyButton() {
+    return this.settings.getByRole("button", { name: "View key" })
+  }
+
+  get hideOpenRouterApiKeyButton() {
+    return this.settings.getByRole("button", { name: "Hide key" })
+  }
+
+  get editOpenRouterApiKeyButton() {
+    return this.settings.getByRole("button", { name: "Edit key" })
+  }
+
+  get cancelOpenRouterApiKeyButton() {
+    return this.settings.getByRole("button", { name: "Cancel" })
+  }
+
   get backToAppButton() {
     return this.settings.getByRole("button", { name: "Back to app" })
   }

@@ -14,6 +14,7 @@ export default defineConfig({
         "electron",
         "node:crypto",
         "node:fs",
+        "node:fs/promises",
         "node:path",
         "node:url",
       ],
