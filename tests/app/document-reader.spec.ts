@@ -408,18 +408,26 @@ test("persists every opened Document and activates it from the Documents panel",
     const reader = new DocumentReaderDriver(application.page)
     await application.selectOpenPath(firstDocument)
     await reader.openSelectedDocument()
+    await expect(reader.renderedPages).toHaveCount(5)
+    await reader.zoomInButton.click()
+    await expect(reader.pageFitButton).toHaveAccessibleName("Fit to page")
     await application.selectOpenPath(secondDocument)
     await reader.openAnotherSelectedDocument()
 
     await expect(reader.documentEntry("first.pdf")).toBeVisible()
     await expect(reader.documentEntry("second.pdf")).toHaveAttribute("aria-current", "page")
     await expect(reader.documentEntries()).toHaveText(["second.pdf", "first.pdf"])
+    await expect(reader.pageFitButton).toHaveAccessibleName("Fit to width")
+
+    await reader.zoomInButton.click()
+    await expect(reader.pageFitButton).toHaveAccessibleName("Fit to page")
 
     await reader.documentEntry("first.pdf").click()
     await expect(reader.documentEntry("first.pdf")).toHaveAttribute("aria-current", "page")
     await expect(reader.documentTitle("first.pdf")).toBeVisible()
     await expect(reader.renderedPages).toHaveCount(5)
     await expect(reader.documentEntries()).toHaveText(["second.pdf", "first.pdf"])
+    await expect(reader.pageFitButton).toHaveAccessibleName("Fit to page")
 
     await appendFile(secondDocument, "\n% changed after opening\n")
     const relaunched = await application.relaunch()
@@ -574,7 +582,6 @@ test("lays out single pages vertically or horizontally with one control", async 
   await expect(reader.pageLayoutButton).toHaveAccessibleName("Switch to vertical page layout")
   await expect.poll(async () => (await reader.pageTop(2)) - (await reader.pageTop(1))).toBe(0)
   await expect.poll(() => reader.horizontalPageGap(1, 2)).toBeGreaterThan(0)
-  await reader.pageFitButton.click()
   await expect
     .poll(async () => {
       const gutters = await reader.pageVerticalGutters(1)
@@ -698,8 +705,6 @@ test("fits the document to the page or reader width", async ({ application }) =>
   await reader.openSelectedDocument()
   await expect(reader.renderedPages).toHaveCount(5)
 
-  await expect(reader.pageFitButton).toHaveAccessibleName("Fit to page")
-  await reader.pageFitButton.click()
   await expect(reader.pageFitButton).toHaveAccessibleName("Fit to width")
   const pageFitSize = await reader.firstPageSize()
   const pageFitVisibility = await reader.firstPageVisibility()
@@ -734,9 +739,15 @@ test("zooms around the trackpad pinch position", async ({ application }) => {
   await reader.openSelectedDocument()
   await expect(reader.renderedPages).toHaveCount(5)
 
+  const initialZoom = Number.parseInt((await reader.zoomLevel.textContent()) ?? "", 10)
   const pinch = await reader.pinchFirstPage(1.2, 100)
   expect(pinch.defaultPrevented).toBe(true)
-  await expect(reader.zoomLevel).toHaveText("119%")
+  await expect
+    .poll(async () => {
+      const zoom = Number.parseInt((await reader.zoomLevel.textContent()) ?? "", 10)
+      return Math.abs(zoom - initialZoom * 1.2)
+    })
+    .toBeLessThanOrEqual(2)
 
   const pointAfter = await reader.firstPagePoint(0.5, 0.35)
   expect(pointAfter.x).toBeCloseTo(pinch.pointBefore.x, 0)
@@ -778,7 +789,6 @@ test("caps fit-to-width zoom at 500%", async ({ application }) => {
 
   await reader.setReaderSize({ width: 5_000 })
   await reader.pageFitButton.click()
-  await reader.pageFitButton.click()
 
   await expect(reader.zoomLevel).toHaveText("500%")
 })
@@ -791,7 +801,6 @@ test("caps fit-to-page zoom at 25%", async ({ application }) => {
   await expect(reader.renderedPages).toHaveCount(5)
 
   await reader.setReaderSize({ height: 100 })
-  await reader.pageFitButton.click()
 
   await expect(reader.zoomLevel).toHaveText("25%")
 })
@@ -803,7 +812,6 @@ test("leaves a fit preset when trackpad pinching", async ({ application }) => {
   await reader.openSelectedDocument()
   await expect(reader.renderedPages).toHaveCount(5)
 
-  await reader.pageFitButton.click()
   await expect(reader.pageFitButton).toHaveAccessibleName("Fit to width")
 
   await reader.pinchFirstPage(1.1)
@@ -817,9 +825,10 @@ test("does not treat physical Control scrolling as a pinch", async ({ applicatio
   await reader.openSelectedDocument()
   await expect(reader.renderedPages).toHaveCount(5)
 
+  const initialZoom = await reader.zoomLevel.textContent()
   const ctrlScroll = await reader.ctrlScrollFirstPage()
   expect(ctrlScroll.defaultPrevented).toBe(false)
-  await expect(reader.zoomLevel).toHaveText("100%")
+  await expect(reader.zoomLevel).toHaveText(initialZoom ?? "")
 })
 
 test("reports a PDF loading failure", async ({ application }) => {

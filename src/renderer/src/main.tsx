@@ -21,6 +21,7 @@ import "./styles.css"
 
 function App() {
   const loadDocumentLibrary = useReaderSession((state) => state.loadDocumentLibrary)
+  const setScalePreset = useReaderSession((state) => state.setScalePreset)
   const isChatPanelOpen = useAppConfig((state) => state.isChatPanelOpen)
   const isDocumentsPanelOpen = useAppConfig((state) => state.isDocumentsPanelOpen)
   const isSettingsOpen = useAppConfig((state) => state.isSettingsOpen)
@@ -90,6 +91,7 @@ function App() {
       if (snapshot) {
         setError(null)
         loadDocumentLibrary(snapshot)
+        setScalePreset("page-fit")
       }
     } catch {
       setError("The document could not be opened.")

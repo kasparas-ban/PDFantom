@@ -20,7 +20,7 @@ test("owns page navigation invariants", () => {
   expect(store.getState()).toMatchObject({ currentPage: 2, pageCount: 2 })
 })
 
-test("starts each document with a fresh navigation session", () => {
+test("starts each activated document with a fresh navigation session", () => {
   const store = createReaderSessionStore()
   const document = {
     bytes: new ArrayBuffer(0),
@@ -62,6 +62,7 @@ test("starts each document with a fresh navigation session", () => {
     ],
     isDocumentLibraryHydrated: true,
     pageCount: 0,
+    scalePreset: null,
     zoom: 1.3,
   })
 })
