@@ -23,9 +23,11 @@ export function PDFControls() {
           !isDocumentsPanelOpen && (isFullScreen ? "pl-11" : "pl-30"),
         )}
       >
-        <div className="window-no-drag flex w-min min-w-0 items-center gap-2 pl-1">
-          {!isDocumentsPanelOpen && <div className="mr-1.5 h-5 w-px bg-gray-300" />}
-          <h2 className="truncate text-[0.82rem] font-medium">
+        <div className="window-no-drag flex w-full min-w-0 items-center gap-2 overflow-hidden pl-1">
+          {!isDocumentsPanelOpen && (
+            <div className="mr-1.5 h-5 w-px shrink-0 bg-gray-300" />
+          )}
+          <h2 className="min-w-0 max-w-full flex-1 truncate text-[0.82rem] font-medium">
             {activeDocument.document.name}
           </h2>
         </div>
