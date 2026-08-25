@@ -177,22 +177,25 @@ export function ProviderSettings() {
                 </Button>
               )}
             </div>
-            <div aria-live="polite" className="mt-3 min-h-5 text-sm">
-              {status === "loading" && (
-                <span className="text-muted-foreground">Checking saved key…</span>
-              )}
-              {isConfigured && status !== "error" && status !== "loading" && (
-                <span className="inline-flex items-center gap-1.5 text-muted-foreground">
-                  <CircleCheckIcon className="size-4 text-emerald-600 dark:text-emerald-400" />
-                  API key saved securely on this Mac
-                </span>
-              )}
-              {status === "error" && (
-                <span className="text-destructive" role="alert">
-                  The API key could not be loaded or saved. Try again.
-                </span>
-              )}
-            </div>
+            {status === "loading" && (
+              <p aria-live="polite" className="mt-3 text-sm text-muted-foreground">
+                Checking saved key…
+              </p>
+            )}
+            {isConfigured && status !== "error" && status !== "loading" && (
+              <p
+                aria-live="polite"
+                className="mt-3 inline-flex items-center gap-1.5 text-sm text-muted-foreground"
+              >
+                <CircleCheckIcon className="size-4 text-emerald-600 dark:text-emerald-400" />
+                API key saved securely on this Mac
+              </p>
+            )}
+            {status === "error" && (
+              <p className="mt-3 text-sm text-destructive" role="alert">
+                The API key could not be loaded or saved. Try again.
+              </p>
+            )}
           </div>
         </SettingsCard>
       </SettingsSection>
