@@ -8,5 +8,4 @@ strictPeerDependencies: false
 blockExoticSubdeps: false
 
 overrides:
-  "@ai-sdk/provider-utils": 4.0.45
   vite: npm:@voidzero-dev/vite-plus-core@0.2.4
