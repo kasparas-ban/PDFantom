@@ -34,6 +34,22 @@ test("encrypts and restores the OpenRouter API key", async () => {
   }
 })
 
+test("removes the saved OpenRouter API key when saving an empty value", async () => {
+  const workspace = await mkdtemp(path.join(os.tmpdir(), "pdfantom-api-key-"))
+  const storagePath = path.join(workspace, "secrets", "openrouter-api-key")
+
+  try {
+    const store = new OpenRouterApiKeyStore(storagePath, encryption)
+    await store.saveApiKey("sk-or-v1-example-secret")
+    await store.saveApiKey("")
+
+    expect(await store.getApiKey()).toBeNull()
+    await expect(readFile(storagePath)).rejects.toMatchObject({ code: "ENOENT" })
+  } finally {
+    await rm(workspace, { force: true, recursive: true })
+  }
+})
+
 test("refuses to save the API key without secure encryption", async () => {
   const workspace = await mkdtemp(path.join(os.tmpdir(), "pdfantom-api-key-"))
   const storagePath = path.join(workspace, "openrouter-api-key")

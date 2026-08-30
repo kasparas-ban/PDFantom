@@ -80,6 +80,21 @@ test("selects Nemotron 3 Ultra from the model catalog", async ({ application }) 
   await expect(reader.chatModelButton).toContainText("Nemotron 3 Ultra (free)")
 })
 
+test("links to AI Provider settings when chat has no OpenRouter API key", async ({
+  application,
+}) => {
+  const reader = new DocumentReaderDriver(application.page)
+  await reader.toggleChatPanel("Show")
+  await reader.writeChatMessage("Summarize this document")
+  await reader.chatSendMessageButton.click()
+
+  await expect(reader.chatPanel.getByText("API key not provided")).toBeVisible()
+  await reader.openAiProviderSettingsFromChatButton.click()
+
+  await expect(reader.settings.getByRole("heading", { name: "AI Provider" })).toBeVisible()
+  await expect(reader.openRouterApiKeyInput).toBeVisible()
+})
+
 test("opens full-screen Settings from Chat and returns to the workspace", async ({
   application,
 }) => {
@@ -111,7 +126,7 @@ test("opens full-screen Settings from Chat and returns to the workspace", async 
   await expect(reader.chatMessageInput).toHaveValue("Keep this draft")
 })
 
-test("securely persists the OpenRouter API key across relaunches", async ({
+test("securely persists and removes the OpenRouter API key", async ({
   application,
 }) => {
   const reader = new DocumentReaderDriver(application.page)
@@ -156,6 +171,27 @@ test("securely persists the OpenRouter API key across relaunches", async ({
   await restoredReader.viewOpenRouterApiKeyButton.click()
   await expect(restoredReader.openRouterApiKeyInput).toHaveValue(
     "sk-or-v1-example-secret",
+  )
+
+  await restoredReader.editOpenRouterApiKeyButton.click()
+  await restoredReader.openRouterApiKeyInput.fill("")
+  await expect(restoredReader.saveOpenRouterApiKeyButton).toBeEnabled()
+  await restoredReader.saveOpenRouterApiKeyButton.click()
+
+  await expect(restoredReader.openRouterApiKeyInput).toHaveAttribute(
+    "placeholder",
+    "No API key saved",
+  )
+  await expect(restoredReader.viewOpenRouterApiKeyButton).toBeHidden()
+
+  const withoutKey = await application.relaunch()
+  const withoutKeyReader = new DocumentReaderDriver(withoutKey.page)
+  await withoutKeyReader.settingsButton.click()
+  await withoutKeyReader.aiProviderSettingsButton.click()
+
+  await expect(withoutKeyReader.openRouterApiKeyInput).toHaveAttribute(
+    "placeholder",
+    "No API key saved",
   )
 })
 

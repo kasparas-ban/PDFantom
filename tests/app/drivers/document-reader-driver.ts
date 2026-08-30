@@ -47,6 +47,10 @@ export class DocumentReaderDriver {
     return this.chatPanel.getByRole("button", { name: "Send message" })
   }
 
+  get openAiProviderSettingsFromChatButton() {
+    return this.chatPanel.getByRole("button", { name: "Set API key" })
+  }
+
   get chatPanelResizeHandle() {
     return this.page.getByRole("separator", { name: "Resize chat panel" })
   }

@@ -34,6 +34,11 @@ export class OpenRouterApiKeyStore {
   }
 
   async saveApiKey(apiKey: string) {
+    if (apiKey.length === 0) {
+      await rm(this.storagePath, { force: true })
+      return
+    }
+
     this.assertEncryptionAvailable()
     const encrypted = this.encryption.encryptString(apiKey)
     const storageDirectory = path.dirname(this.storagePath)

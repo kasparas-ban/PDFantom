@@ -26,7 +26,7 @@ export function registerSettingsBoundary(
   ipcMain.handle(SAVE_OPENROUTER_API_KEY_CHANNEL, async (event, apiKey: unknown) => {
     assertTrustedRenderer(event, window, rendererUrl)
     assertApiKey(apiKey)
-    await apiKeyStore.saveApiKey(apiKey)
+    await apiKeyStore.saveApiKey(apiKey.trim())
   })
 }
 
@@ -41,11 +41,7 @@ function assertTrustedRenderer(
 }
 
 function assertApiKey(apiKey: unknown): asserts apiKey is string {
-  if (
-    typeof apiKey !== "string" ||
-    apiKey.trim().length === 0 ||
-    apiKey.length > 10_000
-  ) {
+  if (typeof apiKey !== "string" || apiKey.length > 10_000) {
     throw new Error("The OpenRouter API key is invalid.")
   }
 }

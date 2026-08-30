@@ -15,7 +15,7 @@ export function ChatPanelControl() {
         <Button
           aria-label="Open settings"
           className="window-no-drag text-muted-foreground"
-          onClick={openSettings}
+          onClick={() => openSettings()}
           size="icon-sm"
           title="Settings"
           type="button"

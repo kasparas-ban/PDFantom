@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react"
 import {
   ActionBarPrimitive,
   AssistantRuntimeProvider,
@@ -24,6 +25,7 @@ import { ChatModelSelector } from "@/components/chat-model-selector"
 import { PdfantomLogo } from "@/components/pdfantom-logo"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
+import { useAppConfig } from "@/store/app-config-provider"
 import { ChatPanelShell } from "./chat-panel-shell"
 
 export function ChatPanel() {
@@ -164,15 +166,45 @@ function AssistantMessage() {
           </span>
         </AuiIf>
         <MessagePrimitive.Error>
-          <ErrorPrimitive.Root className="mt-2 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
-            <ErrorPrimitive.Message>
-              Unable to generate response. Please try again later.
-            </ErrorPrimitive.Message>
-          </ErrorPrimitive.Root>
+          <ChatError />
         </MessagePrimitive.Error>
       </div>
       <AssistantActionBar />
     </MessagePrimitive.Root>
+  )
+}
+
+function ChatError() {
+  const [isApiKeyMissing, setIsApiKeyMissing] = useState(false)
+  const openSettings = useAppConfig((state) => state.openSettings)
+
+  useEffect(() => {
+    void window.pdfantom
+      .getOpenRouterApiKeyStatus()
+      .then(({ isConfigured }) => setIsApiKeyMissing(!isConfigured))
+      .catch(() => undefined)
+  }, [])
+
+  return (
+    <ErrorPrimitive.Root className="mt-2 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+      {isApiKeyMissing ? (
+        <>
+          <span>API key not provided</span>
+          <Button
+            className="h-auto py-0 pr-0 pl-1 text-xs text-destructive underline-offset-2 hover:text-destructive/80"
+            onClick={() => openSettings("provider")}
+            type="button"
+            variant="link"
+          >
+            Set API key
+          </Button>
+        </>
+      ) : (
+        <ErrorPrimitive.Message>
+          Unable to generate response. Please try again later.
+        </ErrorPrimitive.Message>
+      )}
+    </ErrorPrimitive.Root>
   )
 }
 

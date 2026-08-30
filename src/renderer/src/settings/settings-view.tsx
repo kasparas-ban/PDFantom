@@ -1,4 +1,3 @@
-import { useState } from "react"
 import {
   ArrowLeftIcon,
   InfoIcon,
@@ -10,12 +9,11 @@ import {
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { useAppConfig } from "@/store/app-config-provider"
+import type { SettingsPage } from "@/store/app-config-store"
 import { AboutSettings } from "./about-settings"
 import { AppearanceSettings } from "./appearance-settings"
 import { GeneralSettings } from "./general-settings"
 import { ProviderSettings } from "./provider-settings"
-
-type SettingsPage = "about" | "appearance" | "general" | "provider"
 
 const navigationItems = [
   {
@@ -46,7 +44,8 @@ const navigationItems = [
 
 export function SettingsView() {
   const closeSettings = useAppConfig((state) => state.closeSettings)
-  const [activePage, setActivePage] = useState<SettingsPage>("general")
+  const activePage = useAppConfig((state) => state.settingsPage)
+  const openSettings = useAppConfig((state) => state.openSettings)
 
   return (
     <main
@@ -75,7 +74,7 @@ export function SettingsView() {
                 activePage === page && "bg-sidebar-accent text-sidebar-accent-foreground",
               )}
               key={page}
-              onClick={() => setActivePage(page)}
+              onClick={() => openSettings(page)}
               type="button"
               variant="ghost"
             >

@@ -5,6 +5,7 @@ export const DEFAULT_DOCUMENTS_PANEL_WIDTH = 256
 export const DEFAULT_CHAT_PANEL_WIDTH = 320
 
 export type Appearance = "dark" | "light" | "system"
+export type SettingsPage = "about" | "appearance" | "general" | "provider"
 
 export type AppConfigState = {
   appearance: Appearance
@@ -14,8 +15,9 @@ export type AppConfigState = {
   lastResizedPanel: "chat" | "documents" | null
   preferredChatPanelWidth: number
   preferredDocumentsPanelWidth: number
+  settingsPage: SettingsPage
   closeSettings: () => void
-  openSettings: () => void
+  openSettings: (page?: SettingsPage) => void
   setAppearance: (appearance: Appearance) => void
   setChatPanelWidth: (width: number) => void
   setDocumentsPanelWidth: (width: number) => void
@@ -34,8 +36,10 @@ export const createAppConfigStore = () =>
         lastResizedPanel: null,
         preferredChatPanelWidth: DEFAULT_CHAT_PANEL_WIDTH,
         preferredDocumentsPanelWidth: DEFAULT_DOCUMENTS_PANEL_WIDTH,
+        settingsPage: "general",
         closeSettings: () => set({ isSettingsOpen: false }),
-        openSettings: () => set({ isSettingsOpen: true }),
+        openSettings: (settingsPage = "general") =>
+          set({ isSettingsOpen: true, settingsPage }),
         setAppearance: (appearance) => set({ appearance }),
         setChatPanelWidth: (preferredChatPanelWidth) =>
           set({ lastResizedPanel: "chat", preferredChatPanelWidth }),

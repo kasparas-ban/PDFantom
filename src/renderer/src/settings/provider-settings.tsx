@@ -83,14 +83,13 @@ export function ProviderSettings() {
 
   const saveApiKey = async () => {
     const nextApiKey = apiKeyDraft.trim()
-    if (!nextApiKey) return
 
     setStatus("saving")
 
     try {
       await window.pdfantom.saveOpenRouterApiKey(nextApiKey)
       setApiKeyDraft("")
-      setIsConfigured(true)
+      setIsConfigured(nextApiKey.length > 0)
       setMode("view")
       setStatus("saved")
     } catch {
@@ -160,7 +159,9 @@ export function ProviderSettings() {
                     Cancel
                   </Button>
                   <Button
-                    disabled={!apiKeyDraft.trim() || status === "saving"}
+                    disabled={
+                      (!isConfigured && !apiKeyDraft.trim()) || status === "saving"
+                    }
                     onClick={saveApiKey}
                     type="button"
                   >
