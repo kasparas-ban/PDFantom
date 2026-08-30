@@ -45,15 +45,42 @@ export function ChatPanel() {
 }
 
 function ChatThread() {
+  const [isApiKeyMissing, setIsApiKeyMissing] = useState(false)
+  const isSettingsOpen = useAppConfig((state) => state.isSettingsOpen)
+  const openSettings = useAppConfig((state) => state.openSettings)
+
+  useEffect(() => {
+    if (isSettingsOpen) return
+
+    void window.pdfantom
+      .getOpenRouterApiKeyStatus()
+      .then(({ isConfigured }) => setIsApiKeyMissing(!isConfigured))
+      .catch(() => undefined)
+  }, [isSettingsOpen])
+
   return (
     <ThreadPrimitive.Root className="flex min-h-0 flex-1 flex-col">
       <ThreadPrimitive.Viewport className="relative flex min-h-0 flex-1 flex-col overflow-y-auto scroll-smooth px-4 pt-5">
         <AuiIf condition={(state) => state.thread.isEmpty}>
           <div className="flex flex-1 flex-col items-center justify-center gap-3 px-3 text-center">
             <PdfantomLogo aria-hidden="true" className="size-24 opacity-70" />
-            <p className="text-base font-medium text-gray-600">
-              What would you like to know about this document?
-            </p>
+            {isApiKeyMissing ? (
+              <p className="text-sm text-destructive">
+                API key not provided
+                <Button
+                  className="h-auto py-0 pr-0 pl-1 text-sm text-destructive underline-offset-2 hover:text-destructive/80"
+                  onClick={() => openSettings("provider")}
+                  type="button"
+                  variant="link"
+                >
+                  Set API key
+                </Button>
+              </p>
+            ) : (
+              <p className="text-base font-medium text-gray-600">
+                What would you like to know about this document?
+              </p>
+            )}
           </div>
         </AuiIf>
 

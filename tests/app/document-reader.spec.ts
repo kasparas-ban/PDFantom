@@ -80,13 +80,11 @@ test("selects Nemotron 3 Ultra from the model catalog", async ({ application }) 
   await expect(reader.chatModelButton).toContainText("Nemotron 3 Ultra (free)")
 })
 
-test("links to AI Provider settings when chat has no OpenRouter API key", async ({
+test("shows the AI Provider settings link when Chat opens without an API key", async ({
   application,
 }) => {
   const reader = new DocumentReaderDriver(application.page)
   await reader.toggleChatPanel("Show")
-  await reader.writeChatMessage("Summarize this document")
-  await reader.chatSendMessageButton.click()
 
   await expect(reader.chatPanel.getByText("API key not provided")).toBeVisible()
   await reader.openAiProviderSettingsFromChatButton.click()
