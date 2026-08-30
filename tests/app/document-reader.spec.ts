@@ -86,7 +86,7 @@ test("shows the AI Provider settings link when Chat opens without an API key", a
   const reader = new DocumentReaderDriver(application.page)
   await reader.toggleChatPanel("Show")
 
-  await expect(reader.chatPanel.getByText("API key not provided")).toBeVisible()
+  await expect(reader.chatPanel.getByText("Connect an AI provider")).toBeVisible()
   await reader.openAiProviderSettingsFromChatButton.click()
 
   await expect(reader.settings.getByRole("heading", { name: "AI Provider" })).toBeVisible()

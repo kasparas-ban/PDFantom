@@ -48,7 +48,7 @@ export class DocumentReaderDriver {
   }
 
   get openAiProviderSettingsFromChatButton() {
-    return this.chatPanel.getByRole("button", { name: "Set API key" })
+    return this.chatPanel.getByRole("button", { name: "Choose provider" })
   }
 
   get chatPanelResizeHandle() {

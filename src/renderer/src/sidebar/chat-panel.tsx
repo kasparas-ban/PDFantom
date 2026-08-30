@@ -14,6 +14,7 @@ import {
   ArrowUpIcon,
   CheckIcon,
   CopyIcon,
+  KeyRoundIcon,
   MicIcon,
   MoreHorizontalIcon,
   PlusIcon,
@@ -65,17 +66,21 @@ function ChatThread() {
           <div className="flex flex-1 flex-col items-center justify-center gap-3 px-3 text-center">
             <PdfantomLogo aria-hidden="true" className="size-24 opacity-70" />
             {isApiKeyMissing ? (
-              <p className="text-sm text-destructive">
-                API key not provided
+              <div className="flex max-w-56 flex-col items-center gap-2">
+                <p className="text-sm font-medium text-foreground">
+                  Connect an AI provider
+                </p>
                 <Button
-                  className="h-auto py-0 pr-0 pl-1 text-sm text-destructive underline-offset-2 hover:text-destructive/80"
+                  className="mt-1"
                   onClick={() => openSettings("provider")}
+                  size="sm"
                   type="button"
-                  variant="link"
+                  variant="outline"
                 >
-                  Set API key
+                  <KeyRoundIcon />
+                  Choose provider
                 </Button>
-              </p>
+              </div>
             ) : (
               <p className="text-base font-medium text-gray-600">
                 What would you like to know about this document?
