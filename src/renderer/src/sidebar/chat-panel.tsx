@@ -71,7 +71,7 @@ function ChatThread() {
                   Connect an AI provider
                 </p>
                 <Button
-                  className="mt-1"
+                  className="mt-1 cursor-pointer"
                   onClick={() => openSettings("provider")}
                   size="sm"
                   type="button"
@@ -221,14 +221,14 @@ function ChatError() {
     <ErrorPrimitive.Root className="mt-2 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
       {isApiKeyMissing ? (
         <>
-          <span>API key not provided</span>
+          <span>Connect an AI provider</span>
           <Button
-            className="h-auto py-0 pr-0 pl-1 text-xs text-destructive underline-offset-2 hover:text-destructive/80"
+            className="h-auto cursor-pointer py-0 pr-0 pl-1 text-xs text-destructive underline-offset-2 hover:text-destructive/80"
             onClick={() => openSettings("provider")}
             type="button"
             variant="link"
           >
-            Set API key
+            Choose provider
           </Button>
         </>
       ) : (
