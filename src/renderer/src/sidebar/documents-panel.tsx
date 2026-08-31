@@ -56,7 +56,7 @@ export function DocumentsPanel({ onActivateDocument, onOpenDocument }: Documents
                   <Button
                     aria-current={isActive ? "page" : undefined}
                     className={cn(
-                      "w-full justify-start gap-2 px-2 font-normal hover:bg-sidebar-accent",
+                      "w-full cursor-pointer justify-start gap-2 px-2 font-normal hover:bg-sidebar-accent",
                       isActive && "bg-sidebar-accent text-sidebar-accent-foreground",
                     )}
                     key={document.id}

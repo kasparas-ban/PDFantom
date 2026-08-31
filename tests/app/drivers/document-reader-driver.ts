@@ -255,6 +255,18 @@ export class DocumentReaderDriver {
     return this.page.evaluate(() => window.getSelection()?.toString())
   }
 
+  readerScrollTop() {
+    return this.page
+      .locator('[aria-label="PDF reader"]')
+      .evaluate((reader) => reader.scrollTop)
+  }
+
+  offsetReaderScrollBy(deltaY: number) {
+    return this.page
+      .locator('[aria-label="PDF reader"]')
+      .evaluate((reader, offset) => reader.scrollBy({ top: offset }), deltaY)
+  }
+
   async goToPage(pageNumber: number) {
     await this.pageNumber.fill(String(pageNumber))
     await this.pageNumber.press("Enter")

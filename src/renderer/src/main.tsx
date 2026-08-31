@@ -20,8 +20,10 @@ import "pdfjs-dist/web/pdf_viewer.css"
 import "./styles.css"
 
 function App() {
+  const activeDocumentId = useReaderSession((state) =>
+    state.activeDocument.status === "loaded" ? state.activeDocument.document.id : null,
+  )
   const loadDocumentLibrary = useReaderSession((state) => state.loadDocumentLibrary)
-  const setScalePreset = useReaderSession((state) => state.setScalePreset)
   const isChatPanelOpen = useAppConfig((state) => state.isChatPanelOpen)
   const isDocumentsPanelOpen = useAppConfig((state) => state.isDocumentsPanelOpen)
   const isSettingsOpen = useAppConfig((state) => state.isSettingsOpen)
@@ -91,7 +93,6 @@ function App() {
       if (snapshot) {
         setError(null)
         loadDocumentLibrary(snapshot)
-        setScalePreset("page-fit")
       }
     } catch {
       setError("The document could not be opened.")
@@ -99,6 +100,8 @@ function App() {
   }
 
   const activateDocument = async (documentId: string) => {
+    if (documentId === activeDocumentId) return
+
     setError(null)
     try {
       const snapshot = await window.pdfantom.activateDocument(documentId)

@@ -5,13 +5,27 @@ import type {
   DocumentLibrarySnapshot,
   DocumentSummary,
 } from "../../../shared/document-api"
-import type { PDFPageLayout, PDFPageView, PDFScalePreset } from "../pdf-reader-runtime"
+import {
+  DEFAULT_READER_VIEW,
+  type PDFPageLayout,
+  type PDFPageView,
+  type PDFScalePreset,
+  type ReadingPosition,
+} from "../reader-model"
+import {
+  loadReadingPosition,
+  saveReadingPosition,
+  type ReadingPositionStorage,
+} from "./reader-position-storage"
 
 export type ReaderSessionState = {
   activeDocument: ActiveDocumentState
   documents: readonly DocumentSummary[]
   isDocumentLibraryHydrated: boolean
   loadDocumentLibrary: (snapshot: DocumentLibrarySnapshot) => void
+  initialReadingPosition: ReadingPosition | null
+  reportReadingPosition: (documentId: string, position: ReadingPosition) => void
+  readingPositionError: string | null
 
   currentPage: number
   pageCount: number
@@ -32,19 +46,41 @@ export type ReaderSessionState = {
   togglePageLayout: () => void
 }
 
-export const createReaderSessionStore = () =>
+export const createReaderSessionStore = (positionStorage: ReadingPositionStorage) =>
   createStore<ReaderSessionState>()((set, get) => ({
     activeDocument: { status: "none" },
     documents: [],
     isDocumentLibraryHydrated: false,
-    loadDocumentLibrary: ({ activeDocument, documents }) =>
+    loadDocumentLibrary: ({ activeDocument, documents }) => {
+      const position =
+        activeDocument.status === "loaded"
+          ? loadReadingPosition(positionStorage, activeDocument.document.id)
+          : null
       set({
         activeDocument,
-        currentPage: 1,
+        currentPage: position?.pageNumber ?? 1,
         documents,
+        initialReadingPosition: position,
         isDocumentLibraryHydrated: true,
         pageCount: 0,
-      }),
+        pageLayout: position?.pageLayout ?? DEFAULT_READER_VIEW.pageLayout,
+        pageView: position?.pageView ?? DEFAULT_READER_VIEW.pageView,
+        scalePreset: position ? position.scalePreset : DEFAULT_READER_VIEW.scalePreset,
+        zoom: position?.zoom ?? DEFAULT_READER_VIEW.zoom,
+      })
+    },
+    initialReadingPosition: null,
+    readingPositionError: null,
+    reportReadingPosition: (documentId, position) => {
+      try {
+        saveReadingPosition(positionStorage, documentId, position)
+        if (get().readingPositionError) set({ readingPositionError: null })
+      } catch {
+        if (!get().readingPositionError) {
+          set({ readingPositionError: "Your reading position could not be saved on this Mac." })
+        }
+      }
+    },
 
     currentPage: 1,
     pageCount: 0,
@@ -76,13 +112,13 @@ export const createReaderSessionStore = () =>
         }
       }),
 
-    zoom: 1,
+    zoom: DEFAULT_READER_VIEW.zoom,
     setZoom: (zoom) => set({ scalePreset: null, zoom }),
     reportZoom: (zoom) => set({ zoom }),
-    scalePreset: null,
+    scalePreset: DEFAULT_READER_VIEW.scalePreset,
     setScalePreset: (scalePreset) => set({ scalePreset }),
 
-    pageView: "single",
+    pageView: DEFAULT_READER_VIEW.pageView,
     togglePageView: () =>
       set((state) =>
         state.pageView === "single"
@@ -90,7 +126,7 @@ export const createReaderSessionStore = () =>
           : { pageView: "single" },
       ),
 
-    pageLayout: "vertical",
+    pageLayout: DEFAULT_READER_VIEW.pageLayout,
     togglePageLayout: () =>
       set((state) => ({
         pageLayout: state.pageLayout === "vertical" ? "horizontal" : "vertical",

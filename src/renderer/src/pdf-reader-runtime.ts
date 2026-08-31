@@ -3,6 +3,15 @@ import workerSource from "pdfjs-dist/build/pdf.worker.min.mjs?url"
 import { EventBus, PDFViewer, ScrollMode, SpreadMode } from "pdfjs-dist/web/pdf_viewer.mjs"
 
 import type { OpenedDocument } from "../../shared/document-api"
+import {
+  DEFAULT_READER_VIEW,
+  MAX_PDF_SCALE,
+  MIN_PDF_SCALE,
+  type PDFPageLayout,
+  type PDFPageView,
+  type PDFScalePreset,
+  type ReadingPosition,
+} from "./reader-model"
 
 declare module "pdfjs-dist/web/pdf_viewer.mjs" {
   // eslint-disable-next-line typescript/consistent-type-definitions -- Declaration merging requires an interface.
@@ -18,12 +27,6 @@ export type PDFReaderStatus =
   | { state: "ready" }
   | { state: "failed"; message: string }
 
-export type PDFScalePreset = "page-fit" | "page-height" | "page-width"
-export type PDFPageLayout = "vertical" | "horizontal"
-export type PDFPageView = "single" | "double"
-
-export const MIN_PDF_SCALE = 0.25
-export const MAX_PDF_SCALE = 5
 const PINCH_RENDER_DELAY = 400
 const FIT_VISIBILITY_MARGIN = 1
 
@@ -33,6 +36,8 @@ type PDFReaderRuntimeOptions = {
   readonly document: OpenedDocument
   readonly container: HTMLDivElement
   readonly viewer: HTMLDivElement
+  readonly initialReadingPosition: ReadingPosition | null
+  readonly onReadingPositionChange: (position: ReadingPosition) => void
   readonly onPageChange: (pageNumber: number) => void
   readonly onPageCountChange: (pageCount: number) => void
   readonly onScaleChange: (scale: number) => void
@@ -44,6 +49,8 @@ export function createPDFReaderRuntime({
   document,
   container,
   viewer,
+  initialReadingPosition,
+  onReadingPositionChange,
   onPageChange,
   onPageCountChange,
   onScaleChange,
@@ -57,15 +64,41 @@ export function createPDFReaderRuntime({
   })
 
   let destroyed = false
+  let ready = false
   let eventBus: EventBus | null = null
   let pdfViewer: PDFViewer | null = null
   let requestedPage = 1
-  let requestedPageLayout: PDFPageLayout = "vertical"
-  let requestedPageView: PDFPageView = "single"
-  let requestedScale: PDFScale = 1
+  let requestedPageLayout: PDFPageLayout = DEFAULT_READER_VIEW.pageLayout
+  let requestedPageView: PDFPageView = DEFAULT_READER_VIEW.pageView
+  let requestedScale: PDFScale = DEFAULT_READER_VIEW.scalePreset
   let pendingPinchFactor = 1
   let pinchDirection = 0
   let isCtrlKeyDown = false
+
+  const savePosition = () => {
+    if (!ready || !pdfViewer || !container.clientWidth || !container.clientHeight) return
+
+    const page = viewer.querySelector<HTMLElement>(`.page[data-page-number="${requestedPage}"]`)
+    if (!page) return
+
+    const pageBounds = page.getBoundingClientRect()
+    const containerBounds = container.getBoundingClientRect()
+    onReadingPositionChange({
+      pageNumber: requestedPage,
+      offsetX: (containerBounds.left - pageBounds.left) / pdfViewer.currentScale,
+      offsetY: (containerBounds.top - pageBounds.top) / pdfViewer.currentScale,
+      zoom: pdfViewer.currentScale,
+      scalePreset: typeof requestedScale === "string" ? requestedScale : null,
+      pageLayout: requestedPageLayout,
+      pageView: requestedPageView,
+    })
+  }
+
+  const flushPosition = () => {
+    if (!ready) return
+    pdfViewer?.update()
+    savePosition()
+  }
 
   const fitRequestedSpread = () => {
     if (
@@ -101,8 +134,7 @@ export function createPDFReaderRuntime({
     const widthScale =
       (container.clientWidth - fixedGap - FIT_VISIBILITY_MARGIN) / unscaledSpreadWidth
     const heightScale =
-      (container.clientHeight - verticalPadding - FIT_VISIBILITY_MARGIN) /
-      unscaledSpreadHeight
+      (container.clientHeight - verticalPadding - FIT_VISIBILITY_MARGIN) / unscaledSpreadHeight
     const spreadScale =
       requestedScale === "page-width" ? widthScale : Math.min(widthScale, heightScale)
     if (!Number.isFinite(spreadScale) || spreadScale <= 0) return
@@ -120,10 +152,7 @@ export function createPDFReaderRuntime({
       pdfViewer.currentScale = requestedScale
     } else {
       pdfViewer.currentScaleValue = requestedScale
-      const boundedScale = Math.min(
-        MAX_PDF_SCALE,
-        Math.max(MIN_PDF_SCALE, pdfViewer.currentScale),
-      )
+      const boundedScale = Math.min(MAX_PDF_SCALE, Math.max(MIN_PDF_SCALE, pdfViewer.currentScale))
       if (pdfViewer.currentScale !== boundedScale) {
         pdfViewer.currentScale = boundedScale
       }
@@ -137,24 +166,49 @@ export function createPDFReaderRuntime({
     const anchoredPage = requestedPage
     pdfViewer.scrollMode =
       requestedPageLayout === "horizontal" ? ScrollMode.HORIZONTAL : ScrollMode.VERTICAL
-    pdfViewer.spreadMode =
-      requestedPageView === "double" ? SpreadMode.ODD : SpreadMode.NONE
+    pdfViewer.spreadMode = requestedPageView === "double" ? SpreadMode.ODD : SpreadMode.NONE
     applyRequestedScale()
     if (pdfViewer.currentPageNumber !== anchoredPage) {
       pdfViewer.currentPageNumber = anchoredPage
     }
   }
   const handlePageChange = ({ pageNumber }: { pageNumber: number }) => {
+    if (!ready) return
+
     const keepsRequestedPageVisible =
       requestedPageView === "double" &&
       Math.floor((pageNumber - 1) / 2) === Math.floor((requestedPage - 1) / 2)
     if (pageNumber !== requestedPage && keepsRequestedPageVisible) return
 
     requestedPage = pageNumber
-    onPageChange(pageNumber)
+    if (!destroyed) onPageChange(pageNumber)
   }
   const handlePagesInit = () => {
+    if (!pdfViewer) return
+    requestedPage = Math.min(requestedPage, pdfViewer.pagesCount)
     applyRequestedLayout()
+  }
+  const handlePagesLoaded = () => {
+    if (destroyed || !pdfViewer) return
+
+    applyRequestedLayout()
+    const page = viewer.querySelector<HTMLElement>(`.page[data-page-number="${requestedPage}"]`)
+    if (initialReadingPosition && page) {
+      const pageBounds = page.getBoundingClientRect()
+      const containerBounds = container.getBoundingClientRect()
+      container.scrollLeft +=
+        pageBounds.left -
+        containerBounds.left +
+        initialReadingPosition.offsetX * pdfViewer.currentScale
+      container.scrollTop +=
+        pageBounds.top -
+        containerBounds.top +
+        initialReadingPosition.offsetY * pdfViewer.currentScale
+    }
+    ready = true
+    onPageChange(requestedPage)
+    pdfViewer.update()
+    savePosition()
     onStatusChange({ state: "ready" })
   }
   const handleScaleChange = ({ scale }: { scale: number }) => onScaleChange(scale)
@@ -219,7 +273,13 @@ export function createPDFReaderRuntime({
     }
   }
   const resizeObserver = new ResizeObserver(() => {
-    if (typeof requestedScale !== "string" || !pdfViewer?.pagesCount) return
+    if (
+      !container.clientWidth ||
+      !container.clientHeight ||
+      typeof requestedScale !== "string" ||
+      !pdfViewer?.pagesCount
+    )
+      return
 
     applyRequestedScale()
     pdfViewer.update()
@@ -231,6 +291,8 @@ export function createPDFReaderRuntime({
     passive: false,
     signal: abortController.signal,
   })
+  container.addEventListener("scroll", savePosition, { signal: abortController.signal })
+  window.addEventListener("beforeunload", flushPosition, { signal: abortController.signal })
   window.addEventListener("keydown", handleKeyDown, { signal: abortController.signal })
   window.addEventListener("keyup", handleKeyUp, { signal: abortController.signal })
   window.addEventListener("blur", () => (isCtrlKeyDown = false), {
@@ -250,6 +312,8 @@ export function createPDFReaderRuntime({
       }
       pdfViewer = new PDFViewer(viewerOptions)
       eventBus.on("pagesinit", handlePagesInit)
+      eventBus.on("pagesloaded", handlePagesLoaded)
+      eventBus.on("updateviewarea", savePosition)
       eventBus.on("pagechanging", handlePageChange)
       eventBus.on("pagerendered", handlePageRendered)
       eventBus.on("scalechanging", handleScaleChange)
@@ -261,7 +325,11 @@ export function createPDFReaderRuntime({
   return {
     destroy: () => {
       destroyed = true
+      flushPosition()
+      ready = false
       eventBus?.off("pagesinit", handlePagesInit)
+      eventBus?.off("pagesloaded", handlePagesLoaded)
+      eventBus?.off("updateviewarea", savePosition)
       eventBus?.off("pagechanging", handlePageChange)
       eventBus?.off("pagerendered", handlePageRendered)
       eventBus?.off("scalechanging", handleScaleChange)
@@ -276,18 +344,22 @@ export function createPDFReaderRuntime({
       if (pdfViewer?.pagesCount && pdfViewer.currentPageNumber !== pageNumber) {
         pdfViewer.currentPageNumber = pageNumber
       }
+      savePosition()
     },
     setScale: (scale: PDFScale) => {
       requestedScale = scale
       if (pdfViewer?.pagesCount) applyRequestedScale()
+      savePosition()
     },
     setPageLayout: (pageLayout: PDFPageLayout) => {
       requestedPageLayout = pageLayout
       if (pdfViewer?.pagesCount) applyRequestedLayout()
+      savePosition()
     },
     setPageView: (pageView: PDFPageView) => {
       requestedPageView = pageView
       if (pdfViewer?.pagesCount) applyRequestedLayout()
+      savePosition()
     },
   }
 }

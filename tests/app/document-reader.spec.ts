@@ -370,7 +370,26 @@ test("opens and selects text without a Model Provider", async ({ application }) 
   await expect.poll(() => reader.selectedText()).toContain("Introduction to")
 })
 
-test("restores the last open Document at the first page after relaunch", async ({ application }) => {
+test("keeps the reader position when selecting the active Document", async ({
+  application,
+}) => {
+  await application.selectOpenPath(documentFixture)
+  const reader = new DocumentReaderDriver(application.page)
+
+  await reader.openSelectedDocument()
+  await expect(reader.renderedPages).toHaveCount(5)
+  await reader.goToPage(4)
+  await expect(reader.pageNumber).toHaveValue("4")
+  await reader.offsetReaderScrollBy(40)
+  const scrollTop = await reader.readerScrollTop()
+
+  await reader.documentEntry("document-mock.pdf").click()
+
+  await expect(reader.pageNumber).toHaveValue("4")
+  await expect.poll(() => reader.readerScrollTop()).toBe(scrollTop)
+})
+
+test("restores the last open Document at its last page after relaunch", async ({ application }) => {
   await application.selectOpenPath(documentFixture)
   const reader = new DocumentReaderDriver(application.page)
 
@@ -392,7 +411,7 @@ test("restores the last open Document at the first page after relaunch", async (
   )
   await expect(restoredReader.documentTitle("document-mock.pdf")).toBeVisible()
   await expect(restoredReader.renderedPages).toHaveCount(5)
-  await expect(restoredReader.pageNumber).toHaveValue("1")
+  await expect(restoredReader.pageNumber).toHaveValue("4")
 })
 
 test("shows a repair state when the active Document changes before relaunch", async ({

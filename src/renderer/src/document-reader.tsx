@@ -22,6 +22,9 @@ export function DocumentReader({ document }: DocumentReaderProps) {
   const reportPageCount = useReaderSession((state) => state.reportPageCount)
   const reportZoom = useReaderSession((state) => state.reportZoom)
   const setZoom = useReaderSession((state) => state.setZoom)
+  const initialReadingPosition = useReaderSession((state) => state.initialReadingPosition)
+  const reportReadingPosition = useReaderSession((state) => state.reportReadingPosition)
+  const readingPositionError = useReaderSession((state) => state.readingPositionError)
 
   const [status, setStatus] = useState<PDFReaderStatus>({ state: "opening" })
   const containerRef = useRef<HTMLDivElement>(null)
@@ -44,11 +47,13 @@ export function DocumentReader({ document }: DocumentReaderProps) {
     const runtime = createPDFReaderRuntime({
       container: containerRef.current,
       document,
+      initialReadingPosition,
       onPageChange: reportCurrentPage,
       onPageCountChange: reportPageCount,
       onPinchZoom: setZoom,
       onScaleChange: reportZoom,
       onStatusChange: setStatus,
+      onReadingPositionChange: (position) => reportReadingPosition(document.id, position),
       viewer: viewerRef.current,
     })
     runtimeRef.current = runtime
@@ -61,7 +66,15 @@ export function DocumentReader({ document }: DocumentReaderProps) {
       runtime.destroy()
       runtimeRef.current = null
     }
-  }, [document, reportCurrentPage, reportPageCount, reportZoom, setZoom])
+  }, [
+    document,
+    initialReadingPosition,
+    reportCurrentPage,
+    reportPageCount,
+    reportReadingPosition,
+    reportZoom,
+    setZoom,
+  ])
 
   useEffect(() => runtimeRef.current?.setScale(scale), [scale])
   useEffect(() => runtimeRef.current?.setPageLayout(pageLayout), [pageLayout])
@@ -77,6 +90,15 @@ export function DocumentReader({ document }: DocumentReaderProps) {
       >
         <div className="pdfViewer pdf-reader-viewer pt-1" ref={viewerRef} />
       </div>
+
+      {readingPositionError && (
+        <p
+          className="absolute inset-x-4 top-4 z-20 rounded-lg border bg-background p-3 text-sm text-destructive shadow-sm"
+          role="alert"
+        >
+          {readingPositionError}
+        </p>
+      )}
 
       {status.state !== "ready" && (
         <div className="absolute inset-0 z-10 flex items-start justify-center bg-background">

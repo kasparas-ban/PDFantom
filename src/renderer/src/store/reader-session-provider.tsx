@@ -12,7 +12,7 @@ const ReaderSessionStoreContext = createContext<ReaderSessionStore | null>(null)
 export function ReaderSessionProvider({ children }: PropsWithChildren) {
   const storeRef = useRef<ReaderSessionStore | null>(null)
 
-  if (!storeRef.current) storeRef.current = createReaderSessionStore()
+  if (!storeRef.current) storeRef.current = createReaderSessionStore(window.localStorage)
 
   return (
     <ReaderSessionStoreContext.Provider value={storeRef.current}>
