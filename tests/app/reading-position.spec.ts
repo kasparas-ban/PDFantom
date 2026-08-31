@@ -15,6 +15,67 @@ const scrollPosition = (page: Page) =>
     top: reader.scrollTop,
   }))
 
+for (const preset of ["page-fit", "page-width"] as const) {
+  test(`preserves ${preset} zoom and position in a mixed-size PDF after restart`, async ({
+    application,
+  }) => {
+    const reader = new DocumentReaderDriver(application.page)
+    await application.selectOpenPath(path.resolve("tests/fixtures/pdfs/mixed-page-sizes.pdf"))
+    await reader.openSelectedDocument()
+    await expect(reader.pageCountLabel(5)).toBeVisible()
+    await expect(application.page.getByText("Opening mixed-page-sizes.pdf…")).toBeHidden()
+    if (preset === "page-width") await reader.pageFitButton.click()
+    await reader.goToPage(preset === "page-fit" ? 3 : 4)
+    await readerViewport(application.page).evaluate((viewport) => {
+      viewport.scrollBy({ left: 93, top: 151 })
+    })
+    const position = await scrollPosition(application.page)
+    const zoom = await reader.zoomLevel.textContent()
+    const pageNumber = await reader.pageNumber.inputValue()
+
+    const restarted = await application.relaunch()
+    const restored = new DocumentReaderDriver(restarted.page)
+    await expect(restored.pageNumber).toHaveValue(pageNumber)
+    await expect(restarted.page.getByText("Opening mixed-page-sizes.pdf…")).toBeHidden()
+    await expect(restored.zoomLevel).toHaveText(zoom!)
+    await expect.poll(() => scrollPosition(restarted.page)).toEqual(position)
+    await expect(restored.pageFitButton).toHaveAccessibleName(
+      preset === "page-fit" ? "Fit to width" : "Fit to page",
+    )
+    await restored.setReaderSize({ height: 300, width: 400 })
+    await expect(restored.zoomLevel).not.toHaveText(zoom!)
+  })
+}
+
+test("saves a fit preference immediately even when the zoom does not change", async ({
+  application,
+}) => {
+  const reader = new DocumentReaderDriver(application.page)
+  await application.selectOpenPath(documentFixture)
+  await reader.openSelectedDocument()
+  await expect(reader.pageCountLabel(5)).toBeVisible()
+  await expect(application.page.getByText("Opening document-mock.pdf…")).toBeHidden()
+  await reader.setReaderSize({ height: 1000, width: 400 })
+  await expect.poll(async () => (await reader.firstPageSize()).width).toBe(400)
+  const zoom = await reader.zoomLevel.textContent()
+  const storageKey = await application.page.evaluate(async () => {
+    const { activeDocument } = await window.pdfantom.getDocumentLibrary()
+    if (activeDocument.status !== "loaded") throw new Error("No document is open")
+    return `pdfantom-reading-position:${activeDocument.document.id}`
+  })
+  const savedPreset = () =>
+    application.page.evaluate(
+      (key) => JSON.parse(window.localStorage.getItem(key)!).scalePreset,
+      storageKey,
+    )
+  await expect.poll(savedPreset).toBe("page-fit")
+
+  await reader.pageFitButton.click()
+
+  await expect(reader.zoomLevel).toHaveText(zoom!)
+  await expect.poll(savedPreset).toBe("page-width")
+})
+
 for (const layout of ["vertical", "horizontal", "double"] as const) {
   test(`restores precise ${layout} reading position and zoom after app restart`, async ({
     application,

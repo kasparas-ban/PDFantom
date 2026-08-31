@@ -97,7 +97,6 @@ export function createPDFReaderRuntime({
   const flushPosition = () => {
     if (!ready) return
     pdfViewer?.update()
-    savePosition()
   }
 
   const fitRequestedSpread = () => {
@@ -194,6 +193,7 @@ export function createPDFReaderRuntime({
     applyRequestedLayout()
     const page = viewer.querySelector<HTMLElement>(`.page[data-page-number="${requestedPage}"]`)
     if (initialReadingPosition && page) {
+      pdfViewer.currentScale = initialReadingPosition.zoom
       const pageBounds = page.getBoundingClientRect()
       const containerBounds = container.getBoundingClientRect()
       container.scrollLeft +=
@@ -208,7 +208,6 @@ export function createPDFReaderRuntime({
     ready = true
     onPageChange(requestedPage)
     pdfViewer.update()
-    savePosition()
     onStatusChange({ state: "ready" })
   }
   const handleScaleChange = ({ scale }: { scale: number }) => onScaleChange(scale)
@@ -291,7 +290,6 @@ export function createPDFReaderRuntime({
     passive: false,
     signal: abortController.signal,
   })
-  container.addEventListener("scroll", savePosition, { signal: abortController.signal })
   window.addEventListener("beforeunload", flushPosition, { signal: abortController.signal })
   window.addEventListener("keydown", handleKeyDown, { signal: abortController.signal })
   window.addEventListener("keyup", handleKeyUp, { signal: abortController.signal })
@@ -344,22 +342,22 @@ export function createPDFReaderRuntime({
       if (pdfViewer?.pagesCount && pdfViewer.currentPageNumber !== pageNumber) {
         pdfViewer.currentPageNumber = pageNumber
       }
-      savePosition()
     },
     setScale: (scale: PDFScale) => {
+      if (requestedScale === scale) return
+
+      const previousScale = pdfViewer?.currentScale
       requestedScale = scale
       if (pdfViewer?.pagesCount) applyRequestedScale()
-      savePosition()
+      if (pdfViewer?.currentScale === previousScale) flushPosition()
     },
     setPageLayout: (pageLayout: PDFPageLayout) => {
       requestedPageLayout = pageLayout
       if (pdfViewer?.pagesCount) applyRequestedLayout()
-      savePosition()
     },
     setPageView: (pageView: PDFPageView) => {
       requestedPageView = pageView
       if (pdfViewer?.pagesCount) applyRequestedLayout()
-      savePosition()
     },
   }
 }
