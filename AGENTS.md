@@ -20,6 +20,10 @@ Use shadcn/ui components and Tailwind CSS utilities for all renderer UI, reservi
 
 Do not add explicit function return type annotations when TypeScript can infer the intended type. Add one only when the inferred return type would differ from the intended return type and the annotation is necessary to express that contract.
 
+### Code formatting
+
+Separate logically related code blocks with blank lines to improve readability.
+
 ### Testing
 
 Keep test-only code out of business logic by using explicit test seams at application boundaries.
