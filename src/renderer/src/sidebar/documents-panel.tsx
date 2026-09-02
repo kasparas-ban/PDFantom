@@ -13,6 +13,7 @@ type DocumentsPanelProps = {
 export function DocumentsPanel({ onActivateDocument, onOpenDocument }: DocumentsPanelProps) {
   const activeDocument = useReaderSession((state) => state.activeDocument)
   const documents = useReaderSession((state) => state.documents)
+  const selected = useReaderSession((state) => state.selectedDocument)
   const isDocumentLibraryHydrated = useReaderSession((state) => state.isDocumentLibraryHydrated)
 
   return (
@@ -54,6 +55,7 @@ export function DocumentsPanel({ onActivateDocument, onOpenDocument }: Documents
 
                 return (
                   <Button
+                    aria-busy={(selected?.id === document.id && !isActive) || undefined}
                     aria-current={isActive ? "page" : undefined}
                     className={cn(
                       "w-full cursor-pointer justify-start gap-2 px-2 font-normal hover:bg-sidebar-accent",

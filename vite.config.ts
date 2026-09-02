@@ -48,6 +48,7 @@ export default defineConfig({
   },
   lint: {
     plugins: ["typescript", "unicorn", "oxc", "react", "jsx-a11y", "import"],
+    jsPlugins: ["./tools/oxlint-plugin.ts"],
     categories: {
       correctness: "error",
       suspicious: "warn",
@@ -57,6 +58,7 @@ export default defineConfig({
       "import/default": "off",
       "import/no-unassigned-import": "off",
       "no-unneeded-ternary": "warn",
+      "pdfantom/if-braces": "error",
       "react/exhaustive-deps": "error",
       "react/react-in-jsx-scope": "off",
       "react/rules-of-hooks": "error",

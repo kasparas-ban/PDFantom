@@ -1,3 +1,4 @@
+import type { DocumentSummary } from "../../../shared/document-api"
 import {
   DEFAULT_READER_VIEW,
   readingPositionSchema,
@@ -19,10 +20,28 @@ export type ReadingPositionStorage = Pick<Storage, "getItem" | "setItem">
 
 const positionKey = (documentId: string) => `pdfantom-reading-position:${documentId}`
 
-export function loadReadingPosition(storage: ReadingPositionStorage, documentId: string) {
+export function loadReadingPosition(
+  storage: ReadingPositionStorage,
+  document: Pick<DocumentSummary, "id" | "fingerprint">,
+  allowLegacy = false,
+) {
   try {
-    const value: unknown = JSON.parse(storage.getItem(positionKey(documentId)) ?? "null")
+    const value: unknown = JSON.parse(storage.getItem(positionKey(document.id)) ?? "null")
+    if (!value || typeof value !== "object") return null
+
+    if ("fingerprint" in value || "schema" in value) {
+      if (
+        !("schema" in value) ||
+        value.schema !== 1 ||
+        !("fingerprint" in value) ||
+        value.fingerprint !== document.fingerprint
+      ) {
+        return null
+      }
+    } else if (!allowLegacy) return null
+
     const result = restorablePositionSchema.safeParse(value)
+
     return result.success ? result.data : null
   } catch {
     return null
@@ -31,10 +50,10 @@ export function loadReadingPosition(storage: ReadingPositionStorage, documentId:
 
 export function saveReadingPosition(
   storage: ReadingPositionStorage,
-  documentId: string,
-  position: ReadingPosition,
+  document: Pick<DocumentSummary, "id" | "fingerprint">,
+  position: ReadingPosition | null,
 ) {
-  const key = positionKey(documentId)
-  const serialized = JSON.stringify(position)
+  const key = positionKey(document.id)
+  const serialized = JSON.stringify({ schema: 1, fingerprint: document.fingerprint, ...position })
   if (storage.getItem(key) !== serialized) storage.setItem(key, serialized)
 }

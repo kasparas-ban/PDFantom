@@ -3,6 +3,7 @@ import { dialog, ipcMain, type BrowserWindow, type IpcMainInvokeEvent } from "el
 import {
   ACTIVATE_DOCUMENT_CHANNEL,
   GET_DOCUMENT_LIBRARY_CHANNEL,
+  LOAD_DOCUMENT_CHANNEL,
   OPEN_DOCUMENT_CHANNEL,
 } from "../shared/document-api"
 import { DocumentLibrary } from "./document-library"
@@ -27,12 +28,29 @@ export function registerDocumentBoundary(
     return library.openDocument(selectedPath)
   })
 
-  ipcMain.handle(ACTIVATE_DOCUMENT_CHANNEL, async (event, documentId: unknown) => {
-    assertTrustedRenderer(event, window, rendererUrl)
-    assertDocumentId(documentId)
+  ipcMain.handle(
+    ACTIVATE_DOCUMENT_CHANNEL,
+    async (event, documentId: unknown, fingerprint: unknown) => {
+      assertTrustedRenderer(event, window, rendererUrl)
+      assertDocumentId(documentId)
+      assertFingerprint(fingerprint)
 
-    return library.activateDocument(documentId)
-  })
+      return library.activateDocument(documentId, fingerprint)
+    },
+  )
+
+  ipcMain.handle(
+    LOAD_DOCUMENT_CHANNEL,
+    async (event, documentId: unknown, fingerprint: unknown, bytesNeeded: unknown) => {
+      assertTrustedRenderer(event, window, rendererUrl)
+      assertDocumentId(documentId)
+      assertFingerprint(fingerprint)
+
+      if (typeof bytesNeeded !== "boolean") throw new Error("The bytes-needed flag is invalid.")
+
+      return library.loadDocument(documentId, fingerprint, bytesNeeded)
+    },
+  )
 }
 
 async function choosePdf(window: BrowserWindow) {
@@ -56,7 +74,13 @@ function assertTrustedRenderer(
 }
 
 function assertDocumentId(documentId: unknown): asserts documentId is string {
-  if (typeof documentId !== "string" || documentId.length === 0 || documentId.length > 200) {
+  if (typeof documentId !== "string" || !documentId || documentId.length > 200) {
     throw new Error("The Document identifier is invalid.")
+  }
+}
+
+function assertFingerprint(fingerprint: unknown): asserts fingerprint is string {
+  if (typeof fingerprint !== "string" || !/^[a-f0-9]{64}$/.test(fingerprint)) {
+    throw new Error("The Document fingerprint is invalid.")
   }
 }

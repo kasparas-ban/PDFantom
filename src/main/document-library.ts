@@ -2,10 +2,10 @@ import { createHash } from "node:crypto"
 import { createReadStream } from "node:fs"
 import path from "node:path"
 
-import type {
-  ActiveDocumentState,
-  DocumentUnavailableReason,
-  OpenedDocument,
+import {
+  documentVersionKey,
+  type DocumentLoadResult,
+  type DocumentUnavailableReason,
 } from "../shared/document-api"
 import { DocumentRepository, type StoredDocument } from "./document-repository"
 
@@ -19,91 +19,106 @@ type LoadedPdf = {
 type DocumentLoader = (sourcePath: string) => Promise<LoadedPdf>
 
 export class DocumentLibrary {
-  private commandQueue = Promise.resolve()
+  private readonly inFlight = new Map<string, Promise<LoadedPdf>>()
+  private openingGeneration = 0
 
   constructor(
     private readonly repository: DocumentRepository,
-    private readonly loadDocument: DocumentLoader = loadPdf,
+    private readonly loader: DocumentLoader = loadPdf,
   ) {}
 
-  getSnapshot() {
-    return this.enqueue(() => this.createSnapshot())
+  async getSnapshot() {
+    const selected = this.repository.getActiveDocument()
+    return {
+      selectedDocument: selected ? toDocumentSummary(selected) : null,
+      documents: this.repository.listDocuments().map(toDocumentSummary),
+    }
   }
 
-  openDocument(sourcePath: string) {
-    return this.enqueue(async () => {
-      const loadedPdf = await this.loadDocument(sourcePath)
-      const document = this.repository.recordOpenedDocument({
-        fingerprint: loadedPdf.fingerprint,
-        name: path.basename(sourcePath),
-        sourcePath,
-      })
+  async openDocument(sourcePath: string) {
+    const generation = ++this.openingGeneration
+    const loadedPdf = await this.loader(sourcePath)
 
-      return this.createSnapshot(toOpenedDocument(document, loadedPdf.bytes))
+    if (generation !== this.openingGeneration) {
+      throw new Error("This document opening was superseded.")
+    }
+
+    const previousFingerprint = this.repository.findBySourcePath(sourcePath)?.fingerprint ?? null
+    const document = this.repository.recordOpenedDocument({
+      fingerprint: loadedPdf.fingerprint,
+      name: path.basename(sourcePath),
+      sourcePath,
     })
+
+    return {
+      document: { ...toDocumentSummary(document), bytes: loadedPdf.bytes },
+      previousFingerprint,
+      library: await this.getSnapshot(),
+    }
   }
 
-  activateDocument(documentId: string) {
-    return this.enqueue(async () => {
-      const storedDocument = this.repository.findDocument(documentId)
-      if (!storedDocument) throw new Error("The requested Document does not exist.")
+  async activateDocument(documentId: string, expectedFingerprint: string) {
+    const document = this.requireDocument(documentId)
+    if (document.fingerprint !== expectedFingerprint) {
+      throw new Error("The Document version changed.")
+    }
 
-      const openedDocument = await this.loadStoredDocument(storedDocument)
-      const activeDocument = this.repository.activateDocument(documentId)
+    this.repository.activateDocument(documentId)
 
-      return this.createSnapshot(toOpenedDocument(activeDocument, openedDocument.bytes))
-    })
+    return this.getSnapshot()
   }
 
-  private enqueue<T>(command: () => Promise<T>) {
-    const result = this.commandQueue.then(command)
-    this.commandQueue = result.then(
-      () => undefined,
-      () => undefined,
-    )
-    return result
-  }
+  async loadDocument(
+    documentId: string,
+    expectedFingerprint: string,
+    bytesNeeded: boolean,
+  ): Promise<DocumentLoadResult> {
+    const document = this.requireDocument(documentId)
+    const summary = { ...toDocumentSummary(document), fingerprint: expectedFingerprint }
 
-  private async createSnapshot(loadedActiveDocument?: OpenedDocument) {
-    let activeDocument: ActiveDocumentState = loadedActiveDocument
-      ? { document: loadedActiveDocument, status: "loaded" }
-      : { status: "none" }
-
-    if (!loadedActiveDocument) {
-      const storedActiveDocument = this.repository.getActiveDocument()
-      if (storedActiveDocument) {
-        try {
-          activeDocument = {
-            document: await this.loadStoredDocument(storedActiveDocument),
-            status: "loaded",
-          }
-        } catch (error) {
-          activeDocument = {
-            document: toDocumentSummary(storedActiveDocument),
-            reason: getUnavailableReason(error),
-            status: "unavailable",
-          }
-        }
+    try {
+      if (document.fingerprint !== expectedFingerprint) {
+        throw new DocumentUnavailableError("content-mismatch", "The Document version changed.")
       }
+
+      const key = documentVersionKey(document)
+      let pending = this.inFlight.get(key)
+
+      if (!pending) {
+        pending = this.loader(document.sourcePath)
+        this.inFlight.set(key, pending)
+
+        const remove = () => this.inFlight.delete(key)
+        void pending.then(remove, remove)
+      }
+
+      const loaded = await pending
+
+      if (
+        loaded.fingerprint !== document.fingerprint ||
+        this.repository.findDocument(documentId)?.fingerprint !== document.fingerprint
+      ) {
+        throw new DocumentUnavailableError(
+          "content-mismatch",
+          "The saved Document no longer matches its original content.",
+        )
+      }
+
+      return {
+        status: "verified",
+        document: summary,
+        ...(bytesNeeded ? { bytes: loaded.bytes } : {}),
+      }
+    } catch (error) {
+      return { status: "unavailable", document: summary, reason: getUnavailableReason(error) }
     }
-
-    const documents = this.repository
-      .listDocuments()
-      .map(({ id, name }) => ({ id, name }))
-
-    return { activeDocument, documents }
   }
 
-  private async loadStoredDocument(document: StoredDocument) {
-    const loadedPdf = await this.loadDocument(document.sourcePath)
-    if (loadedPdf.fingerprint !== document.fingerprint) {
-      throw new DocumentUnavailableError(
-        "content-mismatch",
-        "The saved Document no longer matches its original content.",
-      )
-    }
+  private requireDocument(documentId: string) {
+    const document = this.repository.findDocument(documentId)
+    if (!document) throw new Error("The requested Document does not exist.")
 
-    return toOpenedDocument(document, loadedPdf.bytes)
+    return document
   }
 }
 
@@ -123,12 +138,9 @@ function getUnavailableReason(error: unknown) {
 }
 
 function hasErrorCode(error: unknown): error is { readonly code: string } {
-  return (
-    typeof error === "object" &&
-    error !== null &&
-    "code" in error &&
-    typeof error.code === "string"
-  )
+  if (!error || typeof error !== "object" || !("code" in error)) return false
+
+  return typeof error.code === "string"
 }
 
 async function loadPdf(filePath: string) {
@@ -142,20 +154,14 @@ async function loadPdf(filePath: string) {
 
   for await (const chunk of createReadStream(filePath)) {
     if (header.length < PDF_HEADER.length) {
-      header = Buffer.concat([
-        header,
-        chunk.subarray(0, PDF_HEADER.length - header.length),
-      ])
+      header = Buffer.concat([header, chunk.subarray(0, PDF_HEADER.length - header.length)])
     }
     chunks.push(chunk)
     hash.update(chunk)
   }
 
   if (header.toString("ascii") !== PDF_HEADER) {
-    throw new DocumentUnavailableError(
-      "invalid",
-      "The file does not contain a valid PDF header.",
-    )
+    throw new DocumentUnavailableError("invalid", "The file does not contain a valid PDF header.")
   }
 
   return {
@@ -164,14 +170,6 @@ async function loadPdf(filePath: string) {
   }
 }
 
-function toOpenedDocument(document: StoredDocument, bytes: ArrayBuffer) {
-  return {
-    bytes,
-    id: document.id,
-    name: document.name,
-  }
-}
-
 function toDocumentSummary(document: StoredDocument) {
-  return { id: document.id, name: document.name }
+  return { id: document.id, name: document.name, fingerprint: document.fingerprint }
 }

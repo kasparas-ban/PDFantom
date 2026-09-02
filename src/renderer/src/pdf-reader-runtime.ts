@@ -1,6 +1,13 @@
-import { getDocument, GlobalWorkerOptions, type PDFDocumentProxy } from "pdfjs-dist"
+import { getDocument, GlobalWorkerOptions, PDFWorker, type PDFDocumentProxy } from "pdfjs-dist"
 import workerSource from "pdfjs-dist/build/pdf.worker.min.mjs?url"
-import { EventBus, PDFViewer, ScrollMode, SpreadMode } from "pdfjs-dist/web/pdf_viewer.mjs"
+import {
+  EventBus,
+  PDFViewer,
+  RenderingStates,
+  ScrollMode,
+  SpreadMode,
+  type PDFPageView as PDFPage,
+} from "pdfjs-dist/web/pdf_viewer.mjs"
 
 import type { OpenedDocument } from "../../shared/document-api"
 import {
@@ -24,7 +31,7 @@ GlobalWorkerOptions.workerSrc = workerSource
 
 export type PDFReaderStatus =
   | { state: "opening" }
-  | { state: "ready" }
+  | { state: "ready"; interactive: boolean }
   | { state: "failed"; message: string }
 
 const PINCH_RENDER_DELAY = 400
@@ -33,6 +40,7 @@ const FIT_VISIBILITY_MARGIN = 1
 type PDFScale = number | PDFScalePreset
 
 type PDFReaderRuntimeOptions = {
+  readonly worker: PDFWorker
   readonly document: OpenedDocument
   readonly container: HTMLDivElement
   readonly viewer: HTMLDivElement
@@ -43,7 +51,10 @@ type PDFReaderRuntimeOptions = {
   readonly onScaleChange: (scale: number) => void
   readonly onPinchZoom: (scale: number) => void
   readonly onStatusChange: (status: PDFReaderStatus) => void
+  readonly onSettled: () => void
 }
+
+export const createReaderWorker = () => new PDFWorker()
 
 export function createPDFReaderRuntime({
   document,
@@ -56,15 +67,27 @@ export function createPDFReaderRuntime({
   onScaleChange,
   onPinchZoom,
   onStatusChange,
+  onSettled,
+  worker,
 }: PDFReaderRuntimeOptions) {
+  const documentId = document.id
   const abortController = new AbortController()
   const loadingTask = getDocument({
     data: document.bytes.slice(0),
     useWorkerFetch: false,
+    worker,
   })
 
   let destroyed = false
   let ready = false
+  let lifecycle: "presented" | "preparing" | "inactive" = "preparing"
+  let revision = 0
+  let frame = 0
+  let settledTimer = 0
+  let selection: Range | null = null
+  const drawn = new Map<number, number>()
+  const details = new Map<number, { scale: number; canvas: HTMLCanvasElement }>()
+  const textDrawn = new Map<number, number>()
   let eventBus: EventBus | null = null
   let pdfViewer: PDFViewer | null = null
   let requestedPage = 1
@@ -76,7 +99,15 @@ export function createPDFReaderRuntime({
   let isCtrlKeyDown = false
 
   const savePosition = () => {
-    if (!ready || !pdfViewer || !container.clientWidth || !container.clientHeight) return
+    if (
+      !ready ||
+      lifecycle !== "presented" ||
+      !pdfViewer ||
+      !container.clientWidth ||
+      !container.clientHeight
+    ) {
+      return
+    }
 
     const page = viewer.querySelector<HTMLElement>(`.page[data-page-number="${requestedPage}"]`)
     if (!page) return
@@ -95,8 +126,97 @@ export function createPDFReaderRuntime({
   }
 
   const flushPosition = () => {
-    if (!ready) return
+    if (!ready || lifecycle !== "presented") return
     pdfViewer?.update()
+    savePosition()
+  }
+
+  const viewportReadiness = () => {
+    if (
+      !ready ||
+      destroyed ||
+      lifecycle === "inactive" ||
+      !pdfViewer ||
+      !container.clientWidth ||
+      !container.clientHeight
+    ) {
+      return null
+    }
+
+    const bounds = container.getBoundingClientRect()
+    const pages = [...viewer.querySelectorAll<HTMLElement>(".page")].filter((page) => {
+      const rect = page.getBoundingClientRect()
+      return (
+        rect.bottom > bounds.top &&
+        rect.top < bounds.bottom &&
+        rect.right > bounds.left &&
+        rect.left < bounds.right
+      )
+    })
+    if (!pages.length) return null
+
+    let interactive = true
+
+    for (const page of pages) {
+      const number = Number(page.dataset.pageNumber)
+      const view: PDFPage = pdfViewer.getPageView(number - 1)
+
+      if (
+        !view ||
+        view.renderingState !== RenderingStates.FINISHED ||
+        Math.abs(view.scale - pdfViewer.currentScale) > 0.0001
+      ) {
+        return null
+      }
+      if (view.detailView && view.detailView.renderingState !== RenderingStates.FINISHED) {
+        return null
+      }
+
+      if (drawn.get(number) !== view.scale) {
+        const detail = details.get(number)
+
+        if (!detail || detail.scale !== view.scale || detail.canvas !== view.detailView?.canvas) {
+          return null
+        }
+
+        const raster = detail.canvas.getBoundingClientRect()
+        const pageBounds = page.getBoundingClientRect()
+
+        if (
+          raster.left > Math.max(pageBounds.left, bounds.left) ||
+          raster.top > Math.max(pageBounds.top, bounds.top) ||
+          raster.right < Math.min(pageBounds.right, bounds.right) ||
+          raster.bottom < Math.min(pageBounds.bottom, bounds.bottom)
+        ) {
+          return null
+        }
+      }
+
+      interactive &&= textDrawn.get(number) === view.scale
+    }
+
+    return { interactive }
+  }
+
+  const scheduleReadiness = () => {
+    const currentRevision = ++revision
+    cancelAnimationFrame(frame)
+    clearTimeout(settledTimer)
+    frame = requestAnimationFrame(() => {
+      if (currentRevision !== revision) return
+
+      const viewport = viewportReadiness()
+      if (!viewport) return
+
+      onStatusChange({ state: "ready", ...viewport })
+
+      settledTimer = window.setTimeout(() => {
+        if (revision === currentRevision && viewportReadiness()) {
+          flushPosition()
+          onSettled()
+        }
+      }, 200)
+    })
   }
 
   const fitRequestedSpread = () => {
@@ -140,7 +260,11 @@ export function createPDFReaderRuntime({
 
     const cappedScale = Math.min(MAX_PDF_SCALE, spreadScale)
     if (Math.abs(pdfViewer.currentScale - cappedScale) > 0.001) {
+      const anchoredPage = requestedPage
       pdfViewer.currentScale = cappedScale
+      // PDF.js scaling restores its last scroll location, which can still
+      // belong to the previous spread when navigation and rendering overlap.
+      if (pdfViewer.currentPageNumber !== anchoredPage) pdfViewer.currentPageNumber = anchoredPage
     }
   }
 
@@ -152,9 +276,7 @@ export function createPDFReaderRuntime({
     } else {
       pdfViewer.currentScaleValue = requestedScale
       const boundedScale = Math.min(MAX_PDF_SCALE, Math.max(MIN_PDF_SCALE, pdfViewer.currentScale))
-      if (pdfViewer.currentScale !== boundedScale) {
-        pdfViewer.currentScale = boundedScale
-      }
+      if (pdfViewer.currentScale !== boundedScale) pdfViewer.currentScale = boundedScale
       fitRequestedSpread()
     }
   }
@@ -167,12 +289,11 @@ export function createPDFReaderRuntime({
       requestedPageLayout === "horizontal" ? ScrollMode.HORIZONTAL : ScrollMode.VERTICAL
     pdfViewer.spreadMode = requestedPageView === "double" ? SpreadMode.ODD : SpreadMode.NONE
     applyRequestedScale()
-    if (pdfViewer.currentPageNumber !== anchoredPage) {
-      pdfViewer.currentPageNumber = anchoredPage
-    }
+    if (pdfViewer.currentPageNumber !== anchoredPage) pdfViewer.currentPageNumber = anchoredPage
   }
+
   const handlePageChange = ({ pageNumber }: { pageNumber: number }) => {
-    if (!ready) return
+    if (!ready || lifecycle === "inactive") return
 
     const keepsRequestedPageVisible =
       requestedPageView === "double" &&
@@ -182,20 +303,38 @@ export function createPDFReaderRuntime({
     requestedPage = pageNumber
     if (!destroyed) onPageChange(pageNumber)
   }
+
   const handlePagesInit = () => {
     if (!pdfViewer) return
+
     requestedPage = Math.min(requestedPage, pdfViewer.pagesCount)
     applyRequestedLayout()
+
+    // PDF.js installs a global copy handler, but it only handles selections
+    // containing this element. Inert viewers cannot contribute to selection.
+    const copy = container.querySelector<HTMLElement>("#hiddenCopyElement")
+    if (copy) copy.id = `reader-copy-${documentId}`
+
+    if (!initialReadingPosition) {
+      ready = true
+      pdfViewer.update()
+      scheduleReadiness()
+    }
   }
+
   const handlePagesLoaded = () => {
-    if (destroyed || !pdfViewer) return
+    if (destroyed || !pdfViewer || !initialReadingPosition) return
 
     applyRequestedLayout()
+
     const page = viewer.querySelector<HTMLElement>(`.page[data-page-number="${requestedPage}"]`)
+
     if (initialReadingPosition && page) {
       pdfViewer.currentScale = initialReadingPosition.zoom
+
       const pageBounds = page.getBoundingClientRect()
       const containerBounds = container.getBoundingClientRect()
+
       container.scrollLeft +=
         pageBounds.left -
         containerBounds.left +
@@ -205,23 +344,73 @@ export function createPDFReaderRuntime({
         containerBounds.top +
         initialReadingPosition.offsetY * pdfViewer.currentScale
     }
+
     ready = true
     onPageChange(requestedPage)
     pdfViewer.update()
-    onStatusChange({ state: "ready" })
+    scheduleReadiness()
   }
-  const handleScaleChange = ({ scale }: { scale: number }) => onScaleChange(scale)
-  const handlePageRendered = () => {
+
+  const handleScaleChange = ({ scale }: { scale: number }) => {
+    if (destroyed || lifecycle === "inactive") return
+
+    onScaleChange(scale)
+    scheduleReadiness()
+  }
+
+  const handlePageRendered = ({
+    pageNumber,
+    source,
+    error,
+    cssTransform,
+    isDetailView,
+  }: {
+    pageNumber: number
+    source: PDFPage
+    error?: unknown
+    cssTransform?: boolean
+    isDetailView?: boolean
+  }) => {
+    if (destroyed || lifecycle === "inactive") return
+
+    if (error) {
+      reportFailure()
+      return
+    }
+
+    if (!cssTransform && !isDetailView) drawn.set(pageNumber, source.scale)
+
+    if (isDetailView && pdfViewer) {
+      const page: PDFPage = pdfViewer.getPageView(pageNumber - 1)
+
+      if (page.detailView === source && source.canvas) {
+        details.set(pageNumber, { scale: page.scale, canvas: source.canvas })
+      }
+    }
+
     fitRequestedSpread()
+    scheduleReadiness()
   }
+
+  const handleTextRendered = ({ pageNumber, source }: { pageNumber: number; source: PDFPage }) => {
+    if (destroyed) return
+
+    textDrawn.set(pageNumber, source.scale)
+    scheduleReadiness()
+  }
+
   const handleKeyDown = (event: KeyboardEvent) => {
+    if (lifecycle !== "presented") return
+
     if (event.key === "Control") isCtrlKeyDown = true
   }
+
   const handleKeyUp = (event: KeyboardEvent) => {
     if (event.key === "Control") isCtrlKeyDown = false
   }
+
   const handleWheel = (event: WheelEvent) => {
-    if (!pdfViewer?.pagesCount) return
+    if (lifecycle !== "presented" || !pdfViewer?.pagesCount) return
 
     // Chromium represents a trackpad pinch as a pixel-based Ctrl+wheel gesture.
     // Keep the same conservative shape check used by the pdf.js viewer so a
@@ -239,12 +428,16 @@ export function createPDFReaderRuntime({
     if (!isTrackpadPinch) return
 
     event.preventDefault()
+
     const direction = Math.sign(scaleFactor - 1)
+
     if (direction !== pinchDirection) {
       pendingPinchFactor = 1
       pinchDirection = direction
     }
+
     pendingPinchFactor *= scaleFactor
+
     const unboundedScale = pdfViewer.currentScale * pendingPinchFactor
     const nextScale = Math.min(
       MAX_PDF_SCALE,
@@ -259,6 +452,7 @@ export function createPDFReaderRuntime({
 
     pendingPinchFactor = unboundedScale / nextScale
     requestedScale = nextScale
+
     pdfViewer.updateScale({
       drawingDelay: PINCH_RENDER_DELAY,
       scaleFactor: nextScale / pdfViewer.currentScale,
@@ -266,22 +460,25 @@ export function createPDFReaderRuntime({
     })
     onPinchZoom(nextScale)
   }
+
   const reportFailure = () => {
-    if (!destroyed) {
-      onStatusChange({ state: "failed", message: "This PDF could not be opened." })
-    }
+    if (!destroyed) onStatusChange({ state: "failed", message: "This PDF could not be opened." })
   }
+
   const resizeObserver = new ResizeObserver(() => {
     if (
       !container.clientWidth ||
       !container.clientHeight ||
+      lifecycle === "inactive" ||
       typeof requestedScale !== "string" ||
       !pdfViewer?.pagesCount
-    )
+    ) {
       return
+    }
 
     applyRequestedScale()
     pdfViewer.update()
+    scheduleReadiness()
   })
 
   onStatusChange({ state: "opening" })
@@ -290,6 +487,7 @@ export function createPDFReaderRuntime({
     passive: false,
     signal: abortController.signal,
   })
+  container.addEventListener("scroll", scheduleReadiness, { signal: abortController.signal })
   window.addEventListener("beforeunload", flushPosition, { signal: abortController.signal })
   window.addEventListener("keydown", handleKeyDown, { signal: abortController.signal })
   window.addEventListener("keyup", handleKeyUp, { signal: abortController.signal })
@@ -309,55 +507,144 @@ export function createPDFReaderRuntime({
         viewer,
       }
       pdfViewer = new PDFViewer(viewerOptions)
+      // The public queue is per viewer. Stop hidden scheduling without destroying
+      // completed canvases; cancellation below only touches unfinished pages.
+      const renderHighestPriority = pdfViewer.renderingQueue!.renderHighestPriority.bind(
+        pdfViewer.renderingQueue,
+      )
+      pdfViewer.renderingQueue!.renderHighestPriority = (visible) => {
+        if (!destroyed && lifecycle !== "inactive") renderHighestPriority(visible)
+      }
+
+      const renderView = pdfViewer.renderingQueue!.renderView.bind(pdfViewer.renderingQueue)
+
+      pdfViewer.renderingQueue!.renderView = (view) => {
+        if (destroyed || lifecycle === "inactive") return false
+
+        return renderView(view)
+      }
+
       eventBus.on("pagesinit", handlePagesInit)
       eventBus.on("pagesloaded", handlePagesLoaded)
       eventBus.on("updateviewarea", savePosition)
       eventBus.on("pagechanging", handlePageChange)
       eventBus.on("pagerendered", handlePageRendered)
+      eventBus.on("textlayerrendered", handleTextRendered)
       eventBus.on("scalechanging", handleScaleChange)
+
       onPageCountChange(loadedDocument.numPages)
       pdfViewer.setDocument(loadedDocument)
+
+      const pagesPromise: Promise<void> = pdfViewer.pagesPromise
+
+      void pagesPromise.catch(reportFailure)
     })
     .catch(reportFailure)
 
   return {
-    destroy: () => {
-      destroyed = true
+    destroy: async () => {
       flushPosition()
+      destroyed = true
       ready = false
+      cancelAnimationFrame(frame)
+      clearTimeout(settledTimer)
       eventBus?.off("pagesinit", handlePagesInit)
       eventBus?.off("pagesloaded", handlePagesLoaded)
       eventBus?.off("updateviewarea", savePosition)
       eventBus?.off("pagechanging", handlePageChange)
       eventBus?.off("pagerendered", handlePageRendered)
+      eventBus?.off("textlayerrendered", handleTextRendered)
       eventBus?.off("scalechanging", handleScaleChange)
       pdfViewer?.setDocument(null)
       abortController.abort()
       resizeObserver.disconnect()
       pdfViewer?.cleanup()
-      void loadingTask.destroy()
+      await loadingTask.destroy().catch(() => undefined)
+    },
+    flushPosition,
+    isReady: () => viewportReadiness(),
+    reconcileLayout: () => {
+      if (pdfViewer?.pagesCount) {
+        applyRequestedScale()
+        pdfViewer.update()
+      }
+      scheduleReadiness()
+    },
+    setLifecycle: (next: typeof lifecycle) => {
+      if (next === lifecycle) return
+      if (lifecycle === "presented") {
+        flushPosition()
+
+        const current = window.getSelection()
+
+        if (current?.rangeCount && container.contains(current.anchorNode)) {
+          selection = current.getRangeAt(0).cloneRange()
+          current.removeAllRanges()
+        }
+      }
+
+      lifecycle = next
+      isCtrlKeyDown = false
+
+      if (next === "inactive") {
+        cancelAnimationFrame(frame)
+        clearTimeout(settledTimer)
+
+        for (let index = 0; index < (pdfViewer?.pagesCount ?? 0); index++) {
+          const page: PDFPage = pdfViewer!.getPageView(index)
+
+          if (page.renderingState !== RenderingStates.FINISHED) {
+            page.reset()
+          } else if (
+            page.detailView &&
+            page.detailView.renderingState !== RenderingStates.FINISHED
+          ) {
+            page.detailView.reset()
+          }
+        }
+      } else {
+        pdfViewer?.update()
+
+        if (next === "presented" && selection) {
+          window.getSelection()?.removeAllRanges()
+          window.getSelection()?.addRange(selection)
+        }
+
+        scheduleReadiness()
+      }
     },
     goToPage: (pageNumber: number) => {
       requestedPage = pageNumber
       if (pdfViewer?.pagesCount && pdfViewer.currentPageNumber !== pageNumber) {
         pdfViewer.currentPageNumber = pageNumber
       }
+
+      scheduleReadiness()
     },
     setScale: (scale: PDFScale) => {
       if (requestedScale === scale) return
 
       const previousScale = pdfViewer?.currentScale
       requestedScale = scale
+
       if (pdfViewer?.pagesCount) applyRequestedScale()
       if (pdfViewer?.currentScale === previousScale) flushPosition()
+
+      scheduleReadiness()
     },
     setPageLayout: (pageLayout: PDFPageLayout) => {
       requestedPageLayout = pageLayout
+
       if (pdfViewer?.pagesCount) applyRequestedLayout()
+
+      scheduleReadiness()
     },
     setPageView: (pageView: PDFPageView) => {
       requestedPageView = pageView
+
       if (pdfViewer?.pagesCount) applyRequestedLayout()
+
+      scheduleReadiness()
     },
   }
 }

@@ -15,9 +15,7 @@ const expectSpreadFullyVisible = async (
 ) => {
   await expect
     .poll(async () =>
-      Math.min(
-        ...Object.values(await reader.spreadVisibility(leftPageNumber, rightPageNumber)),
-      ),
+      Math.min(...Object.values(await reader.spreadVisibility(leftPageNumber, rightPageNumber))),
     )
     .toBeGreaterThanOrEqual(0)
 }
@@ -124,9 +122,7 @@ test("opens full-screen Settings from Chat and returns to the workspace", async 
   await expect(reader.chatMessageInput).toHaveValue("Keep this draft")
 })
 
-test("securely persists and removes the OpenRouter API key", async ({
-  application,
-}) => {
+test("securely persists and removes the OpenRouter API key", async ({ application }) => {
   const reader = new DocumentReaderDriver(application.page)
   await reader.toggleChatPanel("Show")
   await reader.settingsButton.click()
@@ -144,7 +140,9 @@ test("securely persists and removes the OpenRouter API key", async ({
   await restoredReader.settingsButton.click()
   await restoredReader.aiProviderSettingsButton.click()
 
-  await expect(restoredReader.settings.getByText("API key saved securely on this Mac")).toBeVisible()
+  await expect(
+    restoredReader.settings.getByText("API key saved securely on this Mac"),
+  ).toBeVisible()
   await expect(restoredReader.openRouterApiKeyInput).toHaveValue("")
   await expect(restoredReader.openRouterApiKeyInput).toHaveAttribute(
     "placeholder",
@@ -152,24 +150,18 @@ test("securely persists and removes the OpenRouter API key", async ({
   )
 
   await restoredReader.viewOpenRouterApiKeyButton.click()
-  await expect(restoredReader.openRouterApiKeyInput).toHaveValue(
-    "sk-or-v1-example-secret",
-  )
+  await expect(restoredReader.openRouterApiKeyInput).toHaveValue("sk-or-v1-example-secret")
   await restoredReader.hideOpenRouterApiKeyButton.click()
   await expect(restoredReader.openRouterApiKeyInput).toHaveValue("")
 
   await restoredReader.editOpenRouterApiKeyButton.click()
-  await expect(restoredReader.openRouterApiKeyInput).toHaveValue(
-    "sk-or-v1-example-secret",
-  )
+  await expect(restoredReader.openRouterApiKeyInput).toHaveValue("sk-or-v1-example-secret")
   await restoredReader.openRouterApiKeyInput.fill("sk-or-v1-cancelled-change")
   await restoredReader.cancelOpenRouterApiKeyButton.click()
   await expect(restoredReader.openRouterApiKeyInput).toHaveValue("")
 
   await restoredReader.viewOpenRouterApiKeyButton.click()
-  await expect(restoredReader.openRouterApiKeyInput).toHaveValue(
-    "sk-or-v1-example-secret",
-  )
+  await expect(restoredReader.openRouterApiKeyInput).toHaveValue("sk-or-v1-example-secret")
 
   await restoredReader.editOpenRouterApiKeyButton.click()
   await restoredReader.openRouterApiKeyInput.fill("")
@@ -322,10 +314,12 @@ test("restores body styles when the Documents panel is hidden during resizing", 
   await reader.setBodyInteractionStyles(originalStyles)
 
   await reader.startResizingDocumentsPanel()
-  await expect.poll(() => reader.bodyInteractionStyles()).toEqual({
-    cursor: "col-resize",
-    userSelect: "none",
-  })
+  await expect
+    .poll(() => reader.bodyInteractionStyles())
+    .toEqual({
+      cursor: "col-resize",
+      userSelect: "none",
+    })
 
   await reader.toggleDocumentsPanelProgrammatically()
 
@@ -370,9 +364,7 @@ test("opens and selects text without a Model Provider", async ({ application }) 
   await expect.poll(() => reader.selectedText()).toContain("Introduction to")
 })
 
-test("keeps the reader position when selecting the active Document", async ({
-  application,
-}) => {
+test("keeps the reader position when selecting the active Document", async ({ application }) => {
   await application.selectOpenPath(documentFixture)
   const reader = new DocumentReaderDriver(application.page)
 
@@ -394,10 +386,7 @@ test("restores the last open Document at its last page after relaunch", async ({
   const reader = new DocumentReaderDriver(application.page)
 
   await reader.openSelectedDocument()
-  await expect(reader.documentEntry("document-mock.pdf")).toHaveAttribute(
-    "aria-current",
-    "page",
-  )
+  await expect(reader.documentEntry("document-mock.pdf")).toHaveAttribute("aria-current", "page")
   await expect(reader.renderedPages).toHaveCount(5)
   await reader.goToPage(4)
   await expect(reader.pageNumber).toHaveValue("4")
@@ -431,10 +420,7 @@ test("shows a repair state when the active Document changes before relaunch", as
     const relaunched = await application.relaunch()
     const restoredReader = new DocumentReaderDriver(relaunched.page)
 
-    await expect(restoredReader.documentEntry("notes.pdf")).toHaveAttribute(
-      "aria-current",
-      "page",
-    )
+    await expect(restoredReader.documentEntry("notes.pdf")).toHaveAttribute("aria-current", "page")
     await expect(
       relaunched.page.getByRole("heading", { name: "notes.pdf is unavailable" }),
     ).toBeVisible()
@@ -486,38 +472,29 @@ test("persists every opened Document and activates it from the Documents panel",
     const relaunched = await application.relaunch()
     const restoredReader = new DocumentReaderDriver(relaunched.page)
 
-    await expect(restoredReader.documentEntry("first.pdf")).toHaveAttribute(
-      "aria-current",
-      "page",
-    )
-    await expect(restoredReader.documentEntry("second.pdf")).toHaveAttribute(
-      "title",
-      "second.pdf",
-    )
+    await expect(restoredReader.documentEntry("first.pdf")).toHaveAttribute("aria-current", "page")
+    await expect(restoredReader.documentEntry("second.pdf")).toHaveAttribute("title", "second.pdf")
     await expect(restoredReader.documentEntries()).toHaveText(["second.pdf", "first.pdf"])
     await expect(restoredReader.documentTitle("first.pdf")).toBeVisible()
     await expect(restoredReader.renderedPages).toHaveCount(5)
 
     await restoredReader.documentEntry("second.pdf").click()
-    await expect(restoredReader.loadingError()).toContainText(
-      "The document is unavailable. Restore the file and try again.",
-    )
-    await expect(restoredReader.documentEntry("first.pdf")).toHaveAttribute(
+    await expect(restoredReader.documentTitle("second.pdf is unavailable")).toBeVisible()
+    await expect(
+      relaunched.page.getByText(
+        "The file's contents changed after it was added. Open it again to use the current version.",
+      ),
+    ).toBeVisible()
+    await expect(restoredReader.documentEntry("first.pdf")).not.toHaveAttribute(
       "aria-current",
       "page",
     )
-    await expect(restoredReader.documentEntry("second.pdf")).not.toHaveAttribute(
-      "aria-current",
-      "page",
-    )
-    await expect(restoredReader.documentTitle("first.pdf")).toBeVisible()
+    await expect(restoredReader.documentEntry("second.pdf")).toHaveAttribute("aria-current", "page")
+    await expect(restoredReader.documentTitle("first.pdf")).toBeHidden()
 
     await application.selectOpenPath(secondDocument)
     await restoredReader.openAnotherSelectedDocument()
-    await expect(restoredReader.documentEntry("second.pdf")).toHaveAttribute(
-      "aria-current",
-      "page",
-    )
+    await expect(restoredReader.documentEntry("second.pdf")).toHaveAttribute("aria-current", "page")
     await expect(restoredReader.documentTitle("second.pdf")).toBeVisible()
     await expect(restoredReader.renderedPages).toHaveCount(5)
   } finally {
@@ -625,9 +602,7 @@ test("lays out single pages vertically or horizontally with one control", async 
   await expect(reader.renderedPages).toHaveCount(5)
 
   await expect(reader.pageLayoutButton).toHaveCount(1)
-  await expect(reader.pageLayoutButton).toHaveAccessibleName(
-    "Switch to horizontal page layout",
-  )
+  await expect(reader.pageLayoutButton).toHaveAccessibleName("Switch to horizontal page layout")
   expect(await reader.pageTop(1)).not.toBe(await reader.pageTop(2))
 
   await reader.pageLayoutButton.click()
@@ -644,9 +619,7 @@ test("lays out single pages vertically or horizontally with one control", async 
 
   await reader.pageLayoutButton.click()
 
-  await expect(reader.pageLayoutButton).toHaveAccessibleName(
-    "Switch to horizontal page layout",
-  )
+  await expect(reader.pageLayoutButton).toHaveAccessibleName("Switch to horizontal page layout")
   await expect
     .poll(async () => (await reader.pageTop(2)) - (await reader.pageTop(1)))
     .toBeGreaterThan(0)
@@ -679,9 +652,7 @@ test("lays out double-page spreads vertically or horizontally with gutters", asy
 
   await reader.pageLayoutButton.click()
 
-  await expect(reader.pageLayoutButton).toHaveAccessibleName(
-    "Switch to horizontal page layout",
-  )
+  await expect(reader.pageLayoutButton).toHaveAccessibleName("Switch to horizontal page layout")
   await expect.poll(() => reader.verticalPageGap(1, 3)).toBeGreaterThanOrEqual(8)
 })
 

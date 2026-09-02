@@ -7,205 +7,155 @@ import { expect, test } from "@playwright/test"
 import { DocumentLibrary } from "../../src/main/document-library"
 import { DocumentRepository } from "../../src/main/document-repository"
 
-async function withDocumentLibrary(
+const fingerprint = "a".repeat(64)
+const bytes = new ArrayBuffer(4)
+
+async function withLibrary(
   run: (repository: DocumentRepository, workspace: string) => Promise<void>,
 ) {
-  const workspace = await mkdtemp(path.join(os.tmpdir(), "pdfantom-document-library-"))
-  const ids = ["document-1", "document-2"]
-  const openedAt = [
-    new Date("2026-07-12T10:00:00.000Z"),
-    new Date("2026-07-12T11:00:00.000Z"),
-  ]
-  const repository = new DocumentRepository(path.join(workspace, "study-history.sqlite"), {
-    createId: () => ids.shift()!,
-    now: () => openedAt.shift()!,
-  })
-
+  const workspace = await mkdtemp(path.join(os.tmpdir(), "pdfantom-library-"))
+  const repository = new DocumentRepository(path.join(workspace, "study-history.sqlite"))
   try {
     await run(repository, workspace)
   } finally {
     repository.close()
-    await rm(workspace, { force: true, recursive: true })
+    await rm(workspace, { recursive: true, force: true })
   }
 }
 
-test("reports no active Document for an empty library", async () => {
-  await withDocumentLibrary(async (repository) => {
-    const library = new DocumentLibrary(repository)
+const record = (repository: DocumentRepository, name: string) =>
+  repository.recordOpenedDocument({ fingerprint, name, sourcePath: `/documents/${name}` })
 
-    await expect(library.getSnapshot()).resolves.toEqual({
-      activeDocument: { status: "none" },
-      documents: [],
+test("empty metadata and snapshots never read source files", async () => {
+  await withLibrary(async (repository) => {
+    let reads = 0
+    const library = new DocumentLibrary(repository, async () => {
+      reads++
+      return { bytes, fingerprint }
     })
+    expect(await library.getSnapshot()).toEqual({ selectedDocument: null, documents: [] })
+    const first = record(repository, "first.pdf")
+    const second = record(repository, "second.pdf")
+    const snapshot = await library.activateDocument(first.id, fingerprint)
+    expect(snapshot.selectedDocument).toEqual({ id: first.id, name: first.name, fingerprint })
+    expect(snapshot.documents).toHaveLength(2)
+    expect(JSON.stringify(snapshot)).not.toContain("sourcePath")
+    expect(JSON.stringify(snapshot)).not.toContain("bytes")
+    await library.activateDocument(second.id, fingerprint)
+    expect(reads).toBe(0)
   })
 })
 
-test("loads only the active Document when restoring a library snapshot", async () => {
-  await withDocumentLibrary(async (repository) => {
-    const first = repository.recordOpenedDocument({
-      fingerprint: "first-content",
-      name: "first.pdf",
-      sourcePath: "/documents/first.pdf",
+test("selection and metadata proceed in request order while full reads are pending", async () => {
+  await withLibrary(async (repository) => {
+    const first = record(repository, "first.pdf")
+    const second = record(repository, "second.pdf")
+    const pending = Promise.withResolvers<{ bytes: ArrayBuffer; fingerprint: string }>()
+    let reads = 0
+    const library = new DocumentLibrary(repository, () => {
+      reads++
+      return pending.promise
     })
-    const second = repository.recordOpenedDocument({
-      fingerprint: "second-content",
-      name: "second.pdf",
-      sourcePath: "/documents/second.pdf",
-    })
+    const load = library.loadDocument(first.id, fingerprint, true)
+    const check = library.loadDocument(first.id, fingerprint, false)
+    expect(reads).toBe(1)
+    await library.activateDocument(first.id, fingerprint)
+    await library.activateDocument(second.id, fingerprint)
+    expect((await library.getSnapshot()).selectedDocument?.id).toBe(second.id)
+    pending.resolve({ bytes, fingerprint })
+    expect(await load).toMatchObject({ status: "verified", bytes })
+    expect(await check).not.toHaveProperty("bytes")
+    expect(repository.getActiveDocument()?.id).toBe(second.id)
+    await library.loadDocument(first.id, fingerprint, false)
+    expect(reads).toBe(2)
+  })
+})
+
+test("open records without selecting and reports the previous version", async () => {
+  await withLibrary(async (repository) => {
+    const first = record(repository, "first.pdf")
     repository.activateDocument(first.id)
-
-    const loadedPaths = new Array<string>()
-    const library = new DocumentLibrary(repository, async (sourcePath) => {
-      loadedPaths.push(sourcePath)
-      return {
-        bytes: new ArrayBuffer(0),
-        fingerprint: sourcePath === first.sourcePath ? "first-content" : second.fingerprint,
-      }
-    })
-
-    const snapshot = await library.getSnapshot()
-
-    expect(loadedPaths).toEqual([first.sourcePath])
-    expect(snapshot.activeDocument).toMatchObject({
-      document: { id: first.id, name: first.name },
-      status: "loaded",
-    })
-    expect(
-      snapshot.activeDocument.status === "loaded"
-        ? snapshot.activeDocument.document.bytes.byteLength
-        : undefined,
-    ).toBe(0)
-    expect(snapshot.documents).toEqual([
-      { id: second.id, name: second.name },
-      { id: first.id, name: first.name },
-    ])
-  })
-})
-
-test("serializes Document activations in request order", async () => {
-  await withDocumentLibrary(async (repository) => {
-    const first = repository.recordOpenedDocument({
-      fingerprint: "first-content",
-      name: "first.pdf",
-      sourcePath: "/documents/first.pdf",
-    })
-    const second = repository.recordOpenedDocument({
-      fingerprint: "second-content",
-      name: "second.pdf",
-      sourcePath: "/documents/second.pdf",
-    })
-    const firstLoad = Promise.withResolvers<{
-      bytes: ArrayBuffer
-      fingerprint: string
-    }>()
-    const secondLoad = Promise.withResolvers<{
-      bytes: ArrayBuffer
-      fingerprint: string
-    }>()
-    const loadedPaths = new Array<string>()
-    const library = new DocumentLibrary(repository, (sourcePath) => {
-      loadedPaths.push(sourcePath)
-      return sourcePath === first.sourcePath ? firstLoad.promise : secondLoad.promise
-    })
-
-    const firstActivation = library.activateDocument(first.id)
-    await expect.poll(() => loadedPaths).toEqual([first.sourcePath])
-
-    const secondActivation = library.activateDocument(second.id)
-    await new Promise((resolve) => setTimeout(resolve, 0))
-    expect(loadedPaths).toEqual([first.sourcePath])
-
-    firstLoad.resolve({ bytes: new ArrayBuffer(0), fingerprint: first.fingerprint })
-    expect((await firstActivation).activeDocument).toMatchObject({
-      document: { id: first.id },
-      status: "loaded",
-    })
-    await expect.poll(() => loadedPaths).toEqual([first.sourcePath, second.sourcePath])
-
-    secondLoad.resolve({ bytes: new ArrayBuffer(0), fingerprint: second.fingerprint })
-    expect((await secondActivation).activeDocument).toMatchObject({
-      document: { id: second.id },
-      status: "loaded",
-    })
-  })
-})
-
-test("rejects a saved Document after its content changes at the same path", async () => {
-  await withDocumentLibrary(async (repository) => {
-    const document = repository.recordOpenedDocument({
-      fingerprint: "original-content",
-      name: "notes.pdf",
-      sourcePath: "/documents/notes.pdf",
-    })
-    const library = new DocumentLibrary(repository, async () => ({
-      bytes: new ArrayBuffer(0),
-      fingerprint: "edited-content",
-    }))
-
-    await expect(library.activateDocument(document.id)).rejects.toThrow(
-      "The saved Document no longer matches its original content.",
+    let content = fingerprint
+    const library = new DocumentLibrary(repository, async () => ({ bytes, fingerprint: content }))
+    const opened = await library.openDocument("/documents/second.pdf")
+    expect(opened.previousFingerprint).toBeNull()
+    expect(opened.library.selectedDocument?.id).toBe(first.id)
+    content = "b".repeat(64)
+    const replacement = await library.openDocument("/documents/second.pdf")
+    expect(replacement.previousFingerprint).toBe(fingerprint)
+    expect(replacement.document.id).toBe(opened.document.id)
+    expect(repository.getActiveDocument()?.id).toBe(first.id)
+    await expect(library.activateDocument(opened.document.id, fingerprint)).rejects.toThrow(
+      "version changed",
     )
   })
 })
 
-test("reports a mismatched active Document as unavailable when restoring", async () => {
-  await withDocumentLibrary(async (repository) => {
-    const document = repository.recordOpenedDocument({
-      fingerprint: "original-content",
-      name: "notes.pdf",
-      sourcePath: "/documents/notes.pdf",
-    })
-    const library = new DocumentLibrary(repository, async () => ({
-      bytes: new ArrayBuffer(0),
-      fingerprint: "replacement-content",
-    }))
+test("checks the authoritative fingerprint again after an in-flight read", async () => {
+  await withLibrary(async (repository) => {
+    const document = record(repository, "first.pdf")
+    const pending = Promise.withResolvers<{ bytes: ArrayBuffer; fingerprint: string }>()
+    const library = new DocumentLibrary(repository, () => pending.promise)
+    const load = library.loadDocument(document.id, fingerprint, true)
+    repository.recordOpenedDocument({ ...document, fingerprint: "b".repeat(64) })
+    pending.resolve({ bytes, fingerprint })
+    expect(await load).toMatchObject({ status: "unavailable", reason: "content-mismatch" })
+  })
+})
 
-    const snapshot = await library.getSnapshot()
+test("a late picker read cannot replace the repository version recorded by a newer open", async () => {
+  await withLibrary(async (repository) => {
+    const older = Promise.withResolvers<{ bytes: ArrayBuffer; fingerprint: string }>()
+    let reads = 0
+    const library = new DocumentLibrary(repository, () =>
+      ++reads === 1 ? older.promise : Promise.resolve({ bytes, fingerprint: "b".repeat(64) }),
+    )
+    const stale = library.openDocument("/documents/same.pdf")
+    const rejection = expect(stale).rejects.toThrow("superseded")
+    const current = await library.openDocument("/documents/same.pdf")
+    older.resolve({ bytes, fingerprint })
+    await rejection
+    expect(repository.findDocument(current.document.id)?.fingerprint).toBe("b".repeat(64))
+    expect(repository.getActiveDocument()).toBeNull()
+  })
+})
 
-    expect(snapshot.activeDocument).toEqual({
-      document: { id: document.id, name: document.name },
+test("rejects unknown IDs and never trusts the renderer's expected fingerprint", async () => {
+  await withLibrary(async (repository) => {
+    const library = new DocumentLibrary(repository)
+    await expect(library.loadDocument("unknown", fingerprint, true)).rejects.toThrow(
+      "does not exist",
+    )
+    const document = record(repository, "notes.pdf")
+    expect(await library.loadDocument(document.id, "b".repeat(64), false)).toMatchObject({
+      status: "unavailable",
       reason: "content-mismatch",
-      status: "unavailable",
     })
   })
 })
 
-test("reports a missing active Document as unavailable when restoring", async () => {
-  await withDocumentLibrary(async (repository) => {
-    const document = repository.recordOpenedDocument({
-      fingerprint: "original-content",
-      name: "missing.pdf",
-      sourcePath: "/documents/missing.pdf",
-    })
-    const library = new DocumentLibrary(repository)
-
-    const snapshot = await library.getSnapshot()
-
-    expect(snapshot.activeDocument).toEqual({
-      document: { id: document.id, name: document.name },
-      reason: "missing",
-      status: "unavailable",
-    })
-  })
-})
-
-test("reports an invalid active Document as unavailable when restoring", async () => {
-  await withDocumentLibrary(async (repository, workspace) => {
-    const sourcePath = path.join(workspace, "corrupted.pdf")
-    await writeFile(sourcePath, "This is no longer a PDF.")
-    const document = repository.recordOpenedDocument({
-      fingerprint: "original-content",
-      name: "corrupted.pdf",
-      sourcePath,
-    })
-    const library = new DocumentLibrary(repository)
-
-    const snapshot = await library.getSnapshot()
-
-    expect(snapshot.activeDocument).toEqual({
-      document: { id: document.id, name: document.name },
-      reason: "invalid",
-      status: "unavailable",
+for (const reason of ["missing", "invalid", "unreadable", "content-mismatch"] as const) {
+  test(`preserves the ${reason} source failure without mutating selection`, async () => {
+    await withLibrary(async (repository, workspace) => {
+      const sourcePath = path.join(workspace, "source.pdf")
+      if (reason === "invalid") await writeFile(sourcePath, "Not a PDF")
+      if (reason === "content-mismatch") await writeFile(sourcePath, "%PDF-1.4\nchanged content")
+      const document = repository.recordOpenedDocument({
+        fingerprint,
+        name: "source.pdf",
+        sourcePath,
+      })
+      const library =
+        reason === "unreadable"
+          ? new DocumentLibrary(repository, async () => {
+              throw new Error("denied")
+            })
+          : new DocumentLibrary(repository)
+      expect(await library.loadDocument(document.id, fingerprint, true)).toMatchObject({
+        status: "unavailable",
+        reason,
+      })
+      expect(repository.getActiveDocument()).toBeNull()
     })
   })
-})
+}

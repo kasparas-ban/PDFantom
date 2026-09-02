@@ -26,15 +26,15 @@ export class OpenRouterApiKeyStore {
 
     this.assertEncryptionAvailable()
     const apiKey = this.encryption.decryptString(encrypted)
-    return apiKey.length > 0 ? apiKey : null
+    return apiKey || null
   }
 
   async hasApiKey() {
-    return (await this.getApiKey()) !== null
+    return Boolean(await this.getApiKey())
   }
 
   async saveApiKey(apiKey: string) {
-    if (apiKey.length === 0) {
+    if (!apiKey) {
       await rm(this.storagePath, { force: true })
       return
     }
@@ -56,9 +56,7 @@ export class OpenRouterApiKeyStore {
   }
 
   private assertEncryptionAvailable() {
-    if (!this.encryption.isEncryptionAvailable()) {
-      throw new Error("Secure storage is unavailable.")
-    }
+    if (!this.encryption.isEncryptionAvailable()) throw new Error("Secure storage is unavailable.")
   }
 }
 

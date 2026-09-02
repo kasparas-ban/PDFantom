@@ -22,9 +22,13 @@ export function ReaderSessionProvider({ children }: PropsWithChildren) {
 }
 
 export function useReaderSession<T>(selector: (state: ReaderSessionState) => T) {
+  return useStore(useReaderSessionStore(), selector)
+}
+
+export function useReaderSessionStore() {
   const store = useContext(ReaderSessionStoreContext)
 
   if (!store) throw new Error("useReaderSession must be used within a ReaderSessionProvider")
 
-  return useStore(store, selector)
+  return store
 }

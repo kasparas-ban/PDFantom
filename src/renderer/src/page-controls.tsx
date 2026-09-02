@@ -3,6 +3,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react"
 
 import { Button } from "./components/ui/button"
 import { Input } from "./components/ui/input"
+import { useAppConfig } from "./store/app-config-provider"
 import { useReaderSession } from "./store/reader-session-provider"
 
 export function PageControls() {
@@ -10,6 +11,8 @@ export function PageControls() {
   const pageCount = useReaderSession((state) => state.pageCount)
   const pageView = useReaderSession((state) => state.pageView)
   const requestPage = useReaderSession((state) => state.requestPage)
+  const interactive = useReaderSession((state) => state.interactive)
+  const settingsOpen = useAppConfig((state) => state.isSettingsOpen)
 
   const [pageNumber, setPageNumber] = useState(String(currentPage))
 
@@ -18,6 +21,8 @@ export function PageControls() {
   useEffect(() => {
     const navigateWithArrowKey = (event: globalThis.KeyboardEvent) => {
       if (
+        !interactive ||
+        settingsOpen ||
         event.defaultPrevented ||
         event.altKey ||
         event.ctrlKey ||
@@ -45,7 +50,7 @@ export function PageControls() {
 
     window.addEventListener("keydown", navigateWithArrowKey)
     return () => window.removeEventListener("keydown", navigateWithArrowKey)
-  }, [currentPage, pageView, requestPage])
+  }, [currentPage, pageView, requestPage, interactive, settingsOpen])
 
   const commitPageNumber = () => {
     const requestedPage = Number(pageNumber)

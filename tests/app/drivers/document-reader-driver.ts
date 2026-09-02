@@ -100,7 +100,7 @@ export class DocumentReaderDriver {
   }
 
   get renderedPages() {
-    return this.page.locator(".pdfViewer .page")
+    return this.page.locator('[data-presented="true"] .pdfViewer .page')
   }
 
   get pageNumber() {
@@ -168,7 +168,9 @@ export class DocumentReaderDriver {
   }
 
   readerAreaWidth() {
-    return this.page.locator("main > section").evaluate((reader) => reader.getBoundingClientRect().width)
+    return this.page
+      .locator("main > section")
+      .evaluate((reader) => reader.getBoundingClientRect().width)
   }
 
   async resizeDocumentsPanelBy(deltaX: number, button: "left" | "right" = "left") {
@@ -234,9 +236,7 @@ export class DocumentReaderDriver {
   }
 
   documentEntries() {
-    return this.documentsPanel
-      .getByRole("navigation", { name: "Documents" })
-      .getByRole("button")
+    return this.documentsPanel.getByRole("navigation", { name: "Documents" }).getByRole("button")
   }
 
   pageCountLabel(pageCount: number) {
@@ -248,7 +248,7 @@ export class DocumentReaderDriver {
   }
 
   async selectPassage(text: string) {
-    await this.page.getByText(text, { exact: true }).selectText()
+    await this.page.locator('[data-presented="true"]').getByText(text, { exact: true }).selectText()
   }
 
   selectedText() {
@@ -256,9 +256,7 @@ export class DocumentReaderDriver {
   }
 
   readerScrollTop() {
-    return this.page
-      .locator('[aria-label="PDF reader"]')
-      .evaluate((reader) => reader.scrollTop)
+    return this.page.locator('[aria-label="PDF reader"]').evaluate((reader) => reader.scrollTop)
   }
 
   offsetReaderScrollBy(deltaY: number) {
@@ -334,9 +332,9 @@ export class DocumentReaderDriver {
   }
 
   horizontalOverflow() {
-    return this.page.locator('[aria-label="PDF reader"]').evaluate(
-      (reader) => reader.scrollWidth - reader.clientWidth,
-    )
+    return this.page
+      .locator('[aria-label="PDF reader"]')
+      .evaluate((reader) => reader.scrollWidth - reader.clientWidth)
   }
 
   async pinchFirstPage(scaleFactor: number, steps = 10) {
@@ -352,35 +350,38 @@ export class DocumentReaderDriver {
     steps: number,
     physicalCtrlKey: boolean,
   ) {
-    return this.renderedPages.first().evaluate((page, options) => {
-      const pageBounds = page.getBoundingClientRect()
-      const clientX = pageBounds.left + pageBounds.width * 0.5
-      const clientY = pageBounds.top + pageBounds.height * 0.35
-      const pointBefore = { x: clientX, y: clientY }
-      const eventScaleFactor = options.scaleFactor ** (1 / options.steps)
-      let defaultPrevented = false
-      if (options.physicalCtrlKey) {
-        window.dispatchEvent(new KeyboardEvent("keydown", { key: "Control" }))
-      }
-      for (let index = 0; index < options.steps; index += 1) {
-        const event = new WheelEvent("wheel", {
-          bubbles: true,
-          cancelable: true,
-          clientX,
-          clientY,
-          ctrlKey: true,
-          deltaMode: WheelEvent.DOM_DELTA_PIXEL,
-          deltaY: -100 * Math.log(eventScaleFactor),
-        })
-        page.dispatchEvent(event)
-        defaultPrevented ||= event.defaultPrevented
-      }
-      if (options.physicalCtrlKey) {
-        window.dispatchEvent(new KeyboardEvent("keyup", { key: "Control" }))
-      }
+    return this.renderedPages.first().evaluate(
+      (page, options) => {
+        const pageBounds = page.getBoundingClientRect()
+        const clientX = pageBounds.left + pageBounds.width * 0.5
+        const clientY = pageBounds.top + pageBounds.height * 0.35
+        const pointBefore = { x: clientX, y: clientY }
+        const eventScaleFactor = options.scaleFactor ** (1 / options.steps)
+        let defaultPrevented = false
+        if (options.physicalCtrlKey) {
+          window.dispatchEvent(new KeyboardEvent("keydown", { key: "Control" }))
+        }
+        for (let index = 0; index < options.steps; index += 1) {
+          const event = new WheelEvent("wheel", {
+            bubbles: true,
+            cancelable: true,
+            clientX,
+            clientY,
+            ctrlKey: true,
+            deltaMode: WheelEvent.DOM_DELTA_PIXEL,
+            deltaY: -100 * Math.log(eventScaleFactor),
+          })
+          page.dispatchEvent(event)
+          defaultPrevented ||= event.defaultPrevented
+        }
+        if (options.physicalCtrlKey) {
+          window.dispatchEvent(new KeyboardEvent("keyup", { key: "Control" }))
+        }
 
-      return { clientX, clientY, defaultPrevented, pointBefore }
-    }, { physicalCtrlKey, scaleFactor, steps })
+        return { clientX, clientY, defaultPrevented, pointBefore }
+      },
+      { physicalCtrlKey, scaleFactor, steps },
+    )
   }
 
   firstPagePoint(xRatio: number, yRatio: number) {
@@ -416,7 +417,9 @@ export class DocumentReaderDriver {
   }
 
   pageTop(pageNumber: number) {
-    return this.renderedPages.nth(pageNumber - 1).evaluate((page) => page.getBoundingClientRect().top)
+    return this.renderedPages
+      .nth(pageNumber - 1)
+      .evaluate((page) => page.getBoundingClientRect().top)
   }
 
   horizontalPageGap(leftPageNumber: number, rightPageNumber: number) {

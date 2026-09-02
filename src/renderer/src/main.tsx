@@ -1,4 +1,4 @@
-import { StrictMode, useEffect, useState } from "react"
+import { StrictMode, useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react"
 import { FilePlus2, FileWarning } from "lucide-react"
 import { createRoot } from "react-dom/client"
 
@@ -6,38 +6,40 @@ import { Button } from "@/components/ui/button"
 import pdfantomLogo from "../../../assets/pdfantom-logo.svg?no-inline"
 import type { ActiveDocumentState, DocumentUnavailableReason } from "../../shared/document-api"
 import { ChatPanelControl } from "./chat-panel-control"
-import { DocumentReader } from "./document-reader"
+import { createReaderSurfaces } from "./document-reader"
 import { DocumentsPanelControl } from "./documents-panel-control"
 import { PDFControls } from "./pdf-controls"
+import { createReaderWorker } from "./pdf-reader-runtime"
+import { ReaderPreviewCache } from "./reader-preview"
+import { ReaderWorkspace } from "./reader-workspace"
 import { resolveReaderWorkspaceLayout } from "./reader-workspace-layout"
+import { SettingsView } from "./settings/settings-view"
 import { ResizableChatPanel } from "./sidebar/resizable-chat-panel"
 import { ResizableDocumentsPanel } from "./sidebar/resizable-documents-panel"
-import { SettingsView } from "./settings/settings-view"
 import { AppConfigProvider, useAppConfig } from "./store/app-config-provider"
-import { ReaderSessionProvider, useReaderSession } from "./store/reader-session-provider"
+import {
+  ReaderSessionProvider,
+  useReaderSession,
+  useReaderSessionStore,
+} from "./store/reader-session-provider"
 
 import "pdfjs-dist/web/pdf_viewer.css"
 import "./styles.css"
 
 function App() {
-  const activeDocumentId = useReaderSession((state) =>
-    state.activeDocument.status === "loaded" ? state.activeDocument.document.id : null,
-  )
-  const loadDocumentLibrary = useReaderSession((state) => state.loadDocumentLibrary)
+  const store = useReaderSessionStore()
+  const host = useRef<HTMLDivElement>(null)
+  const workspace = useRef<ReaderWorkspace | null>(null)
   const isChatPanelOpen = useAppConfig((state) => state.isChatPanelOpen)
   const isDocumentsPanelOpen = useAppConfig((state) => state.isDocumentsPanelOpen)
   const isSettingsOpen = useAppConfig((state) => state.isSettingsOpen)
   const appearance = useAppConfig((state) => state.appearance)
   const lastResizedPanel = useAppConfig((state) => state.lastResizedPanel)
   const preferredChatPanelWidth = useAppConfig((state) => state.preferredChatPanelWidth)
-  const preferredDocumentsPanelWidth = useAppConfig(
-    (state) => state.preferredDocumentsPanelWidth,
-  )
+  const preferredDocumentsPanelWidth = useAppConfig((state) => state.preferredDocumentsPanelWidth)
   const setChatPanelWidth = useAppConfig((state) => state.setChatPanelWidth)
   const setDocumentsPanelWidth = useAppConfig((state) => state.setDocumentsPanelWidth)
   const [viewportWidth, setViewportWidth] = useState(() => window.innerWidth)
-
-  const [error, setError] = useState<string | null>(null)
 
   const panelLayout = resolveReaderWorkspaceLayout({
     isChatPanelOpen,
@@ -68,53 +70,52 @@ function App() {
   }, [])
 
   useEffect(() => {
-    let isCurrent = true
+    if (!host.current) return
 
-    void window.pdfantom
-      .getDocumentLibrary()
-      .then((snapshot) => {
-        if (isCurrent) loadDocumentLibrary(snapshot)
-      })
-      .catch(() => {
-        if (!isCurrent) return
-        setError("The document library could not be loaded.")
-        loadDocumentLibrary({ activeDocument: { status: "none" }, documents: [] })
-      })
+    const owner = new ReaderWorkspace(
+      window.pdfantom,
+      store,
+      createReaderSurfaces(host.current, store),
+      new ReaderPreviewCache(),
+      createReaderWorker,
+    )
+
+    workspace.current = owner
+
+    const resize = new ResizeObserver(() => owner.layoutChanged())
+    resize.observe(host.current)
+
+    const appearanceObserver = new MutationObserver(() => owner.layoutChanged())
+    appearanceObserver.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["class"],
+    })
+
+    void owner.restore()
+
+    let secondFrame = 0
+    const firstFrame = requestAnimationFrame(() => {
+      secondFrame = requestAnimationFrame(() => owner.warm())
+    })
 
     return () => {
-      isCurrent = false
+      cancelAnimationFrame(firstFrame)
+      cancelAnimationFrame(secondFrame)
+      workspace.current = null
+      resize.disconnect()
+      appearanceObserver.disconnect()
+      void owner.dispose()
     }
-  }, [loadDocumentLibrary])
+  }, [store])
 
-  const openDocument = async () => {
-    setError(null)
-    try {
-      const snapshot = await window.pdfantom.openDocument()
-      if (snapshot) {
-        setError(null)
-        loadDocumentLibrary(snapshot)
-      }
-    } catch {
-      setError("The document could not be opened.")
-    }
+  useLayoutEffect(() => workspace.current?.suspend(isSettingsOpen), [isSettingsOpen])
+
+  const openDocument = () => {
+    void workspace.current?.open()
   }
 
-  const activateDocument = async (documentId: string) => {
-    if (documentId === activeDocumentId) return
-
-    setError(null)
-    try {
-      const snapshot = await window.pdfantom.activateDocument(documentId)
-      setError(null)
-      loadDocumentLibrary(snapshot)
-    } catch {
-      setError("The document is unavailable. Restore the file and try again.")
-      try {
-        loadDocumentLibrary(await window.pdfantom.getDocumentLibrary())
-      } catch {
-        // Keep the current renderer state when the library cannot be refreshed.
-      }
-    }
+  const activateDocument = (documentId: string) => {
+    void workspace.current?.activate(documentId)
   }
 
   return (
@@ -122,7 +123,8 @@ function App() {
       {isSettingsOpen && <SettingsView />}
       <main
         aria-hidden={isSettingsOpen || undefined}
-        className={isSettingsOpen ? "hidden" : "flex h-screen bg-background text-foreground"}
+        inert={isSettingsOpen}
+        className={`flex h-screen bg-background text-foreground ${isSettingsOpen ? "invisible absolute inset-0" : ""}`}
       >
         {isDocumentsPanelOpen && (
           <ResizableDocumentsPanel
@@ -140,7 +142,7 @@ function App() {
           </div>
 
           <div className="flex min-h-0 w-full flex-1">
-            <PDFCanvas error={error} openDocument={openDocument} />
+            <PDFCanvas host={host} openDocument={openDocument} />
           </div>
         </section>
 
@@ -159,31 +161,40 @@ function App() {
   )
 }
 
-function PDFCanvas({ error, openDocument }: { error: string | null; openDocument: () => void }) {
+function PDFCanvas({
+  host,
+  openDocument,
+}: {
+  host: RefObject<HTMLDivElement | null>
+  openDocument: () => void
+}) {
   const activeDocument = useReaderSession((state) => state.activeDocument)
-  const isDocumentLibraryHydrated = useReaderSession((state) => state.isDocumentLibraryHydrated)
+  const error = useReaderSession((state) => state.error)
+  const positionError = useReaderSession((state) => state.readingPositionError)
+  const sourceStatus = useReaderSession((state) => state.sourceStatus)
 
   return (
-    <>
-      {error && (
+    <div className="relative h-full w-full overflow-hidden">
+      <div ref={host} className="absolute inset-0 bg-[#e7e7e5] dark:bg-[#171716]" />
+      {(error || positionError) && (
         <div
           className="absolute top-4 left-1/2 z-20 -translate-x-1/2 rounded-lg border bg-background px-4 py-2 text-sm text-destructive shadow-sm"
           role="alert"
         >
-          {error}
+          {error || positionError}
         </div>
       )}
 
-      {!isDocumentLibraryHydrated ? (
-        <div className="flex h-full w-full items-center justify-center text-sm text-muted-foreground">
-          Restoring document…
-        </div>
-      ) : activeDocument.status === "loaded" ? (
-        <DocumentReader document={activeDocument.document} />
-      ) : activeDocument.status === "unavailable" ? (
+      {sourceStatus && (
+        <output className="pointer-events-none absolute right-3 bottom-3 z-20 rounded-md bg-background/90 px-2 py-1 text-xs text-muted-foreground">
+          {sourceStatus === "checking" ? "Checking source…" : "Preparing reader…"}
+        </output>
+      )}
+      {activeDocument.status === "unavailable" && (
         <UnavailableDocument activeDocument={activeDocument} openDocument={openDocument} />
-      ) : (
-        <div className="flex h-full w-full items-center justify-center">
+      )}
+      {activeDocument.status === "none" && (
+        <div className="relative flex h-full w-full items-center justify-center bg-background">
           <section className="flex items-center justify-center px-8 pb-[8vh] text-center">
             <div className="max-w-md">
               <img
@@ -206,7 +217,7 @@ function PDFCanvas({ error, openDocument }: { error: string | null; openDocument
           </section>
         </div>
       )}
-    </>
+    </div>
   )
 }
 
@@ -229,7 +240,7 @@ function UnavailableDocument({
   openDocument: () => void
 }) {
   return (
-    <div className="flex h-full w-full items-center justify-center">
+    <div className="relative flex h-full w-full items-center justify-center bg-background">
       <section className="flex items-center justify-center px-8 pb-[8vh] text-center">
         <div className="max-w-md">
           <div className="mx-auto mb-6 flex size-14 items-center justify-center rounded-2xl bg-muted text-muted-foreground">

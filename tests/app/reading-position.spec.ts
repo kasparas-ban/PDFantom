@@ -23,7 +23,7 @@ for (const preset of ["page-fit", "page-width"] as const) {
     await application.selectOpenPath(path.resolve("tests/fixtures/pdfs/mixed-page-sizes.pdf"))
     await reader.openSelectedDocument()
     await expect(reader.pageCountLabel(5)).toBeVisible()
-    await expect(application.page.getByText("Opening mixed-page-sizes.pdf…")).toBeHidden()
+    await expect(reader.pageNumber).toBeEnabled()
     if (preset === "page-width") await reader.pageFitButton.click()
     await reader.goToPage(preset === "page-fit" ? 3 : 4)
     await readerViewport(application.page).evaluate((viewport) => {
@@ -36,7 +36,7 @@ for (const preset of ["page-fit", "page-width"] as const) {
     const restarted = await application.relaunch()
     const restored = new DocumentReaderDriver(restarted.page)
     await expect(restored.pageNumber).toHaveValue(pageNumber)
-    await expect(restarted.page.getByText("Opening mixed-page-sizes.pdf…")).toBeHidden()
+    await expect(restored.pageNumber).toBeEnabled()
     await expect(restored.zoomLevel).toHaveText(zoom!)
     await expect.poll(() => scrollPosition(restarted.page)).toEqual(position)
     await expect(restored.pageFitButton).toHaveAccessibleName(
@@ -54,14 +54,14 @@ test("saves a fit preference immediately even when the zoom does not change", as
   await application.selectOpenPath(documentFixture)
   await reader.openSelectedDocument()
   await expect(reader.pageCountLabel(5)).toBeVisible()
-  await expect(application.page.getByText("Opening document-mock.pdf…")).toBeHidden()
+  await expect(reader.pageNumber).toBeEnabled()
   await reader.setReaderSize({ height: 1000, width: 400 })
   await expect.poll(async () => (await reader.firstPageSize()).width).toBe(400)
   const zoom = await reader.zoomLevel.textContent()
   const storageKey = await application.page.evaluate(async () => {
-    const { activeDocument } = await window.pdfantom.getDocumentLibrary()
-    if (activeDocument.status !== "loaded") throw new Error("No document is open")
-    return `pdfantom-reading-position:${activeDocument.document.id}`
+    const { selectedDocument } = await window.pdfantom.getDocumentLibrary()
+    if (!selectedDocument) throw new Error("No document is open")
+    return `pdfantom-reading-position:${selectedDocument.id}`
   })
   const savedPreset = () =>
     application.page.evaluate(
@@ -84,7 +84,7 @@ for (const layout of ["vertical", "horizontal", "double"] as const) {
     await application.selectOpenPath(documentFixture)
     await reader.openSelectedDocument()
     await expect(reader.pageCountLabel(5)).toBeVisible()
-    await expect(application.page.getByText("Opening document-mock.pdf…")).toBeHidden()
+    await expect(reader.pageNumber).toBeEnabled()
     if (layout === "horizontal") await reader.pageLayoutButton.click()
     if (layout === "double") await reader.pageViewButton.click()
     await reader.zoomInButton.click()
@@ -101,7 +101,7 @@ for (const layout of ["vertical", "horizontal", "double"] as const) {
 
     const restarted = await application.relaunch()
     const restored = new DocumentReaderDriver(restarted.page)
-    await expect(restarted.page.getByText("Opening document-mock.pdf…")).toBeHidden()
+    await expect(restored.pageNumber).toBeEnabled()
     await expect(restored.pageNumber).toHaveValue(pageNumber)
     await expect(restored.zoomLevel).toHaveText(zoom!)
     await expect.poll(() => scrollPosition(restarted.page)).toEqual(position)
@@ -229,9 +229,9 @@ test("restores the position after restart with an obsolete view preference", asy
   const zoom = await reader.zoomLevel.textContent()
 
   const storageKey = await application.page.evaluate(async () => {
-    const { activeDocument } = await window.pdfantom.getDocumentLibrary()
-    if (activeDocument.status !== "loaded") throw new Error("No document is open")
-    const key = `pdfantom-reading-position:${activeDocument.document.id}`
+    const { selectedDocument } = await window.pdfantom.getDocumentLibrary()
+    if (!selectedDocument) throw new Error("No document is open")
+    const key = `pdfantom-reading-position:${selectedDocument.id}`
     window.addEventListener(
       "beforeunload",
       () => {

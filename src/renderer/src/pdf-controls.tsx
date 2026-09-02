@@ -12,8 +12,9 @@ export function PDFControls() {
   const activeDocument = useReaderSession((state) => state.activeDocument)
   const isDocumentsPanelOpen = useAppConfig((state) => state.isDocumentsPanelOpen)
   const isFullScreen = useIsFullScreen()
+  const interactive = useReaderSession((state) => state.interactive)
 
-  if (activeDocument.status !== "loaded") return null
+  if (activeDocument.status !== "loaded" && activeDocument.status !== "preview") return null
 
   return (
     <header className="flex h-full w-full">
@@ -24,15 +25,17 @@ export function PDFControls() {
         )}
       >
         <div className="window-no-drag flex w-full min-w-0 items-center gap-2 overflow-hidden pl-1">
-          {!isDocumentsPanelOpen && (
-            <div className="mr-1.5 h-5 w-px shrink-0 bg-gray-300" />
-          )}
-          <h2 className="min-w-0 max-w-full flex-1 truncate text-[0.82rem] font-medium">
+          {!isDocumentsPanelOpen && <div className="mr-1.5 h-5 w-px shrink-0 bg-gray-300" />}
+          <h2 className="max-w-full min-w-0 flex-1 truncate text-[0.82rem] font-medium">
             {activeDocument.document.name}
           </h2>
         </div>
 
-        <div className="window-no-drag flex items-center gap-2 justify-self-center">
+        <fieldset
+          disabled={!interactive}
+          aria-label={interactive ? "Reader controls" : "Reader controls — preparing reader"}
+          className="window-no-drag flex items-center gap-2 justify-self-center disabled:opacity-50"
+        >
           <PageControls />
 
           <ZoomControls />
@@ -42,7 +45,7 @@ export function PDFControls() {
           <PageLayoutControl />
 
           <PageFitControl />
-        </div>
+        </fieldset>
       </div>
     </header>
   )

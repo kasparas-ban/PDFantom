@@ -8,9 +8,7 @@ import { DocumentRepository } from "../../src/main/document-repository"
 
 const { DatabaseSync } = process.getBuiltinModule("node:sqlite")
 
-type RepositoryDependencies = NonNullable<
-  ConstructorParameters<typeof DocumentRepository>[1]
->
+type RepositoryDependencies = NonNullable<ConstructorParameters<typeof DocumentRepository>[1]>
 
 async function withDocumentRepository<T>(
   dependencies: RepositoryDependencies,
@@ -30,7 +28,7 @@ async function withDocumentRepository<T>(
   }
 }
 
-test("remembers an opened Document and makes it active", async () => {
+test("records an opened Document without changing selection", async () => {
   await withDocumentRepository(
     {
       createId: () => "document-1",
@@ -45,6 +43,8 @@ test("remembers an opened Document and makes it active", async () => {
 
       expect(document.fingerprint).toBe("course-notes-content")
       expect(repository.listDocuments()).toEqual([document])
+      expect(repository.getActiveDocument()).toBeNull()
+      repository.activateDocument(document.id)
       expect(repository.getActiveDocument()).toEqual(document)
     },
   )
@@ -52,10 +52,7 @@ test("remembers an opened Document and makes it active", async () => {
 
 test("keeps identical content at different paths as separate Documents", async () => {
   const ids = ["document-1", "document-2"]
-  const openedAt = [
-    new Date("2026-07-12T10:00:00.000Z"),
-    new Date("2026-07-12T11:00:00.000Z"),
-  ]
+  const openedAt = [new Date("2026-07-12T10:00:00.000Z"), new Date("2026-07-12T11:00:00.000Z")]
 
   await withDocumentRepository(
     {
@@ -81,10 +78,7 @@ test("keeps identical content at different paths as separate Documents", async (
 })
 
 test("updates the existing Document when its path is reopened with changed content", async () => {
-  const openedAt = [
-    new Date("2026-07-12T10:00:00.000Z"),
-    new Date("2026-07-12T11:00:00.000Z"),
-  ]
+  const openedAt = [new Date("2026-07-12T10:00:00.000Z"), new Date("2026-07-12T11:00:00.000Z")]
 
   await withDocumentRepository(
     {
@@ -116,10 +110,7 @@ test("updates the existing Document when its path is reopened with changed conte
 
 test("restores the active Document", async () => {
   const ids = ["document-1", "document-2"]
-  const openedAt = [
-    new Date("2026-07-12T10:00:00.000Z"),
-    new Date("2026-07-12T11:00:00.000Z"),
-  ]
+  const openedAt = [new Date("2026-07-12T10:00:00.000Z"), new Date("2026-07-12T11:00:00.000Z")]
 
   await withDocumentRepository(
     {

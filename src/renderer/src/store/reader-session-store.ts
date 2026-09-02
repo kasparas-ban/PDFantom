@@ -1,136 +1,175 @@
 import { createStore } from "zustand/vanilla"
 
-import type {
-  ActiveDocumentState,
-  DocumentLibrarySnapshot,
-  DocumentSummary,
-} from "../../../shared/document-api"
 import {
-  DEFAULT_READER_VIEW,
-  type PDFPageLayout,
-  type PDFPageView,
-  type PDFScalePreset,
-  type ReadingPosition,
-} from "../reader-model"
+  documentVersionKey,
+  type ActiveDocumentState,
+  type DocumentLibrarySnapshot,
+  type DocumentSummary,
+} from "../../../shared/document-api"
+import { DEFAULT_READER_VIEW, type PDFScalePreset, type ReadingPosition } from "../reader-model"
 import {
   loadReadingPosition,
   saveReadingPosition,
   type ReadingPositionStorage,
 } from "./reader-position-storage"
 
-export type ReaderSessionState = {
-  activeDocument: ActiveDocumentState
-  documents: readonly DocumentSummary[]
-  isDocumentLibraryHydrated: boolean
-  loadDocumentLibrary: (snapshot: DocumentLibrarySnapshot) => void
-  initialReadingPosition: ReadingPosition | null
-  reportReadingPosition: (documentId: string, position: ReadingPosition) => void
-  readingPositionError: string | null
-
+export type ReaderView = Omit<ReadingPosition, "pageNumber" | "offsetX" | "offsetY"> & {
   currentPage: number
   pageCount: number
+  initialReadingPosition: ReadingPosition | null
+  position: ReadingPosition | null
+  interactive: boolean
+}
+
+const defaultView = (): ReaderView => ({
+  ...DEFAULT_READER_VIEW,
+  currentPage: 1,
+  pageCount: 0,
+  initialReadingPosition: null,
+  position: null,
+  interactive: false,
+})
+
+export type ReaderSessionState = ReaderView & {
+  activeDocument: ActiveDocumentState
+  selectedDocument: DocumentSummary | null
+  documents: readonly DocumentSummary[]
+  views: Record<string, ReaderView>
+  isDocumentLibraryHydrated: boolean
+  sourceStatus: "checking" | "preparing" | null
+  error: string | null
+  readingPositionError: string | null
+  loadDocumentLibrary: (snapshot: DocumentLibrarySnapshot) => void
+  initializeDocument: (document: DocumentSummary, allowLegacy: boolean) => ReaderView
+  replaceVersion: (document: DocumentSummary) => void
+  discardView: (document: DocumentSummary) => void
+  present: (document: ActiveDocumentState) => void
+  reportView: (document: DocumentSummary, patch: Partial<ReaderView>) => void
+  reportReadingPosition: (document: DocumentSummary, position: ReadingPosition) => void
   requestPage: (pageNumber: number) => number
-  reportCurrentPage: (pageNumber: number) => void
-  reportPageCount: (pageCount: number) => void
-
-  zoom: number
   setZoom: (zoom: number) => void
-  reportZoom: (zoom: number) => void
-  scalePreset: PDFScalePreset | null
-  setScalePreset: (scalePreset: PDFScalePreset) => void
-
-  pageView: PDFPageView
+  setScalePreset: (preset: PDFScalePreset) => void
   togglePageView: () => void
-
-  pageLayout: PDFPageLayout
   togglePageLayout: () => void
 }
 
-export const createReaderSessionStore = (positionStorage: ReadingPositionStorage) =>
-  createStore<ReaderSessionState>()((set, get) => ({
-    activeDocument: { status: "none" },
-    documents: [],
-    isDocumentLibraryHydrated: false,
-    loadDocumentLibrary: ({ activeDocument, documents }) => {
-      const position =
-        activeDocument.status === "loaded"
-          ? loadReadingPosition(positionStorage, activeDocument.document.id)
-          : null
-      set({
-        activeDocument,
-        currentPage: position?.pageNumber ?? 1,
-        documents,
-        initialReadingPosition: position,
-        isDocumentLibraryHydrated: true,
-        pageCount: 0,
-        pageLayout: position?.pageLayout ?? DEFAULT_READER_VIEW.pageLayout,
-        pageView: position?.pageView ?? DEFAULT_READER_VIEW.pageView,
-        scalePreset: position ? position.scalePreset : DEFAULT_READER_VIEW.scalePreset,
-        zoom: position?.zoom ?? DEFAULT_READER_VIEW.zoom,
-      })
-    },
-    initialReadingPosition: null,
-    readingPositionError: null,
-    reportReadingPosition: (documentId, position) => {
+export function createReaderSessionStore(positionStorage: ReadingPositionStorage) {
+  return createStore<ReaderSessionState>()((set, get) => {
+    const save = (document: DocumentSummary, position: ReadingPosition | null) => {
       try {
-        saveReadingPosition(positionStorage, documentId, position)
-        if (get().readingPositionError) set({ readingPositionError: null })
+        saveReadingPosition(positionStorage, document, position)
+        set({ readingPositionError: null })
       } catch {
-        if (!get().readingPositionError) {
-          set({ readingPositionError: "Your reading position could not be saved on this Mac." })
-        }
+        set({ readingPositionError: "Your reading position could not be saved on this Mac." })
       }
-    },
+    }
 
-    currentPage: 1,
-    pageCount: 0,
-    requestPage: (requestedPage) => {
-      const { currentPage, pageCount } = get()
-      if (!Number.isInteger(requestedPage) || requestedPage < 1 || requestedPage > pageCount) {
-        return currentPage
+    const command = (patch: Partial<ReaderView>) => {
+      const { activeDocument, interactive } = get()
+
+      if (activeDocument.status === "loaded" && interactive) {
+        get().reportView(activeDocument.document, patch)
       }
+    }
 
-      set({ currentPage: requestedPage })
-      return requestedPage
-    },
-    reportCurrentPage: (reportedPage) =>
-      set((state) => {
-        if (!Number.isInteger(reportedPage)) return state
+    return {
+      ...defaultView(),
+      activeDocument: { status: "none" },
+      selectedDocument: null,
+      documents: [],
+      views: {},
+      isDocumentLibraryHydrated: false,
+      sourceStatus: null,
+      error: null,
+      readingPositionError: null,
+      // Metadata never resets a view or replaces a runtime.
+      loadDocumentLibrary: ({ selectedDocument, documents }) =>
+        set({ selectedDocument, documents, isDocumentLibraryHydrated: true }),
+      initializeDocument: (document, allowLegacy) => {
+        const key = documentVersionKey(document)
+        const existing = get().views[key]
+        if (existing && (!allowLegacy || existing.position)) return existing
 
-        return {
-          currentPage: Math.min(Math.max(1, reportedPage), Math.max(1, state.pageCount)),
+        const position = loadReadingPosition(positionStorage, document, allowLegacy)
+        if (position && allowLegacy) save(document, position)
+
+        const view: ReaderView = {
+          ...defaultView(),
+          ...position,
+          currentPage: position?.pageNumber ?? 1,
+          initialReadingPosition: position,
+          position,
         }
-      }),
-    reportPageCount: (reportedPageCount) =>
-      set((state) => {
-        const pageCount = Number.isFinite(reportedPageCount)
-          ? Math.max(0, Math.floor(reportedPageCount))
-          : 0
-        return {
-          pageCount,
-          currentPage: Math.min(state.currentPage, Math.max(1, pageCount)),
-        }
-      }),
 
-    zoom: DEFAULT_READER_VIEW.zoom,
-    setZoom: (zoom) => set({ scalePreset: null, zoom }),
-    reportZoom: (zoom) => set({ zoom }),
-    scalePreset: DEFAULT_READER_VIEW.scalePreset,
-    setScalePreset: (scalePreset) => set({ scalePreset }),
+        set((state) => ({ views: { ...state.views, [key]: view } }))
 
-    pageView: DEFAULT_READER_VIEW.pageView,
-    togglePageView: () =>
-      set((state) =>
-        state.pageView === "single"
-          ? { pageView: "double", scalePreset: "page-fit" }
-          : { pageView: "single" },
-      ),
+        return view
+      },
+      replaceVersion: (document) => {
+        // A fingerprint tombstone prevents a legacy record from being adopted on restart.
+        save(document, null)
+        set((state) => ({
+          views: Object.fromEntries(
+            Object.entries(state.views).filter(([key]) => !key.startsWith(`${document.id}:`)),
+          ),
+        }))
+      },
+      discardView: (document) =>
+        set((state) => ({
+          views: Object.fromEntries(
+            Object.entries(state.views).filter(([key]) => key !== documentVersionKey(document)),
+          ),
+        })),
+      present: (activeDocument) => {
+        const view =
+          activeDocument.status === "loaded" || activeDocument.status === "preview"
+            ? (get().views[documentVersionKey(activeDocument.document)] ?? defaultView())
+            : defaultView()
 
-    pageLayout: DEFAULT_READER_VIEW.pageLayout,
-    togglePageLayout: () =>
-      set((state) => ({
-        pageLayout: state.pageLayout === "vertical" ? "horizontal" : "vertical",
-      })),
-  }))
+        set({
+          ...view,
+          activeDocument,
+          interactive: activeDocument.status === "loaded" && view.interactive,
+        })
+      },
+      reportView: (document, patch) => {
+        const key = documentVersionKey(document)
+        const state = get()
+        if (!state.views[key]) return
+
+        const view = { ...state.views[key], ...patch }
+        const isPresented =
+          state.activeDocument.status === "loaded" &&
+          documentVersionKey(state.activeDocument.document) === key
+
+        set({ views: { ...state.views, [key]: view }, ...(isPresented ? view : {}) })
+      },
+      reportReadingPosition: (document, position) => {
+        if (!get().views[documentVersionKey(document)]) return
+
+        get().reportView(document, { position })
+        save(document, position)
+      },
+      requestPage: (page) => {
+        const { currentPage, pageCount } = get()
+        if (!Number.isInteger(page) || page < 1 || page > pageCount) return currentPage
+
+        command({ currentPage: page })
+
+        return get().currentPage
+      },
+      setZoom: (zoom) => command({ zoom, scalePreset: null }),
+      setScalePreset: (scalePreset) => command({ scalePreset }),
+      togglePageView: () =>
+        command(
+          get().pageView === "single"
+            ? { pageView: "double", scalePreset: "page-fit" }
+            : { pageView: "single" },
+        ),
+      togglePageLayout: () =>
+        command({ pageLayout: get().pageLayout === "vertical" ? "horizontal" : "vertical" }),
+    }
+  })
+}
 
 export type ReaderSessionStore = ReturnType<typeof createReaderSessionStore>

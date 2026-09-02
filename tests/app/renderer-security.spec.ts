@@ -55,6 +55,7 @@ test("the renderer exposes only the allowlisted preload API", async ({ applicati
       "getIsFullScreen",
       "getOpenRouterApiKey",
       "getOpenRouterApiKeyStatus",
+      "loadDocument",
       "onFullScreenChange",
       "openDocument",
       "saveOpenRouterApiKey",
@@ -62,6 +63,68 @@ test("the renderer exposes only the allowlisted preload API", async ({ applicati
     apiSymbols: [],
     exposedGlobals: [],
   })
+})
+
+test("new document IPC arguments reject malformed IDs, fingerprints and bytes flags", async ({
+  application,
+}) => {
+  const errors = await application.page.evaluate(async () => {
+    const fingerprint = "a".repeat(64)
+    const cases = [
+      ["", fingerprint, true],
+      ["x".repeat(201), fingerprint, true],
+      ["unknown", "bad", true],
+      ["unknown", fingerprint, "yes"],
+      ["unknown", fingerprint, true],
+    ]
+    return Promise.all(
+      cases.map(async (args) => {
+        try {
+          await Reflect.apply(
+            (...values: Parameters<typeof window.pdfantom.loadDocument>) =>
+              window.pdfantom.loadDocument(...values),
+            null,
+            args,
+          )
+          return false
+        } catch {
+          return true
+        }
+      }),
+    )
+  })
+  expect(errors).toEqual([true, true, true, true, true])
+})
+
+test("every document channel denies foreign senders and non-main frames", async ({
+  application,
+}) => {
+  const denied = await application.electronApplication.evaluate(
+    async ({ ipcMain, BrowserWindow }) => {
+      const handlers: Map<string, (...args: unknown[]) => Promise<unknown>> = Reflect.get(
+        ipcMain,
+        "_invokeHandlers",
+      )
+      const contents = BrowserWindow.getAllWindows()[0].webContents
+      return Promise.all(
+        ["document:open", "document:get-library", "document:activate", "document:load"].flatMap(
+          (channel) =>
+            [
+              { sender: null, senderFrame: contents.mainFrame },
+              { sender: contents, senderFrame: { url: contents.mainFrame.url } },
+            ].map(async (event) => {
+              try {
+                await handlers.get(channel)!(event, "unknown", "a".repeat(64), true)
+                return false
+              } catch (error) {
+                return error instanceof Error && error.message.includes("untrusted sender")
+              }
+            }),
+        ),
+      )
+    },
+  )
+  expect(denied).toEqual(Array.from({ length: 8 }, () => true))
 })
 
 test(

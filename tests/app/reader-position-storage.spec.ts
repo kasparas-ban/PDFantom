@@ -13,6 +13,7 @@ import {
 } from "../../src/renderer/src/store/reader-position-storage"
 
 const storageKey = "pdfantom-reading-position:document-1"
+const document = { id: "document-1", fingerprint: "a".repeat(64) }
 const position: ReadingPosition = {
   pageNumber: 4,
   offsetX: -12.125,
@@ -26,7 +27,7 @@ const position: ReadingPosition = {
 function createStorage(initialValue: string | null = null) {
   const entries = new Map<string, string>()
   const writes: string[] = []
-  if (initialValue !== null) entries.set(storageKey, initialValue)
+  if (initialValue) entries.set(storageKey, initialValue)
   return {
     writes,
     getItem: (key: string) => entries.get(key) ?? null,
@@ -63,10 +64,14 @@ test("the reader model validates finite coordinates, safe page numbers, and view
 
 test("saves the exact position directly and avoids rewriting an unchanged position", () => {
   const storage = createStorage()
-  saveReadingPosition(storage, "document-1", position)
-  expect(JSON.parse(storage.getItem(storageKey)!)).toEqual(position)
-  expect(loadReadingPosition(storage, "document-1")).toEqual(position)
-  saveReadingPosition(storage, "document-1", position)
+  saveReadingPosition(storage, document, position)
+  expect(JSON.parse(storage.getItem(storageKey)!)).toEqual({
+    schema: 1,
+    fingerprint: document.fingerprint,
+    ...position,
+  })
+  expect(loadReadingPosition(storage, document)).toEqual(position)
+  saveReadingPosition(storage, document, position)
   expect(storage.writes).toHaveLength(1)
 })
 
@@ -84,7 +89,7 @@ test("recovers individual view preferences without discarding the location", () 
     },
   ]) {
     const storage = createStorage(JSON.stringify({ ...position, ...invalidFields }))
-    expect(loadReadingPosition(storage, "document-1")).toEqual({ ...position, ...expectedFields })
+    expect(loadReadingPosition(storage, document, true)).toEqual({ ...position, ...expectedFields })
   }
 })
 
@@ -95,7 +100,7 @@ test("restores a location even when view preferences are missing", () => {
     offsetY: position.offsetY,
   }
   const storage = createStorage(JSON.stringify(location))
-  expect(loadReadingPosition(storage, "document-1")).toEqual({
+  expect(loadReadingPosition(storage, document, true)).toEqual({
     ...location,
     ...DEFAULT_READER_VIEW,
     scalePreset: null,
@@ -110,14 +115,14 @@ test("rejects invalid coordinates rather than inventing a reading position", () 
     { offsetY: "193.375" },
   ]) {
     const storage = createStorage(JSON.stringify({ ...position, ...invalidFields }))
-    expect(loadReadingPosition(storage, "document-1")).toBeNull()
+    expect(loadReadingPosition(storage, document, true)).toBeNull()
     expect(storage.writes).toHaveLength(0)
   }
 })
 
 test("handles missing, malformed, and unreadable stored data without blocking opening", () => {
   for (const value of [null, "{broken", "null", "[]", "true", "42", "{}"]) {
-    expect(loadReadingPosition(createStorage(value), "document-1")).toBeNull()
+    expect(loadReadingPosition(createStorage(value), document, true)).toBeNull()
   }
   const unavailableStorage = {
     ...createStorage(),
@@ -125,5 +130,17 @@ test("handles missing, malformed, and unreadable stored data without blocking op
       throw new Error("Storage unavailable")
     },
   }
-  expect(loadReadingPosition(unavailableStorage, "document-1")).toBeNull()
+  expect(loadReadingPosition(unavailableStorage, document, true)).toBeNull()
+})
+
+test("only adopts legacy positions after verification and rejects other fingerprints", () => {
+  const storage = createStorage(JSON.stringify(position))
+  expect(loadReadingPosition(storage, document)).toBeNull()
+  expect(loadReadingPosition(storage, document, true)).toEqual(position)
+  saveReadingPosition(storage, document, position)
+  const replacement = { ...document, fingerprint: "b".repeat(64) }
+  expect(loadReadingPosition(storage, replacement, true)).toBeNull()
+  saveReadingPosition(storage, replacement, null)
+  expect(loadReadingPosition(storage, replacement, true)).toBeNull()
+  expect(loadReadingPosition(storage, document, true)).toBeNull()
 })

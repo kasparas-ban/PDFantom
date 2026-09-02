@@ -14,7 +14,8 @@
     "test": "vp run build && playwright test",
     "test:e2e": "playwright test",
     "test:e2e:visible": "PDFANTOM_E2E_WINDOW=visible playwright test",
-    "test:e2e:native-window": "PDFANTOM_E2E_WINDOW=visible playwright test --grep @native-window"
+    "test:e2e:native-window": "PDFANTOM_E2E_WINDOW=visible playwright test --grep @native-window",
+    "test:performance": "playwright test --config=playwright.performance.config.ts"
   },
   "dependencies": {
     "@assistant-ui/react": "0.15.16",

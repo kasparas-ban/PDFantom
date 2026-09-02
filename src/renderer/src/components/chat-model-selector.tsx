@@ -113,8 +113,11 @@ export function ChatModelSelector() {
             return (
               <DropdownMenuRadioItem
                 ref={(element) => {
-                  if (element) modelOptionRefs.current.set(model.id, element)
-                  else modelOptionRefs.current.delete(model.id)
+                  if (element) {
+                    modelOptionRefs.current.set(model.id, element)
+                  } else {
+                    modelOptionRefs.current.delete(model.id)
+                  }
                 }}
                 closeOnClick
                 key={model.id}

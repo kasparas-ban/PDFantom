@@ -119,12 +119,11 @@ export class DocumentRepository {
       const document = this.findBySourcePath(record.sourcePath)
       if (!document) throw new Error("The opened Document could not be persisted.")
 
-      this.setActiveDocumentId(document.id)
       return document
     })
   }
 
-  private findBySourcePath(sourcePath: string) {
+  findBySourcePath(sourcePath: string) {
     const row = this.database
       .prepare(`SELECT ${DOCUMENT_COLUMNS} FROM documents WHERE source_path = ?`)
       .get(sourcePath)
@@ -154,9 +153,7 @@ export class DocumentRepository {
       return
     }
 
-    if (version !== 2) {
-      throw new Error(`Unsupported Document library schema version: ${version}.`)
-    }
+    if (version !== 2) throw new Error(`Unsupported Document library schema version: ${version}.`)
   }
 
   private createInitialSchema() {

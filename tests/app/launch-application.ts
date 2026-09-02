@@ -20,11 +20,12 @@ export async function launchTestApplication({
 
   try {
     const profilePath = path.join(workspace, "profile")
-    const { application, page } = await launchApplication(profilePath, windowMode)
+    const { application, page, launchStartedAt } = await launchApplication(profilePath, windowMode)
     let currentApplication = application
 
     return {
       electronApplication: application,
+      launchStartedAt,
       windowMode,
       page,
       hasVisibleWindow: () => hasVisibleWindow(currentApplication),
@@ -50,16 +51,22 @@ export async function launchTestApplication({
 }
 
 async function launchApplication(profilePath: string, windowMode: ApplicationWindowMode) {
+  const launchStartedAt = performance.now()
   const application = await electron.launch({
+    ...(process.env.PDFANTOM_APPLICATION_EXECUTABLE
+      ? { executablePath: process.env.PDFANTOM_APPLICATION_EXECUTABLE }
+      : {}),
     args: [
-      path.resolve(".vite/build/main.js"),
+      ...(process.env.PDFANTOM_APPLICATION_EXECUTABLE
+        ? []
+        : [path.resolve(process.env.PDFANTOM_APPLICATION_ENTRY ?? ".vite/build/main.js")]),
       `--user-data-dir=${profilePath}`,
       ...(windowMode === "background" ? [BACKGROUND_E2E_SWITCH] : []),
     ],
   })
 
   try {
-    return { application, page: await application.firstWindow() }
+    return { application, page: await application.firstWindow(), launchStartedAt }
   } catch (error) {
     await application.close().catch(() => undefined)
     throw error
