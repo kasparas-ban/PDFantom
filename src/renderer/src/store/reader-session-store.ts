@@ -40,7 +40,7 @@ export type ReaderSessionState = ReaderView & {
   error: string | null
   readingPositionError: string | null
   loadDocumentLibrary: (snapshot: DocumentLibrarySnapshot) => void
-  initializeDocument: (document: DocumentSummary, allowLegacy: boolean) => ReaderView
+  initializeDocument: (document: DocumentSummary) => ReaderView
   replaceVersion: (document: DocumentSummary) => void
   discardView: (document: DocumentSummary) => void
   present: (document: ActiveDocumentState) => void
@@ -85,13 +85,12 @@ export function createReaderSessionStore(positionStorage: ReadingPositionStorage
       // Metadata never resets a view or replaces a runtime.
       loadDocumentLibrary: ({ selectedDocument, documents }) =>
         set({ selectedDocument, documents, isDocumentLibraryHydrated: true }),
-      initializeDocument: (document, allowLegacy) => {
+      initializeDocument: (document) => {
         const key = documentVersionKey(document)
         const existing = get().views[key]
-        if (existing && (!allowLegacy || existing.position)) return existing
+        if (existing) return existing
 
-        const position = loadReadingPosition(positionStorage, document, allowLegacy)
-        if (position && allowLegacy) save(document, position)
+        const position = loadReadingPosition(positionStorage, document)
 
         const view: ReaderView = {
           ...defaultView(),
@@ -106,7 +105,6 @@ export function createReaderSessionStore(positionStorage: ReadingPositionStorage
         return view
       },
       replaceVersion: (document) => {
-        // A fingerprint tombstone prevents a legacy record from being adopted on restart.
         save(document, null)
         set((state) => ({
           views: Object.fromEntries(

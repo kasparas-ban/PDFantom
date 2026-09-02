@@ -107,7 +107,6 @@ test("native preview storage handles revisions, invalidation, corruption, recrea
     const appearance = { width: 100, height: 100, density: 1, background: "white" }
     const make = (id: string, size: number, revision: number) => ({
       ...appearance,
-      schema: 1 as const,
       key: `${id}:${document.fingerprint}`,
       documentId: id,
       fingerprint: document.fingerprint,
@@ -309,7 +308,7 @@ test("a preview is persisted, shown before delayed verification, and replaced by
   expect(difference).toBe(0)
 })
 
-test("quota, unavailable storage, old schema and corrupt PNGs remain cache misses", async ({
+test("quota, unavailable storage, malformed records and corrupt PNGs remain cache misses", async ({
   application,
 }) => {
   const result = await application.page.evaluate(async (url) => {
@@ -331,7 +330,6 @@ test("quota, unavailable storage, old schema and corrupt PNGs remain cache misse
       canvas.toBlob((value) => resolve(value!), "image/png"),
     )
     const record = {
-      schema: 1 as const,
       key: `fault-test:${documentVersion.fingerprint}`,
       documentId: documentVersion.id,
       fingerprint: documentVersion.fingerprint,
@@ -366,10 +364,10 @@ test("quota, unavailable storage, old schema and corrupt PNGs remain cache misse
     })
     await new Promise<void>((resolve) => {
       const transaction = db.transaction("viewports", "readwrite")
-      transaction.objectStore("viewports").put({ ...record, schema: 0 })
+      transaction.objectStore("viewports").put({ ...record, bytes: "invalid" })
       transaction.oncomplete = () => resolve()
     })
-    const obsolete = await cache.read(documentVersion, position, record)
+    const malformed = await cache.read(documentVersion, position, record)
     db.close()
     cache.dispose()
     const open = indexedDB.open.bind(indexedDB)
@@ -380,9 +378,9 @@ test("quota, unavailable storage, old schema and corrupt PNGs remain cache misse
     const missed = await unavailable.read(documentVersion, position, record)
     unavailable.dispose()
     indexedDB.open = open
-    return { revision: preserved?.revision, corrupt: corrupt === null, obsolete, missed }
+    return { revision: preserved?.revision, corrupt: corrupt === null, malformed, missed }
   }, moduleUrl)
-  expect(result).toEqual({ revision: 1, corrupt: true, obsolete: null, missed: null })
+  expect(result).toEqual({ revision: 1, corrupt: true, malformed: null, missed: null })
   await application.selectOpenPath(path.resolve("tests/fixtures/pdfs/document-mock.pdf"))
   await application.page.getByRole("button", { name: "Choose a PDF" }).click()
   await expect(application.page.getByRole("spinbutton", { name: "Page number" })).toBeEnabled()

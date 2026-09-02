@@ -6,8 +6,6 @@ import { expect, test } from "@playwright/test"
 
 import { DocumentRepository } from "../../src/main/document-repository"
 
-const { DatabaseSync } = process.getBuiltinModule("node:sqlite")
-
 type RepositoryDependencies = NonNullable<ConstructorParameters<typeof DocumentRepository>[1]>
 
 async function withDocumentRepository<T>(
@@ -138,90 +136,4 @@ test("restores the active Document", async () => {
       ])
     },
   )
-})
-
-test("rolls back initial schema creation when a statement fails", async () => {
-  const workspace = await mkdtemp(path.join(os.tmpdir(), "pdfantom-document-repository-"))
-  const databasePath = path.join(workspace, "study-history.sqlite")
-  const database = new DatabaseSync(databasePath)
-  database.exec(`
-    CREATE TABLE application_state (
-      key TEXT PRIMARY KEY,
-      value TEXT NOT NULL
-    );
-  `)
-  database.close()
-
-  try {
-    expect(() => new DocumentRepository(databasePath)).toThrow()
-
-    const persistedDatabase = new DatabaseSync(databasePath)
-    try {
-      const tables = persistedDatabase
-        .prepare(
-          `SELECT name
-           FROM sqlite_schema
-           WHERE type = 'table' AND name NOT LIKE 'sqlite_%'
-           ORDER BY name`,
-        )
-        .all()
-        .map(({ name }) => name)
-
-      expect(tables).toEqual(["application_state"])
-      expect(persistedDatabase.prepare("PRAGMA user_version").get()).toEqual({
-        user_version: 0,
-      })
-    } finally {
-      persistedDatabase.close()
-    }
-  } finally {
-    await rm(workspace, { force: true, recursive: true })
-  }
-})
-
-test("migrates fingerprint-identified rows to one row per source path", async () => {
-  const workspace = await mkdtemp(path.join(os.tmpdir(), "pdfantom-document-repository-"))
-  const databasePath = path.join(workspace, "study-history.sqlite")
-  const database = new DatabaseSync(databasePath)
-  database.exec(`
-    CREATE TABLE documents (
-      id TEXT PRIMARY KEY,
-      fingerprint TEXT NOT NULL UNIQUE,
-      source_path TEXT NOT NULL,
-      name TEXT NOT NULL,
-      first_opened_at TEXT NOT NULL,
-      last_opened_at TEXT NOT NULL,
-      last_page INTEGER NOT NULL DEFAULT 1 CHECK (last_page >= 1)
-    );
-    CREATE TABLE application_state (key TEXT PRIMARY KEY, value TEXT NOT NULL);
-    INSERT INTO documents VALUES (
-      'older-id', 'older-content', '/documents/notes.pdf', 'notes.pdf',
-      '2026-07-12T10:00:00.000Z', '2026-07-12T10:00:00.000Z', 4
-    );
-    INSERT INTO documents VALUES (
-      'newer-id', 'newer-content', '/documents/notes.pdf', 'notes.pdf',
-      '2026-07-12T11:00:00.000Z', '2026-07-12T11:00:00.000Z', 2
-    );
-    INSERT INTO application_state VALUES ('active_document_id', 'older-id');
-    PRAGMA user_version = 1;
-  `)
-  database.close()
-
-  const repository = new DocumentRepository(databasePath)
-  try {
-    expect(repository.listDocuments()).toEqual([
-      {
-        fingerprint: "newer-content",
-        firstOpenedAt: "2026-07-12T10:00:00.000Z",
-        id: "newer-id",
-        lastOpenedAt: "2026-07-12T11:00:00.000Z",
-        name: "notes.pdf",
-        sourcePath: "/documents/notes.pdf",
-      },
-    ])
-    expect(repository.getActiveDocument()?.id).toBe("newer-id")
-  } finally {
-    repository.close()
-    await rm(workspace, { force: true, recursive: true })
-  }
 })

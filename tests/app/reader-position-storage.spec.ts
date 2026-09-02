@@ -1,7 +1,6 @@
 import { expect, test } from "@playwright/test"
 
 import {
-  DEFAULT_READER_VIEW,
   MAX_PDF_SCALE,
   MIN_PDF_SCALE,
   readingPositionSchema,
@@ -31,6 +30,9 @@ function createStorage(initialValue: string | null = null) {
   return {
     writes,
     getItem: (key: string) => entries.get(key) ?? null,
+    removeItem: (key: string) => {
+      entries.delete(key)
+    },
     setItem: (key: string, value: string) => {
       entries.set(key, value)
       writes.push(value)
@@ -66,45 +68,12 @@ test("saves the exact position directly and avoids rewriting an unchanged positi
   const storage = createStorage()
   saveReadingPosition(storage, document, position)
   expect(JSON.parse(storage.getItem(storageKey)!)).toEqual({
-    schema: 1,
     fingerprint: document.fingerprint,
     ...position,
   })
   expect(loadReadingPosition(storage, document)).toEqual(position)
   saveReadingPosition(storage, document, position)
   expect(storage.writes).toHaveLength(1)
-})
-
-test("recovers individual view preferences without discarding the location", () => {
-  for (const { invalidFields, expectedFields } of [
-    { invalidFields: { zoom: 99 }, expectedFields: { zoom: DEFAULT_READER_VIEW.zoom } },
-    { invalidFields: { scalePreset: "automatic" }, expectedFields: { scalePreset: null } },
-    {
-      invalidFields: { pageLayout: "diagonal" },
-      expectedFields: { pageLayout: DEFAULT_READER_VIEW.pageLayout },
-    },
-    {
-      invalidFields: { pageView: "triple" },
-      expectedFields: { pageView: DEFAULT_READER_VIEW.pageView },
-    },
-  ]) {
-    const storage = createStorage(JSON.stringify({ ...position, ...invalidFields }))
-    expect(loadReadingPosition(storage, document, true)).toEqual({ ...position, ...expectedFields })
-  }
-})
-
-test("restores a location even when view preferences are missing", () => {
-  const location = {
-    pageNumber: position.pageNumber,
-    offsetX: position.offsetX,
-    offsetY: position.offsetY,
-  }
-  const storage = createStorage(JSON.stringify(location))
-  expect(loadReadingPosition(storage, document, true)).toEqual({
-    ...location,
-    ...DEFAULT_READER_VIEW,
-    scalePreset: null,
-  })
 })
 
 test("rejects invalid coordinates rather than inventing a reading position", () => {
@@ -114,15 +83,26 @@ test("rejects invalid coordinates rather than inventing a reading position", () 
     { offsetX: null },
     { offsetY: "193.375" },
   ]) {
-    const storage = createStorage(JSON.stringify({ ...position, ...invalidFields }))
-    expect(loadReadingPosition(storage, document, true)).toBeNull()
+    const storage = createStorage(
+      JSON.stringify({ fingerprint: document.fingerprint, ...position, ...invalidFields }),
+    )
+    expect(loadReadingPosition(storage, document)).toBeNull()
     expect(storage.writes).toHaveLength(0)
   }
 })
 
 test("handles missing, malformed, and unreadable stored data without blocking opening", () => {
-  for (const value of [null, "{broken", "null", "[]", "true", "42", "{}"]) {
-    expect(loadReadingPosition(createStorage(value), document, true)).toBeNull()
+  for (const value of [
+    null,
+    "{broken",
+    "null",
+    "[]",
+    "true",
+    "42",
+    "{}",
+    JSON.stringify({ fingerprint: document.fingerprint, ...position, unexpected: true }),
+  ]) {
+    expect(loadReadingPosition(createStorage(value), document)).toBeNull()
   }
   const unavailableStorage = {
     ...createStorage(),
@@ -130,17 +110,16 @@ test("handles missing, malformed, and unreadable stored data without blocking op
       throw new Error("Storage unavailable")
     },
   }
-  expect(loadReadingPosition(unavailableStorage, document, true)).toBeNull()
+  expect(loadReadingPosition(unavailableStorage, document)).toBeNull()
 })
 
-test("only adopts legacy positions after verification and rejects other fingerprints", () => {
-  const storage = createStorage(JSON.stringify(position))
-  expect(loadReadingPosition(storage, document)).toBeNull()
-  expect(loadReadingPosition(storage, document, true)).toEqual(position)
-  saveReadingPosition(storage, document, position)
+test("rejects positions for other fingerprints and clears replaced positions", () => {
+  const storage = createStorage(
+    JSON.stringify({ fingerprint: document.fingerprint, ...position }),
+  )
   const replacement = { ...document, fingerprint: "b".repeat(64) }
-  expect(loadReadingPosition(storage, replacement, true)).toBeNull()
+  expect(loadReadingPosition(storage, replacement)).toBeNull()
+
   saveReadingPosition(storage, replacement, null)
-  expect(loadReadingPosition(storage, replacement, true)).toBeNull()
-  expect(loadReadingPosition(storage, document, true)).toBeNull()
+  expect(storage.getItem(storageKey)).toBeNull()
 })

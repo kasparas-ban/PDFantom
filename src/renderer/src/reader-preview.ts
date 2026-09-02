@@ -18,7 +18,6 @@ export type ViewportAppearance = {
 }
 
 export type ReaderPreview = ViewportAppearance & {
-  schema: 1
   key: string
   documentId: string
   fingerprint: string
@@ -31,23 +30,24 @@ export type ReaderPreview = ViewportAppearance & {
   lastUsed: number
 }
 
-const previewRecordSchema = z.object({
-  schema: z.literal(1),
-  key: z.string(),
-  documentId: z.string(),
-  fingerprint: z.string().regex(/^[a-f0-9]{64}$/),
-  blob: z.instanceof(Blob),
-  bytes: z.int().positive().max(PREVIEW_BYTE_LIMIT),
-  position: readingPositionSchema,
-  pageCount: z.int().positive(),
-  generation: z.string(),
-  revision: z.int().nonnegative(),
-  lastUsed: z.number().nonnegative(),
-  width: z.number().positive(),
-  height: z.number().positive(),
-  density: z.number().positive().max(2),
-  background: z.string(),
-})
+const previewRecordSchema = z
+  .object({
+    key: z.string(),
+    documentId: z.string(),
+    fingerprint: z.string().regex(/^[a-f0-9]{64}$/),
+    blob: z.instanceof(Blob),
+    bytes: z.int().positive().max(PREVIEW_BYTE_LIMIT),
+    position: readingPositionSchema,
+    pageCount: z.int().positive(),
+    generation: z.string(),
+    revision: z.int().nonnegative(),
+    lastUsed: z.number().nonnegative(),
+    width: z.number().positive(),
+    height: z.number().positive(),
+    density: z.number().positive().max(2),
+    background: z.string(),
+  })
+  .strict()
 
 const validRecord = (value: unknown) => {
   const result = previewRecordSchema.safeParse(value)

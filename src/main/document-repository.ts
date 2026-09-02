@@ -135,103 +135,21 @@ export class DocumentRepository {
     this.database.exec(`
       PRAGMA journal_mode = WAL;
       PRAGMA foreign_keys = ON;
+
+      CREATE TABLE IF NOT EXISTS documents (
+        id TEXT PRIMARY KEY,
+        fingerprint TEXT NOT NULL,
+        source_path TEXT NOT NULL UNIQUE,
+        name TEXT NOT NULL,
+        first_opened_at TEXT NOT NULL,
+        last_opened_at TEXT NOT NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS application_state (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL
+      );
     `)
-
-    const row = this.database.prepare("PRAGMA user_version").get()
-    const version = row?.user_version
-    if (typeof version !== "number") {
-      throw new Error("The Document library schema version is invalid.")
-    }
-
-    if (version === 0) {
-      this.createInitialSchema()
-      return
-    }
-
-    if (version === 1) {
-      this.migrateFromFingerprintIdentity()
-      return
-    }
-
-    if (version !== 2) throw new Error(`Unsupported Document library schema version: ${version}.`)
-  }
-
-  private createInitialSchema() {
-    this.inTransaction(() => {
-      this.database.exec(`
-        CREATE TABLE documents (
-          id TEXT PRIMARY KEY,
-          fingerprint TEXT NOT NULL,
-          source_path TEXT NOT NULL UNIQUE,
-          name TEXT NOT NULL,
-          first_opened_at TEXT NOT NULL,
-          last_opened_at TEXT NOT NULL
-        );
-
-        CREATE TABLE application_state (
-          key TEXT PRIMARY KEY,
-          value TEXT NOT NULL
-        );
-
-        PRAGMA user_version = 2;
-      `)
-    })
-  }
-
-  private migrateFromFingerprintIdentity() {
-    this.inTransaction(() => {
-      this.database.exec(`
-        ALTER TABLE documents RENAME TO fingerprint_identified_documents;
-
-        CREATE TABLE documents (
-          id TEXT PRIMARY KEY,
-          fingerprint TEXT NOT NULL,
-          source_path TEXT NOT NULL UNIQUE,
-          name TEXT NOT NULL,
-          first_opened_at TEXT NOT NULL,
-          last_opened_at TEXT NOT NULL
-        );
-
-        WITH ranked_documents AS (
-          SELECT
-            id,
-            fingerprint,
-            source_path,
-            name,
-            MIN(first_opened_at) OVER (PARTITION BY source_path) AS first_opened_at,
-            last_opened_at,
-            ROW_NUMBER() OVER (
-              PARTITION BY source_path
-              ORDER BY last_opened_at DESC, id DESC
-            ) AS recency
-          FROM fingerprint_identified_documents
-        )
-        INSERT INTO documents (
-          id, fingerprint, source_path, name, first_opened_at, last_opened_at
-        )
-        SELECT id, fingerprint, source_path, name, first_opened_at, last_opened_at
-        FROM ranked_documents
-        WHERE recency = 1;
-
-        UPDATE application_state AS state
-        SET value = (
-          SELECT current_document.id
-          FROM fingerprint_identified_documents AS previous_document
-          JOIN documents AS current_document
-            ON current_document.source_path = previous_document.source_path
-          WHERE previous_document.id = state.value
-        )
-        WHERE key = 'active_document_id'
-          AND EXISTS (
-            SELECT 1
-            FROM fingerprint_identified_documents
-            WHERE id = state.value
-          );
-
-        DROP TABLE fingerprint_identified_documents;
-        PRAGMA user_version = 2;
-      `)
-    })
   }
 
   private inTransaction<T>(operation: () => T) {

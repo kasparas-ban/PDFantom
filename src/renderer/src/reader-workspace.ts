@@ -144,7 +144,6 @@ export class ReaderWorkspace {
         result.document,
         generation,
         result.document,
-        result.previousFingerprint === result.document.fingerprint,
       )
     } catch {
       if (this.current(generation)) {
@@ -166,13 +165,12 @@ export class ReaderWorkspace {
     summary: DocumentSummary,
     generation: number,
     opened?: OpenedDocument,
-    allowLegacy = true,
   ) {
     const document = { id: summary.id, name: summary.name, fingerprint: summary.fingerprint }
     this.store.setState({ error: null })
 
     // Presentation need not wait even for the short selection IPC.
-    const preparation = this.prepare(document, generation, opened, allowLegacy)
+    const preparation = this.prepare(document, generation, opened)
 
     try {
       const library = await this.api.activateDocument(document.id, document.fingerprint)
@@ -195,7 +193,6 @@ export class ReaderWorkspace {
     document: DocumentSummary,
     generation: number,
     opened?: OpenedDocument,
-    allowLegacy = true,
   ) {
     const key = documentVersionKey(document)
     this.target = key
@@ -249,7 +246,7 @@ export class ReaderWorkspace {
       if (retained) return
       if (!result.bytes) throw new Error("The PDF bytes are unavailable.")
 
-      this.store.getState().initializeDocument(document, allowLegacy)
+      this.store.getState().initializeDocument(document)
       this.warm()
 
       if (!this.worker) throw new Error("The PDF worker is unavailable.")
@@ -294,7 +291,7 @@ export class ReaderWorkspace {
 
   private async tryPreview(document: DocumentSummary, generation: number, check: number) {
     const key = documentVersionKey(document)
-    const view = this.store.getState().initializeDocument(document, false)
+    const view = this.store.getState().initializeDocument(document)
     const appearance = this.surfaces.appearance()
     const record = await this.previews.read(document, view.position, appearance)
 
@@ -466,7 +463,6 @@ export class ReaderWorkspace {
           ...appearance,
           generation: ticket.generation,
           revision: ticket.revision,
-          schema: 1,
           key,
           documentId: document.id,
           fingerprint: document.fingerprint,

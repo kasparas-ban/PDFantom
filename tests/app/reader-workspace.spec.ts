@@ -22,7 +22,6 @@ const verified = (document: DocumentSummary): DocumentLoadResult => ({
   bytes: new ArrayBuffer(1),
 })
 const previewRecord: ReaderPreview = {
-  schema: 1,
   key: `A:${documents[0].fingerprint}`,
   documentId: "A",
   fingerprint: documents[0].fingerprint,
@@ -54,6 +53,9 @@ function workspaceFixture(workerStartup = () => Promise.resolve()) {
   const records = new Map<string, string>()
   const store = createReaderSessionStore({
     getItem: (key) => records.get(key) ?? null,
+    removeItem: (key) => {
+      records.delete(key)
+    },
     setItem: (key, value) => {
       records.set(key, value)
     },

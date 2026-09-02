@@ -20,6 +20,9 @@ function storage() {
   const records = new Map<string, string>()
   return {
     getItem: (key: string) => records.get(key) ?? null,
+    removeItem: (key: string) => {
+      records.delete(key)
+    },
     setItem: (key: string, value: string) => {
       records.set(key, value)
     },
@@ -29,7 +32,7 @@ function storage() {
 function session() {
   const persistence = storage()
   const store = createReaderSessionStore(persistence)
-  store.getState().initializeDocument(first, true)
+  store.getState().initializeDocument(first)
   store.getState().reportView(first, { pageCount: 5, interactive: true })
   store.getState().present({ status: "loaded", document: first })
   return { store, persistence }
@@ -50,7 +53,7 @@ test("metadata hydration does not reset live view and reports are version scoped
   store.getState().requestPage(4)
   store.getState().setZoom(1.3)
   store.getState().loadDocumentLibrary({ selectedDocument: second, documents: [first, second] })
-  store.getState().initializeDocument(second, true)
+  store.getState().initializeDocument(second)
   store.getState().reportView(second, { currentPage: 2, pageCount: 20, zoom: 2 })
   expect(store.getState()).toMatchObject({
     currentPage: 4,
@@ -64,25 +67,16 @@ test("metadata hydration does not reset live view and reports are version scoped
   expect(store.getState().currentPage).toBe(4)
 })
 
-test("persists exact versioned positions and recovers legacy preferences only after verification", () => {
+test("persists and restores exact fingerprinted positions", () => {
   const { persistence, store } = session()
   store.getState().reportReadingPosition(first, position)
   const restored = createReaderSessionStore(persistence)
-  restored.getState().initializeDocument(first, false)
+  restored.getState().initializeDocument(first)
   restored.getState().present({ status: "preview", document: first })
   expect(restored.getState()).toMatchObject({
     currentPage: 4,
     initialReadingPosition: position,
     pageLayout: "horizontal",
-  })
-  persistence.setItem(
-    "pdfantom-reading-position:second",
-    JSON.stringify({ ...position, pageLayout: "obsolete" }),
-  )
-  expect(restored.getState().initializeDocument(second, false).position).toBeNull()
-  expect(restored.getState().initializeDocument(second, true).position).toEqual({
-    ...position,
-    pageLayout: "vertical",
   })
 })
 
@@ -92,19 +86,23 @@ test("replacement rejects old writes and starts at defaults, including after res
   const replacement = { ...first, fingerprint: "c".repeat(64) }
   store.getState().replaceVersion(replacement)
   store.getState().reportReadingPosition(first, position)
-  store.getState().initializeDocument(replacement, true)
+  store.getState().initializeDocument(replacement)
   expect(store.getState().views[documentVersionKey(first)]).toBeUndefined()
   expect(
-    createReaderSessionStore(persistence).getState().initializeDocument(replacement, true).position,
+    createReaderSessionStore(persistence).getState().initializeDocument(replacement).position,
   ).toBeNull()
 })
 
 test("malformed coordinates fall back without blocking opening", () => {
-  for (const value of ["{broken", "null", JSON.stringify({ ...position, offsetY: "invalid" })]) {
+  for (const value of [
+    "{broken",
+    "null",
+    JSON.stringify({ fingerprint: first.fingerprint, ...position, offsetY: "invalid" }),
+  ]) {
     const persistence = storage()
     persistence.setItem("pdfantom-reading-position:first", value)
     expect(
-      createReaderSessionStore(persistence).getState().initializeDocument(first, true).position,
+      createReaderSessionStore(persistence).getState().initializeDocument(first).position,
     ).toBeNull()
   }
 })
@@ -119,7 +117,7 @@ test("position saving failures are visible and clear on successful retry", () =>
       persistence.setItem(key, value)
     },
   })
-  store.getState().initializeDocument(first, false)
+  store.getState().initializeDocument(first)
   store.getState().reportReadingPosition(first, position)
   expect(store.getState().readingPositionError).toContain("could not be saved")
   fail = false
