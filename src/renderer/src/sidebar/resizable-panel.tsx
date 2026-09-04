@@ -3,7 +3,7 @@ import {
   type PointerEvent,
   type ReactNode,
   useCallback,
-  useEffect,
+  useLayoutEffect,
   useRef,
 } from "react"
 
@@ -24,12 +24,7 @@ type ResizablePanelProps = {
 
 type PanelResizeHandleProps = Pick<
   ResizablePanelProps,
-  | "maximumWidth"
-  | "minimumWidth"
-  | "onWidthChange"
-  | "resizeHandleLabel"
-  | "side"
-  | "width"
+  "maximumWidth" | "minimumWidth" | "onWidthChange" | "resizeHandleLabel" | "side" | "width"
 >
 
 export function ResizablePanel({
@@ -66,6 +61,7 @@ function PanelResizeHandle({
 }: PanelResizeHandleProps) {
   const bodyStylesBeforeResize = useRef<{ cursor: string; userSelect: string } | null>(null)
   const resizeStart = useRef<{ pointerX: number; width: number } | null>(null)
+  const capture = useRef<{ element: HTMLDivElement; pointerId: number } | null>(null)
   const restoreBodyStyles = useCallback(() => {
     const previousStyles = bodyStylesBeforeResize.current
     if (!previousStyles) return
@@ -75,7 +71,17 @@ function PanelResizeHandle({
     bodyStylesBeforeResize.current = null
   }, [])
 
-  useEffect(() => restoreBodyStyles, [restoreBodyStyles])
+  const cancelResize = useCallback(() => {
+    const current = capture.current
+    capture.current = null
+    resizeStart.current = null
+    if (current?.element.hasPointerCapture(current.pointerId)) {
+      current.element.releasePointerCapture(current.pointerId)
+    }
+    restoreBodyStyles()
+  }, [restoreBodyStyles])
+
+  useLayoutEffect(() => cancelResize, [cancelResize])
 
   const resizeTo = (nextWidth: number) =>
     onWidthChange(clampWidth(nextWidth, minimumWidth, maximumWidth))
@@ -88,17 +94,10 @@ function PanelResizeHandle({
       userSelect: document.body.style.userSelect,
     }
     resizeStart.current = { pointerX: event.clientX, width }
+    capture.current = { element: event.currentTarget, pointerId: event.pointerId }
     event.currentTarget.setPointerCapture(event.pointerId)
     document.body.style.cursor = "col-resize"
     document.body.style.userSelect = "none"
-  }
-
-  const finishResize = (event: PointerEvent<HTMLDivElement>) => {
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-      event.currentTarget.releasePointerCapture(event.pointerId)
-    }
-    resizeStart.current = null
-    restoreBodyStyles()
   }
 
   const resize = (event: PointerEvent<HTMLDivElement>) => {
@@ -146,11 +145,11 @@ function PanelResizeHandle({
         side === "left" ? "-right-1" : "-left-1",
       )}
       onKeyDown={resizeWithKeyboard}
-      onLostPointerCapture={restoreBodyStyles}
-      onPointerCancel={finishResize}
+      onLostPointerCapture={cancelResize}
+      onPointerCancel={cancelResize}
       onPointerDown={startResize}
       onPointerMove={resize}
-      onPointerUp={finishResize}
+      onPointerUp={cancelResize}
       orientation="vertical"
       tabIndex={0}
     />

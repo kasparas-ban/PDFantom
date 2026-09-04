@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { createContext, useContext, useEffect, useLayoutEffect, useState } from "react"
 import {
   ActionBarPrimitive,
   AssistantRuntimeProvider,
@@ -8,6 +8,7 @@ import {
   MessagePrimitive,
   ThreadPrimitive,
   useMessageTiming,
+  type AssistantRuntime,
 } from "@assistant-ui/react"
 import { AssistantChatTransport, useChatRuntime } from "@assistant-ui/react-ai-sdk"
 import {
@@ -21,43 +22,75 @@ import {
   RefreshCwIcon,
   SquareIcon,
 } from "lucide-react"
+import { Link } from "react-router"
 
 import { ChatModelSelector } from "@/components/chat-model-selector"
 import { PdfantomLogo } from "@/components/pdfantom-logo"
-import { Button } from "@/components/ui/button"
+import { Button, buttonVariants } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
-import { useAppConfig } from "@/store/app-config-provider"
+import { usePlatform } from "../platform"
 import { ChatPanelShell } from "./chat-panel-shell"
 
-export function ChatPanel() {
-  const runtime = useChatRuntime({
-    transport: new AssistantChatTransport({ api: "/api/chat" }),
-  })
+export function ChatSessionOwner({
+  onReady,
+  model,
+}: {
+  onReady: (runtime: AssistantRuntime) => void
+  model: string
+}) {
+  const runtime = useChatRuntime({ transport: new AssistantChatTransport({ api: "/api/chat" }) })
+  useLayoutEffect(() => {
+    onReady(runtime)
+  }, [runtime, onReady])
+  useEffect(
+    () =>
+      runtime.registerModelContextProvider({
+        getModelContext: () => ({ config: { modelName: model } }),
+      }),
+    [runtime, model],
+  )
+  return null
+}
+
+const ProviderMissingContext = createContext(false)
+
+export function ChatPanel({ runtime }: { runtime: AssistantRuntime }) {
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <ChatPresentation />
+    </AssistantRuntimeProvider>
+  )
+}
+
+function ChatPresentation() {
+  const platform = usePlatform()
+  const [missing, setMissing] = useState(false)
+  useEffect(() => {
+    let active = true
+    void platform
+      .getOpenRouterApiKeyStatus()
+      .then(({ isConfigured }) => {
+        if (active) setMissing(!isConfigured)
+      })
+      .catch(() => undefined)
+    return () => {
+      active = false
+    }
+  }, [platform])
 
   return (
     <ChatPanelShell>
       <div aria-hidden="true" className="window-drag-region h-12 shrink-0" />
 
-      <AssistantRuntimeProvider runtime={runtime}>
+      <ProviderMissingContext value={missing}>
         <ChatThread />
-      </AssistantRuntimeProvider>
+      </ProviderMissingContext>
     </ChatPanelShell>
   )
 }
 
 function ChatThread() {
-  const [isApiKeyMissing, setIsApiKeyMissing] = useState(false)
-  const isSettingsOpen = useAppConfig((state) => state.isSettingsOpen)
-  const openSettings = useAppConfig((state) => state.openSettings)
-
-  useEffect(() => {
-    if (isSettingsOpen) return
-
-    void window.pdfantom
-      .getOpenRouterApiKeyStatus()
-      .then(({ isConfigured }) => setIsApiKeyMissing(!isConfigured))
-      .catch(() => undefined)
-  }, [isSettingsOpen])
+  const isApiKeyMissing = useContext(ProviderMissingContext)
 
   return (
     <ThreadPrimitive.Root className="flex min-h-0 flex-1 flex-col">
@@ -67,19 +100,18 @@ function ChatThread() {
             <PdfantomLogo aria-hidden="true" className="size-24 opacity-70" />
             {isApiKeyMissing ? (
               <div className="flex max-w-56 flex-col items-center gap-2">
-                <p className="text-sm font-medium text-foreground">
-                  Connect an AI provider
-                </p>
-                <Button
-                  className="mt-1 cursor-pointer"
-                  onClick={() => openSettings("provider")}
-                  size="sm"
-                  type="button"
-                  variant="outline"
+                <p className="text-sm font-medium text-foreground">Connect an AI provider</p>
+                <Link
+                  to="/settings/provider"
+                  className={buttonVariants({
+                    className: "mt-1 cursor-pointer",
+                    variant: "outline",
+                    size: "sm",
+                  })}
                 >
                   <KeyRoundIcon />
                   Choose provider
-                </Button>
+                </Link>
               </div>
             ) : (
               <p className="text-base font-medium text-gray-600">
@@ -207,29 +239,23 @@ function AssistantMessage() {
 }
 
 function ChatError() {
-  const [isApiKeyMissing, setIsApiKeyMissing] = useState(false)
-  const openSettings = useAppConfig((state) => state.openSettings)
-
-  useEffect(() => {
-    void window.pdfantom
-      .getOpenRouterApiKeyStatus()
-      .then(({ isConfigured }) => setIsApiKeyMissing(!isConfigured))
-      .catch(() => undefined)
-  }, [])
+  const isApiKeyMissing = useContext(ProviderMissingContext)
 
   return (
     <ErrorPrimitive.Root className="mt-2 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
       {isApiKeyMissing ? (
         <>
           <span>Connect an AI provider</span>
-          <Button
-            className="h-auto cursor-pointer py-0 pr-0 pl-1 text-xs text-destructive underline-offset-2 hover:text-destructive/80"
-            onClick={() => openSettings("provider")}
-            type="button"
-            variant="link"
+          <Link
+            to="/settings/provider"
+            className={buttonVariants({
+              className:
+                "h-auto cursor-pointer py-0 pr-0 pl-1 text-xs text-destructive underline-offset-2 hover:text-destructive/80",
+              variant: "link",
+            })}
           >
             Choose provider
-          </Button>
+          </Link>
         </>
       ) : (
         <ErrorPrimitive.Message>

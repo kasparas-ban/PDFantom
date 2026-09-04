@@ -140,11 +140,7 @@ export class ReaderWorkspace {
         return
       }
 
-      await this.select(
-        result.document,
-        generation,
-        result.document,
-      )
+      await this.select(result.document, generation, result.document)
     } catch {
       if (this.current(generation)) {
         this.store.setState({ error: "The document could not be opened.", sourceStatus: null })
@@ -161,11 +157,7 @@ export class ReaderWorkspace {
     await this.select(document, ++this.intent)
   }
 
-  private async select(
-    summary: DocumentSummary,
-    generation: number,
-    opened?: OpenedDocument,
-  ) {
+  private async select(summary: DocumentSummary, generation: number, opened?: OpenedDocument) {
     const document = { id: summary.id, name: summary.name, fingerprint: summary.fingerprint }
     this.store.setState({ error: null })
 
@@ -189,11 +181,7 @@ export class ReaderWorkspace {
     await preparation
   }
 
-  private async prepare(
-    document: DocumentSummary,
-    generation: number,
-    opened?: OpenedDocument,
-  ) {
+  private async prepare(document: DocumentSummary, generation: number, opened?: OpenedDocument) {
     const key = documentVersionKey(document)
     this.target = key
     this.store.setState({
@@ -210,9 +198,11 @@ export class ReaderWorkspace {
     if (retained) {
       retained.verified = Boolean(opened)
       retained.used = ++this.clock
-      const compatible = retained.surface.compatible()
-      if (this.presented !== key || this.preview) retained.surface.prepare()
-      if (compatible && retained.surface.runtime.isReady()) this.reveal(retained)
+      if (this.canPresent()) {
+        const compatible = retained.surface.compatible()
+        if (this.presented !== key || this.preview) retained.surface.prepare()
+        if (compatible && retained.surface.runtime.isReady()) this.reveal(retained)
+      }
     }
 
     const check = (this.checks.get(key) ?? 0) + 1
@@ -275,7 +265,11 @@ export class ReaderWorkspace {
       }
 
       this.entries.set(key, entry)
-      surface.prepare()
+      if (this.canPresent()) {
+        surface.prepare()
+      } else {
+        surface.hide()
+      }
     } catch {
       if (this.disposed || this.checks.get(key) !== check) return
 
@@ -290,6 +284,7 @@ export class ReaderWorkspace {
   }
 
   private async tryPreview(document: DocumentSummary, generation: number, check: number) {
+    if (!this.canPresent()) return
     const key = documentVersionKey(document)
     const view = this.store.getState().initializeDocument(document)
     const appearance = this.surfaces.appearance()
@@ -297,6 +292,7 @@ export class ReaderWorkspace {
 
     if (
       !record ||
+      !this.canPresent() ||
       !this.current(generation) ||
       this.checks.get(key) !== check ||
       (this.presented === key && this.store.getState().activeDocument.status === "loaded")
@@ -308,6 +304,7 @@ export class ReaderWorkspace {
     if (!preview) return
 
     if (
+      !this.canPresent() ||
       !this.current(generation) ||
       this.checks.get(key) !== check ||
       this.target !== key ||
@@ -360,12 +357,14 @@ export class ReaderWorkspace {
 
     this.store.getState().reportView(document, { interactive })
 
-    if (this.target === key && !this.suspended) this.reveal(entry)
+    if (this.target === key) this.reveal(entry)
   }
 
   private reveal(entry: Entry) {
     const key = documentVersionKey(entry.document)
-    if (this.presented === key && !this.preview) return
+    if (!this.canPresent() || this.target !== key || (this.presented === key && !this.preview)) {
+      return
+    }
 
     this.clearPresentation()
     this.presented = key
@@ -437,7 +436,8 @@ export class ReaderWorkspace {
       !position ||
       this.presented !== key ||
       this.preview ||
-      this.suspended ||
+      !this.canPresent() ||
+      !entry.surface.runtime.isReady() ||
       this.store.getState().readingPositionError
     ) {
       return
@@ -451,7 +451,9 @@ export class ReaderWorkspace {
       this.entries.get(key) === entry &&
       entry.captureRevision === revision &&
       this.presented === key &&
-      !this.suspended &&
+      this.canPresent() &&
+      Boolean(entry.surface.runtime.isReady()) &&
+      sameAppearance(appearance, this.surfaces.appearance()) &&
       this.store.getState().views[key]?.position === position
 
     try {
@@ -479,40 +481,60 @@ export class ReaderWorkspace {
     }
   }
 
+  private canPresent() {
+    if (this.disposed || this.suspended) return false
+    const { width, height } = this.surfaces.appearance()
+    return width > 0 && height > 0
+  }
+
   suspend(suspended: boolean) {
+    if (this.disposed || this.suspended === suspended) return
     this.suspended = suspended
 
-    for (const [key, entry] of this.entries) {
-      if (suspended) {
-        entry.surface.hide()
-      } else if (key === this.presented && !this.preview) {
-        const compatible = entry.surface.compatible()
+    if (suspended) {
+      for (const entry of this.entries.values()) entry.surface.hide()
+      if (this.preview) this.clearPresentation()
+    } else {
+      this.resumePresentation()
+    }
+  }
 
-        entry.surface.prepare()
+  private resumePresentation() {
+    if (!this.canPresent()) return
+    this.layoutChanged()
 
-        if (compatible && entry.surface.runtime.isReady()) {
+    const entry = this.target ? this.entries.get(this.target) : undefined
+    if (entry) {
+      const compatible = entry.surface.compatible()
+      entry.surface.prepare()
+      if (compatible && entry.surface.runtime.isReady()) {
+        if (this.presented === this.target && !this.preview) {
           entry.surface.show()
         } else {
-          this.presented = null
-          this.store.getState().present({ status: "none" })
+          this.reveal(entry)
         }
-      } else if (key === this.target) entry.surface.prepare()
+      } else if (this.presented === this.target && !this.preview) {
+        this.presented = null
+        this.store.getState().present({ status: "none" })
+      }
+    }
+
+    const document = this.store.getState().selectedDocument
+    if (document && this.presented !== this.target) {
+      void this.tryPreview(
+        document,
+        this.intent,
+        this.checks.get(documentVersionKey(document)) ?? 0,
+      )
     }
   }
 
   layoutChanged() {
-    if (
-      !this.preview ||
-      sameAppearance(this.previewAppearance, this.surfaces.appearance())
-    ) {
-      return
+    if (!this.canPresent()) return
+    if (this.preview && !sameAppearance(this.previewAppearance, this.surfaces.appearance())) {
+      this.clearPresentation()
+      this.store.getState().present({ status: "none" })
     }
-
-    this.clearPresentation()
-    this.store.getState().present({ status: "none" })
-
-    // Do not stretch an incompatible image. The measurable incoming reader
-    // continues preparing while the normal welcome surface is exposed.
   }
 
   private current(generation: number) {

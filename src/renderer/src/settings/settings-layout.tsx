@@ -1,4 +1,4 @@
-import type { ReactNode } from "react"
+import { useLayoutEffect, useRef, type ReactNode } from "react"
 
 export function SettingsPageLayout({
   children,
@@ -7,9 +7,18 @@ export function SettingsPageLayout({
   readonly children: ReactNode
   readonly title: string
 }) {
+  const heading = useRef<HTMLHeadingElement>(null)
+  useLayoutEffect(() => heading.current?.focus({ preventScroll: true }), [title])
+
   return (
     <>
-      <h1 className="mb-12 text-3xl font-semibold tracking-tight">{title}</h1>
+      <h1
+        ref={heading}
+        tabIndex={-1}
+        className="mb-12 text-3xl font-semibold tracking-tight outline-none"
+      >
+        {title}
+      </h1>
       <div className="space-y-10">{children}</div>
     </>
   )
@@ -51,9 +60,7 @@ export function SettingsRow({
         {icon && <div className="mt-0.5 text-muted-foreground">{icon}</div>}
         <div>
           <h3 className="text-sm font-medium">{title}</h3>
-          <p className="mt-0.5 max-w-xl text-sm leading-5 text-muted-foreground">
-            {description}
-          </p>
+          <p className="mt-0.5 max-w-xl text-sm leading-5 text-muted-foreground">{description}</p>
         </div>
       </div>
       <div className="shrink-0">{children}</div>

@@ -28,7 +28,7 @@ export function AppearanceSettings() {
           {appearanceOptions.map(({ icon: Icon, label, value }) => (
             <label
               className={cn(
-                "relative flex h-28 cursor-pointer flex-col items-center justify-center gap-3 rounded-lg border bg-card text-sm font-medium text-card-foreground shadow-xs transition-all focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/50",
+                "relative flex h-28 cursor-pointer flex-col items-center justify-center gap-3 rounded-lg border bg-card text-sm font-medium text-card-foreground shadow-xs transition-[color,background-color,border-color,box-shadow,opacity,transform,translate,scale] focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/50",
                 appearance === value
                   ? "border-foreground/35 bg-accent ring-2 ring-foreground/10"
                   : "hover:bg-accent/60",

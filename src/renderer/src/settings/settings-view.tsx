@@ -1,19 +1,8 @@
-import {
-  ArrowLeftIcon,
-  InfoIcon,
-  KeyRoundIcon,
-  MonitorIcon,
-  SettingsIcon,
-} from "lucide-react"
+import { ArrowLeftIcon, InfoIcon, KeyRoundIcon, MonitorIcon, SettingsIcon } from "lucide-react"
+import { Link, NavLink, Outlet } from "react-router"
 
-import { Button } from "@/components/ui/button"
-import { cn } from "@/lib/utils"
-import { useAppConfig } from "@/store/app-config-provider"
-import type { SettingsPage } from "@/store/app-config-store"
-import { AboutSettings } from "./about-settings"
-import { AppearanceSettings } from "./appearance-settings"
-import { GeneralSettings } from "./general-settings"
-import { ProviderSettings } from "./provider-settings"
+import { buttonVariants } from "@/components/ui/button"
+import { PageSurface } from "../page-surface"
 
 const navigationItems = [
   {
@@ -39,48 +28,43 @@ const navigationItems = [
 ] satisfies ReadonlyArray<{
   icon: typeof SettingsIcon
   label: string
-  page: SettingsPage
+  page: string
 }>
 
 export function SettingsView() {
-  const closeSettings = useAppConfig((state) => state.closeSettings)
-  const activePage = useAppConfig((state) => state.settingsPage)
-  const openSettings = useAppConfig((state) => state.openSettings)
-
   return (
-    <main
+    <PageSurface
       aria-label="Settings"
       className="flex h-screen min-h-0 bg-background text-foreground"
     >
       <aside className="flex w-68 shrink-0 flex-col border-r border-sidebar-border bg-sidebar px-3 pb-5">
         <div aria-hidden="true" className="window-drag-region h-12 shrink-0" />
-        <Button
-          className="mb-6 w-fit justify-start px-2 text-muted-foreground"
-          onClick={closeSettings}
-          type="button"
-          variant="ghost"
+        <Link
+          to="/"
+          className={buttonVariants({
+            className: "mb-6 w-fit justify-start px-2 text-muted-foreground",
+            variant: "ghost",
+          })}
         >
           <ArrowLeftIcon />
           Back to app
-        </Button>
+        </Link>
 
         <p className="mb-1.5 px-2 text-xs font-medium text-muted-foreground">PDFantom</p>
         <nav aria-label="Settings sections" className="space-y-1">
           {navigationItems.map(({ icon: Icon, label, page }) => (
-            <Button
-              aria-current={activePage === page ? "page" : undefined}
-              className={cn(
-                "w-full justify-start px-2.5 font-normal hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:bg-sidebar-accent focus-visible:text-sidebar-accent-foreground",
-                activePage === page && "bg-sidebar-accent text-sidebar-accent-foreground",
-              )}
+            <NavLink
+              to={page}
+              className={buttonVariants({
+                className:
+                  "w-full justify-start px-2.5 font-normal hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:bg-sidebar-accent focus-visible:text-sidebar-accent-foreground aria-[current=page]:bg-sidebar-accent aria-[current=page]:text-sidebar-accent-foreground",
+                variant: "ghost",
+              })}
               key={page}
-              onClick={() => openSettings(page)}
-              type="button"
-              variant="ghost"
             >
               <Icon />
               {label}
-            </Button>
+            </NavLink>
           ))}
         </nav>
       </aside>
@@ -88,12 +72,9 @@ export function SettingsView() {
       <section className="min-w-0 flex-1 overflow-y-auto">
         <div aria-hidden="true" className="window-drag-region h-12" />
         <div className="mx-auto w-full max-w-3xl px-10 pt-6 pb-16">
-          {activePage === "general" && <GeneralSettings />}
-          {activePage === "appearance" && <AppearanceSettings />}
-          {activePage === "provider" && <ProviderSettings />}
-          {activePage === "about" && <AboutSettings />}
+          <Outlet />
         </div>
       </section>
-    </main>
+    </PageSurface>
   )
 }

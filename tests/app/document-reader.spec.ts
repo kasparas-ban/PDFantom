@@ -39,7 +39,7 @@ test("toggles the Chat panel", async ({ application }) => {
 
   await reader.toggleChatPanel("Show")
   await expect(reader.chatPanel).toBeVisible()
-  await expect(reader.chatEmptyState).toBeVisible()
+  await expect(reader.openAiProviderSettingsFromChatButton).toBeVisible()
   await expect(reader.chatMessageInput).toBeVisible()
   await expect(reader.chatAddAttachmentButton).toBeDisabled()
   await expect(reader.chatModelButton).toContainText("GPT-5.4 Nano")
@@ -192,6 +192,7 @@ test("restores the Chat panel width after relaunch", async ({ application }) => 
   await application.electronApplication.evaluate(({ BrowserWindow }) => {
     BrowserWindow.getAllWindows()[0]?.setSize(900, 820)
   })
+  await expect.poll(() => reader.readerAreaWidth()).toBe(320)
   const resizedWidth = await reader.chatPanelWidth()
 
   const relaunched = await application.relaunch()
@@ -246,7 +247,7 @@ test("restores preferred panel widths after a temporary window constraint", asyn
   await reader.toggleChatPanel("Show")
   await reader.documentsPanelResizeHandle.focus()
   await reader.documentsPanelResizeHandle.press("End")
-  await expect.poll(() => reader.documentsPanelWidth()).toBe(480)
+  await expect.poll(() => reader.documentsPanelWidth()).toBe(760)
   const preferredChatPanelWidth = await reader.chatPanelWidth()
 
   await application.electronApplication.evaluate(({ BrowserWindow }) => {
@@ -259,7 +260,7 @@ test("restores preferred panel widths after a temporary window constraint", asyn
     BrowserWindow.getAllWindows()[0]?.setSize(1280, 820)
   })
 
-  await expect.poll(() => reader.documentsPanelWidth()).toBe(480)
+  await expect.poll(() => reader.documentsPanelWidth()).toBe(760)
   await expect.poll(() => reader.chatPanelWidth()).toBe(preferredChatPanelWidth)
 })
 
@@ -331,7 +332,7 @@ test("reclamps the Documents panel when the window shrinks", async ({ applicatio
   const reader = new DocumentReaderDriver(application.page)
   await reader.documentsPanelResizeHandle.focus()
   await reader.documentsPanelResizeHandle.press("End")
-  await expect.poll(() => reader.documentsPanelWidth()).toBe(480)
+  await expect.poll(() => reader.documentsPanelWidth()).toBe(960)
 
   await application.electronApplication.evaluate(({ BrowserWindow }) => {
     BrowserWindow.getAllWindows()[0]?.setSize(760, 820)
@@ -339,9 +340,9 @@ test("reclamps the Documents panel when the window shrinks", async ({ applicatio
 
   await expect
     .poll(async () => application.page.evaluate(() => window.innerWidth - 320))
-    .toBeLessThan(480)
+    .toBeLessThan(960)
   const maximumWidth = await application.page.evaluate(() =>
-    Math.max(200, Math.min(480, window.innerWidth - 320)),
+    Math.max(200, Math.min(1400, window.innerWidth - 320)),
   )
   await expect.poll(() => reader.documentsPanelWidth()).toBe(maximumWidth)
   await expect(reader.documentsPanelResizeHandle).toHaveAttribute(

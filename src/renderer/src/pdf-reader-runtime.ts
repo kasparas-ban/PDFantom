@@ -10,6 +10,7 @@ import {
 } from "pdfjs-dist/web/pdf_viewer.mjs"
 
 import type { OpenedDocument } from "../../shared/document-api"
+import { installPDFRenderingGate } from "./pdf-rendering-gate"
 import {
   DEFAULT_READER_VIEW,
   MAX_PDF_SCALE,
@@ -40,6 +41,7 @@ const FIT_VISIBILITY_MARGIN = 1
 type PDFScale = number | PDFScalePreset
 
 type PDFReaderRuntimeOptions = {
+  readonly initialLifecycle?: "inactive" | "preparing"
   readonly worker: PDFWorker
   readonly document: OpenedDocument
   readonly container: HTMLDivElement
@@ -58,6 +60,7 @@ export const createReaderWorker = () => new PDFWorker()
 
 export function createPDFReaderRuntime({
   document,
+  initialLifecycle = "preparing",
   container,
   viewer,
   initialReadingPosition,
@@ -80,7 +83,11 @@ export function createPDFReaderRuntime({
 
   let destroyed = false
   let ready = false
-  let lifecycle: "presented" | "preparing" | "inactive" = "preparing"
+  let loadedDocument: PDFDocumentProxy | null = null
+  let pendingPagesInit = false
+  let pendingPagesLoaded = false
+  let reconcileInitialPosition = false
+  let lifecycle: "presented" | "preparing" | "inactive" = initialLifecycle
   let revision = 0
   let frame = 0
   let settledTimer = 0
@@ -90,6 +97,7 @@ export function createPDFReaderRuntime({
   const textDrawn = new Map<number, number>()
   let eventBus: EventBus | null = null
   let pdfViewer: PDFViewer | null = null
+  let renderingGate: ReturnType<typeof installPDFRenderingGate> | null = null
   let requestedPage = 1
   let requestedPageLayout: PDFPageLayout = DEFAULT_READER_VIEW.pageLayout
   let requestedPageView: PDFPageView = DEFAULT_READER_VIEW.pageView
@@ -305,7 +313,8 @@ export function createPDFReaderRuntime({
   }
 
   const handlePagesInit = () => {
-    if (!pdfViewer) return
+    pendingPagesInit = lifecycle === "inactive"
+    if (!pdfViewer || pendingPagesInit) return
 
     requestedPage = Math.min(requestedPage, pdfViewer.pagesCount)
     applyRequestedLayout()
@@ -323,14 +332,19 @@ export function createPDFReaderRuntime({
   }
 
   const handlePagesLoaded = () => {
-    if (destroyed || !pdfViewer || !initialReadingPosition) return
+    pendingPagesLoaded = lifecycle === "inactive"
+    if (destroyed || !pdfViewer || !initialReadingPosition || pendingPagesLoaded) return
 
     applyRequestedLayout()
 
     const page = viewer.querySelector<HTMLElement>(`.page[data-page-number="${requestedPage}"]`)
 
     if (initialReadingPosition && page) {
-      pdfViewer.currentScale = initialReadingPosition.zoom
+      // Retain the saved scale for mixed-size pages unless the host changed
+      // during loading. A fit preference only recalculates for new geometry.
+      if (!reconcileInitialPosition || !initialReadingPosition.scalePreset) {
+        pdfViewer.currentScale = initialReadingPosition.zoom
+      }
 
       const pageBounds = page.getBoundingClientRect()
       const containerBounds = container.getBoundingClientRect()
@@ -494,50 +508,40 @@ export function createPDFReaderRuntime({
   window.addEventListener("blur", () => (isCtrlKeyDown = false), {
     signal: abortController.signal,
   })
+  // Parsing may finish in the background; PDFViewer needs a measurable host.
+  const initializeViewer = () => {
+    if (destroyed || lifecycle === "inactive" || pdfViewer || !loadedDocument) return
+    eventBus = new EventBus()
+    const viewerOptions = {
+      abortSignal: abortController.signal,
+      container,
+      eventBus,
+      removePageBorders: true,
+      viewer,
+    }
+    pdfViewer = new PDFViewer(viewerOptions)
+    renderingGate = installPDFRenderingGate(pdfViewer)
+
+    eventBus.on("pagesinit", handlePagesInit)
+    eventBus.on("pagesloaded", handlePagesLoaded)
+    eventBus.on("updateviewarea", savePosition)
+    eventBus.on("pagechanging", handlePageChange)
+    eventBus.on("pagerendered", handlePageRendered)
+    eventBus.on("textlayerrendered", handleTextRendered)
+    eventBus.on("scalechanging", handleScaleChange)
+
+    onPageCountChange(loadedDocument.numPages)
+    pdfViewer.setDocument(loadedDocument)
+
+    const pagesPromise: Promise<void> = pdfViewer.pagesPromise
+
+    void pagesPromise.catch(reportFailure)
+  }
+
   void loadingTask.promise
-    .then((loadedDocument) => {
-      if (destroyed) return
-
-      eventBus = new EventBus()
-      const viewerOptions = {
-        abortSignal: abortController.signal,
-        container,
-        eventBus,
-        removePageBorders: true,
-        viewer,
-      }
-      pdfViewer = new PDFViewer(viewerOptions)
-      // The public queue is per viewer. Stop hidden scheduling without destroying
-      // completed canvases; cancellation below only touches unfinished pages.
-      const renderHighestPriority = pdfViewer.renderingQueue!.renderHighestPriority.bind(
-        pdfViewer.renderingQueue,
-      )
-      pdfViewer.renderingQueue!.renderHighestPriority = (visible) => {
-        if (!destroyed && lifecycle !== "inactive") renderHighestPriority(visible)
-      }
-
-      const renderView = pdfViewer.renderingQueue!.renderView.bind(pdfViewer.renderingQueue)
-
-      pdfViewer.renderingQueue!.renderView = (view) => {
-        if (destroyed || lifecycle === "inactive") return false
-
-        return renderView(view)
-      }
-
-      eventBus.on("pagesinit", handlePagesInit)
-      eventBus.on("pagesloaded", handlePagesLoaded)
-      eventBus.on("updateviewarea", savePosition)
-      eventBus.on("pagechanging", handlePageChange)
-      eventBus.on("pagerendered", handlePageRendered)
-      eventBus.on("textlayerrendered", handleTextRendered)
-      eventBus.on("scalechanging", handleScaleChange)
-
-      onPageCountChange(loadedDocument.numPages)
-      pdfViewer.setDocument(loadedDocument)
-
-      const pagesPromise: Promise<void> = pdfViewer.pagesPromise
-
-      void pagesPromise.catch(reportFailure)
+    .then((pdf) => {
+      loadedDocument = pdf
+      initializeViewer()
     })
     .catch(reportFailure)
 
@@ -546,6 +550,7 @@ export function createPDFReaderRuntime({
       flushPosition()
       destroyed = true
       ready = false
+      renderingGate?.setActive(false)
       cancelAnimationFrame(frame)
       clearTimeout(settledTimer)
       eventBus?.off("pagesinit", handlePagesInit)
@@ -559,12 +564,15 @@ export function createPDFReaderRuntime({
       abortController.abort()
       resizeObserver.disconnect()
       pdfViewer?.cleanup()
+      renderingGate?.dispose()
+      renderingGate = null
       await loadingTask.destroy().catch(() => undefined)
     },
     flushPosition,
     isReady: () => viewportReadiness(),
     reconcileLayout: () => {
-      if (pdfViewer?.pagesCount) {
+      if (!ready) reconcileInitialPosition = true
+      if (lifecycle !== "inactive" && pdfViewer?.pagesCount) {
         applyRequestedScale()
         pdfViewer.update()
       }
@@ -584,6 +592,7 @@ export function createPDFReaderRuntime({
       }
 
       lifecycle = next
+      renderingGate?.setActive(next !== "inactive")
       isCtrlKeyDown = false
 
       if (next === "inactive") {
@@ -603,9 +612,12 @@ export function createPDFReaderRuntime({
           }
         }
       } else {
+        initializeViewer()
+        if (pendingPagesInit) handlePagesInit()
+        if (pendingPagesLoaded) handlePagesLoaded()
         pdfViewer?.update()
 
-        if (next === "presented" && selection) {
+        if (next === "presented" && selection && selection.startContainer.isConnected) {
           window.getSelection()?.removeAllRanges()
           window.getSelection()?.addRange(selection)
         }
@@ -615,7 +627,11 @@ export function createPDFReaderRuntime({
     },
     goToPage: (pageNumber: number) => {
       requestedPage = pageNumber
-      if (pdfViewer?.pagesCount && pdfViewer.currentPageNumber !== pageNumber) {
+      if (
+        lifecycle !== "inactive" &&
+        pdfViewer?.pagesCount &&
+        pdfViewer.currentPageNumber !== pageNumber
+      ) {
         pdfViewer.currentPageNumber = pageNumber
       }
 
@@ -627,7 +643,7 @@ export function createPDFReaderRuntime({
       const previousScale = pdfViewer?.currentScale
       requestedScale = scale
 
-      if (pdfViewer?.pagesCount) applyRequestedScale()
+      if (lifecycle !== "inactive" && pdfViewer?.pagesCount) applyRequestedScale()
       if (pdfViewer?.currentScale === previousScale) flushPosition()
 
       scheduleReadiness()
@@ -635,14 +651,14 @@ export function createPDFReaderRuntime({
     setPageLayout: (pageLayout: PDFPageLayout) => {
       requestedPageLayout = pageLayout
 
-      if (pdfViewer?.pagesCount) applyRequestedLayout()
+      if (lifecycle !== "inactive" && pdfViewer?.pagesCount) applyRequestedLayout()
 
       scheduleReadiness()
     },
     setPageView: (pageView: PDFPageView) => {
       requestedPageView = pageView
 
-      if (pdfViewer?.pagesCount) applyRequestedLayout()
+      if (lifecycle !== "inactive" && pdfViewer?.pagesCount) applyRequestedLayout()
 
       scheduleReadiness()
     },
