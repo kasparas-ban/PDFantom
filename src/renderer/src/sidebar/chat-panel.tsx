@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useLayoutEffect, useState } from "react"
+import { createContext, useContext, useEffect, useState } from "react"
 import {
   ActionBarPrimitive,
   AssistantRuntimeProvider,
@@ -10,7 +10,6 @@ import {
   useMessageTiming,
   type AssistantRuntime,
 } from "@assistant-ui/react"
-import { AssistantChatTransport, useChatRuntime } from "@assistant-ui/react-ai-sdk"
 import {
   ArrowUpIcon,
   CheckIcon,
@@ -31,28 +30,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { usePlatform } from "../platform"
 import { ChatPanelShell } from "./chat-panel-shell"
 
-export function ChatSessionOwner({
-  onReady,
-  model,
-}: {
-  onReady: (runtime: AssistantRuntime) => void
-  model: string
-}) {
-  const runtime = useChatRuntime({ transport: new AssistantChatTransport({ api: "/api/chat" }) })
-  useLayoutEffect(() => {
-    onReady(runtime)
-  }, [runtime, onReady])
-  useEffect(
-    () =>
-      runtime.registerModelContextProvider({
-        getModelContext: () => ({ config: { modelName: model } }),
-      }),
-    [runtime, model],
-  )
-  return null
-}
-
-const ProviderMissingContext = createContext(false)
+const ApiKeyMissingContext = createContext(false)
 
 export function ChatPanel({ runtime }: { runtime: AssistantRuntime }) {
   return (
@@ -82,15 +60,15 @@ function ChatPresentation() {
     <ChatPanelShell>
       <div aria-hidden="true" className="window-drag-region h-12 shrink-0" />
 
-      <ProviderMissingContext value={missing}>
+      <ApiKeyMissingContext value={missing}>
         <ChatThread />
-      </ProviderMissingContext>
+      </ApiKeyMissingContext>
     </ChatPanelShell>
   )
 }
 
 function ChatThread() {
-  const isApiKeyMissing = useContext(ProviderMissingContext)
+  const isApiKeyMissing = useContext(ApiKeyMissingContext)
 
   return (
     <ThreadPrimitive.Root className="flex min-h-0 flex-1 flex-col">
@@ -239,7 +217,7 @@ function AssistantMessage() {
 }
 
 function ChatError() {
-  const isApiKeyMissing = useContext(ProviderMissingContext)
+  const isApiKeyMissing = useContext(ApiKeyMissingContext)
 
   return (
     <ErrorPrimitive.Root className="mt-2 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
