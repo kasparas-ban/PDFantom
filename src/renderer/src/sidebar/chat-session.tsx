@@ -13,9 +13,12 @@ import type { AssistantRuntime } from "@assistant-ui/react"
 import { useAppConfig } from "../store/app-config-provider"
 
 const ChatRuntimeContext = createContext<AssistantRuntime | null>(null)
-const ChatModelContext = createContext({ model: "gpt-5.4-nano", setModel: (_model: string) => {} })
-const Owner = lazy(() =>
-  import("./chat-panel").then((module) => ({ default: module.ChatSessionOwner })),
+const ChatModelContext = createContext<{
+  readonly model: string
+  readonly setModel: (model: string) => void
+} | null>(null)
+const ChatSessionOwner = lazy(() =>
+  import("./chat-session-owner").then((module) => ({ default: module.ChatSessionOwner })),
 )
 
 export function ChatSessionProvider({ children }: PropsWithChildren) {
@@ -33,7 +36,7 @@ export function ChatSessionProvider({ children }: PropsWithChildren) {
     <ChatModelContext value={modelContext}>
       {initialized && (
         <Suspense fallback={null}>
-          <Owner onReady={setRuntime} model={model} />
+          <ChatSessionOwner onReady={setRuntime} model={model} />
         </Suspense>
       )}
       <ChatRuntimeContext value={runtime}>{children}</ChatRuntimeContext>
@@ -42,4 +45,10 @@ export function ChatSessionProvider({ children }: PropsWithChildren) {
 }
 
 export const useChatSession = () => useContext(ChatRuntimeContext)
-export const useChatModel = () => useContext(ChatModelContext)
+
+export function useChatModel() {
+  const context = useContext(ChatModelContext)
+  if (!context) throw new Error("useChatModel must be used within ChatSessionProvider")
+
+  return context
+}
