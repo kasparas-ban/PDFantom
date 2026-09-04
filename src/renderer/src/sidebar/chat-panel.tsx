@@ -102,7 +102,7 @@ function ChatThread() {
           </div>
         </AuiIf>
 
-        <div className="flex flex-col gap-6 pb-8 empty:hidden">
+        <div className="flex flex-col gap-4 pb-8 empty:hidden">
           <ThreadPrimitive.Messages
             components={{
               AssistantMessage,
@@ -189,7 +189,7 @@ function ChatComposer() {
 function UserMessage() {
   return (
     <MessagePrimitive.Root className="flex justify-end">
-      <div className="max-w-[85%] rounded-xl bg-muted px-3.5 py-2.5 text-sm wrap-break-word text-foreground">
+      <div className="max-w-[85%] rounded-xl bg-sidebar-accent px-3.5 py-2.5 text-sm wrap-break-word text-foreground">
         <MessagePrimitive.Parts />
       </div>
     </MessagePrimitive.Root>
