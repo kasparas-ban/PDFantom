@@ -28,7 +28,8 @@ function Workspace() {
   const readerActive = useMatches().some((match) => match.id === "reader")
   const [host, setHost] = useState<HTMLDivElement | null>(null)
   const [workspace, setWorkspace] = useState<ReaderWorkspace | null>(null)
-  // Activity detaches refs without ending the session. Only owner cleanup disposes it.
+  // Activity disconnects refs while retaining the DOM. Ignore that null so hiding the
+  // reader does not dispose its session; a genuine Workspace unmount runs owner cleanup.
   const attachHost = useCallback((element: HTMLDivElement | null) => {
     if (element) setHost(element)
   }, [])
@@ -54,6 +55,7 @@ function Workspace() {
       new ReaderPreviewCache(),
       createReaderWorker,
     )
+    // ReaderLifecycle is the sole resumer and only mounts while Activity is visible.
     owner.suspend(true)
     setWorkspace(owner)
     void owner.restore()
