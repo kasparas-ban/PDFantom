@@ -584,6 +584,7 @@ export function createPDFReaderRuntime({
         flushPosition()
 
         const current = window.getSelection()
+        selection = null
 
         if (current?.rangeCount && container.contains(current.anchorNode)) {
           selection = current.getRangeAt(0).cloneRange()
@@ -617,9 +618,15 @@ export function createPDFReaderRuntime({
         if (pendingPagesLoaded) handlePagesLoaded()
         pdfViewer?.update()
 
-        if (next === "presented" && selection && selection.startContainer.isConnected) {
-          window.getSelection()?.removeAllRanges()
-          window.getSelection()?.addRange(selection)
+        if (next === "presented" && selection) {
+          const current = window.getSelection()
+
+          if (current && selection.startContainer.isConnected) {
+            current.removeAllRanges()
+            current.addRange(selection)
+          }
+
+          selection = null
         }
 
         scheduleReadiness()

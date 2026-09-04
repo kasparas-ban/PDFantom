@@ -87,6 +87,148 @@ test("initial viewport renders while unrelated PDF.js page initialization is hel
   expect(result).toEqual({ unrelatedFinishedAtReadiness: false, hasInk: true, text: true })
 })
 
+test("PDF.js initialization milestones resume after finishing while inactive", async ({
+  application,
+}) => {
+  const bytes = [...(await readFile("tests/fixtures/pdfs/document-mock.pdf"))]
+  const result = await application.page.evaluate(
+    async ({ moduleUrl: url, bytes: data }) => {
+      const boundary: Boundary = await import(url)
+      const { createPDFReaderRuntime, createReaderWorker, PDFViewer } = boundary
+      const host = document.createElement("div")
+      host.style.cssText = "position:fixed;inset:48px 0 0 256px;background:#e7e7e5;z-index:50"
+      const container = document.createElement("div")
+      container.style.cssText = "position:absolute;inset:0;overflow:auto"
+      const viewer = document.createElement("div")
+      viewer.className = "pdfViewer"
+      container.append(viewer)
+      host.append(container)
+      document.body.append(host)
+      const firstPageGate = Promise.withResolvers<void>()
+      const firstPageRequested = Promise.withResolvers<void>()
+      const lastPageGate = Promise.withResolvers<void>()
+      const lastPageRequested = Promise.withResolvers<void>()
+      const pagesLoaded = Promise.withResolvers<void>()
+      const pagesInitialized = Promise.withResolvers<void>()
+      const observer = new MutationObserver(() => {
+        if (viewer.querySelectorAll(".page").length !== 5) return
+
+        observer.disconnect()
+        pagesInitialized.resolve()
+      })
+      observer.observe(viewer, { childList: true, subtree: true })
+      // eslint-disable-next-line typescript/unbound-method -- Deliberately replacing/restoring a method at the PDF.js test boundary.
+      const setDocument = PDFViewer.prototype.setDocument
+      PDFViewer.prototype.setDocument = function (pdf) {
+        if (pdf) {
+          const getPage = pdf.getPage.bind(pdf)
+          pdf.getPage = async (page) => {
+            if (page === 1) {
+              firstPageRequested.resolve()
+              await firstPageGate.promise
+            }
+            if (page === 5) {
+              lastPageRequested.resolve()
+              await lastPageGate.promise
+            }
+
+            return getPage(page)
+          }
+        }
+
+        setDocument.call(this, pdf)
+        if (pdf) void this.pagesPromise?.then(() => pagesLoaded.resolve())
+      }
+      const ready = Promise.withResolvers<{ interactive: boolean }>()
+      const worker = createReaderWorker()
+      let reportedPage = 0
+      let readyWhileInactive = false
+      let inactive = false
+      const runtime = createPDFReaderRuntime({
+        worker,
+        document: {
+          id: "late-events",
+          name: "late-events.pdf",
+          fingerprint: "b".repeat(64),
+          bytes: new Uint8Array(data).buffer,
+        },
+        container,
+        viewer,
+        initialReadingPosition: {
+          pageNumber: 3,
+          offsetX: 0,
+          offsetY: 40,
+          zoom: 1.25,
+          scalePreset: null,
+          pageView: "single",
+          pageLayout: "vertical",
+        },
+        onPageChange: (page) => {
+          reportedPage = page
+        },
+        onPageCountChange: () => {},
+        onScaleChange: () => {},
+        onPinchZoom: () => {},
+        onReadingPositionChange: () => {},
+        onSettled: () => {},
+        onStatusChange: (status) => {
+          if (status.state !== "ready") return
+          if (inactive) readyWhileInactive = true
+          ready.resolve(status)
+        },
+      })
+      runtime.setScale(1.25)
+      runtime.goToPage(3)
+
+      await firstPageRequested.promise
+      inactive = true
+      runtime.setLifecycle("inactive")
+      firstPageGate.resolve()
+      await pagesInitialized.promise
+      const copyBeforeResume = container.querySelector("#hiddenCopyElement") !== null
+
+      inactive = false
+      runtime.setLifecycle("preparing")
+      const copyAfterResume = container.querySelector("#reader-copy-late-events") !== null
+      await lastPageRequested.promise
+
+      inactive = true
+      runtime.setLifecycle("inactive")
+      lastPageGate.resolve()
+      await pagesLoaded.promise
+
+      inactive = false
+      runtime.setLifecycle("preparing")
+      const status = await ready.promise
+      const hasCanvas = viewer.querySelector("canvas") !== null
+
+      await runtime.destroy()
+      worker.destroy()
+      host.remove()
+      PDFViewer.prototype.setDocument = setDocument
+
+      return {
+        copyBeforeResume,
+        copyAfterResume,
+        readyWhileInactive,
+        reportedPage,
+        interactive: status.interactive,
+        hasCanvas,
+      }
+    },
+    { moduleUrl, bytes },
+  )
+
+  expect(result).toEqual({
+    copyBeforeResume: true,
+    copyAfterResume: true,
+    readyWhileInactive: false,
+    reportedPage: 3,
+    interactive: true,
+    hasCanvas: true,
+  })
+})
+
 test("native preview storage handles revisions, invalidation, corruption, recreation and both limits", async ({
   application,
 }) => {

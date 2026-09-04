@@ -174,6 +174,10 @@ test("Activity retains exact PDF geometry, canvas, selection, chat draft and mod
     }
   })
   expect(after).toEqual({ ...before, sameCanvas: true })
+  await page.evaluate(() => window.getSelection()?.removeAllRanges())
+  await reader.settingsButton.click()
+  await reader.backToAppButton.click()
+  expect(await reader.selectedText()).toBe("")
   await reader.toggleChatPanel("Hide")
   await reader.toggleChatPanel("Show")
   await expect(reader.chatMessageInput).toHaveValue("Keep this draft")
