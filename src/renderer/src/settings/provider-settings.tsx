@@ -69,7 +69,7 @@ export function ProviderSettings() {
 
     try {
       const savedApiKey = await platform.getOpenRouterApiKey()
-      setApiKeyDraft(savedApiKey ?? "")
+      setApiKeyDraft(savedApiKey || "")
       setIsConfigured(Boolean(savedApiKey))
       setMode("edit")
       setStatus("idle")
@@ -134,7 +134,7 @@ export function ProviderSettings() {
                   readOnly={mode === "view"}
                   tabIndex={mode === "view" ? -1 : undefined}
                   type={mode === "edit" || isApiKeyRevealed ? "text" : "password"}
-                  value={mode === "edit" ? apiKeyDraft : (revealedApiKey ?? "")}
+                  value={mode === "edit" ? apiKeyDraft : revealedApiKey || ""}
                 />
                 {mode === "view" && isConfigured && (
                   <Button

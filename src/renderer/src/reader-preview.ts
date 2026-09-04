@@ -100,12 +100,13 @@ export function viewportAppearance(element: HTMLElement) {
   }
 }
 
-export const samePosition = (first: ReadingPosition | null, second: ReadingPosition | null) =>
-  first !== null &&
-  second !== null &&
-  (
+export function samePosition(first: ReadingPosition | null, second: ReadingPosition | null) {
+  if (!first || !second) return false
+
+  return (
     ["pageNumber", "offsetX", "offsetY", "zoom", "scalePreset", "pageLayout", "pageView"] as const
   ).every((key) => first[key] === second[key])
+}
 
 export function compatiblePreview(
   value: ReaderPreview,

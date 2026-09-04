@@ -107,17 +107,24 @@ function ReaderLifecycle({
 }) {
   useLayoutEffect(() => {
     if (!workspace || !host) return
+
     workspace.suspend(false)
-    const resize = new ResizeObserver(() => workspace.layoutChanged())
-    resize.observe(host)
-    const appearance = new MutationObserver(() => workspace.layoutChanged())
-    appearance.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] })
+    const resizeObserver = new ResizeObserver(() => workspace.layoutChanged())
+    const appearanceObserver = new MutationObserver(() => workspace.layoutChanged())
+
+    resizeObserver.observe(host)
+    appearanceObserver.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["class"],
+    })
+
     return () => {
       workspace.suspend(true)
-      resize.disconnect()
-      appearance.disconnect()
+      resizeObserver.disconnect()
+      appearanceObserver.disconnect()
     }
   }, [workspace, host])
+
   return null
 }
 
@@ -129,8 +136,8 @@ function PDFCanvas({
   openDocument: () => void
 }) {
   const activeDocument = useReaderSession((state) => state.activeDocument)
-  const error = useReaderSession((state) => state.error)
-  const positionError = useReaderSession((state) => state.readingPositionError)
+  const readerError = useReaderSession((state) => state.error)
+  const readingPositionError = useReaderSession((state) => state.readingPositionError)
   const sourceStatus = useReaderSession((state) => state.sourceStatus)
 
   return (
@@ -140,12 +147,12 @@ function PDFCanvas({
         ref={host}
         className="absolute inset-0 bg-[#e7e7e5] dark:bg-[#171716]"
       />
-      {(error || positionError) && (
+      {(readerError || readingPositionError) && (
         <div
           className="absolute top-4 left-1/2 z-20 -translate-x-1/2 rounded-lg border bg-background px-4 py-2 text-sm text-destructive shadow-sm"
           role="alert"
         >
-          {error || positionError}
+          {readerError || readingPositionError}
         </div>
       )}
 

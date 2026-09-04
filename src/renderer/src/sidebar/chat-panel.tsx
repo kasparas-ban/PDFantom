@@ -42,15 +42,18 @@ export function ChatPanel({ runtime }: { runtime: AssistantRuntime }) {
 
 function ChatPresentation() {
   const platform = usePlatform()
-  const [missing, setMissing] = useState(false)
+  const [isApiKeyMissing, setIsApiKeyMissing] = useState(false)
+
   useEffect(() => {
     let active = true
+
     void platform
       .getOpenRouterApiKeyStatus()
       .then(({ isConfigured }) => {
-        if (active) setMissing(!isConfigured)
+        if (active) setIsApiKeyMissing(!isConfigured)
       })
       .catch(() => undefined)
+
     return () => {
       active = false
     }
@@ -60,7 +63,7 @@ function ChatPresentation() {
     <ChatPanelShell>
       <div aria-hidden="true" className="window-drag-region h-12 shrink-0" />
 
-      <ApiKeyMissingContext value={missing}>
+      <ApiKeyMissingContext value={isApiKeyMissing}>
         <ChatThread />
       </ApiKeyMissingContext>
     </ChatPanelShell>

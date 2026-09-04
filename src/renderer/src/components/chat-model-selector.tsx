@@ -43,7 +43,6 @@ export function ChatModelSelector() {
   const { model: modelId, setModel } = useChatModel()
   const portalContainer = usePagePortal()
   const active = useRef(false)
-  const filterInputRef = useRef<HTMLInputElement>(null)
   const modelOptionRefs = useRef(new Map<(typeof modelOptions)[number]["id"], HTMLElement>())
   const [isOpen, setIsOpen] = useState(false)
   const [query, setQuery] = useState("")
@@ -95,7 +94,6 @@ export function ChatModelSelector() {
         <div className="relative p-1">
           <SearchIcon className="pointer-events-none absolute top-1/2 left-3 size-3.5 -translate-y-1/2 text-muted-foreground" />
           <Input
-            ref={filterInputRef}
             aria-label="Filter models"
             className="h-8 pl-8 text-xs"
             onChange={(event) => setQuery(event.target.value)}

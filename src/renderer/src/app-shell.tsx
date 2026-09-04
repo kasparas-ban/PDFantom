@@ -22,12 +22,13 @@ export function AppShell() {
 }
 
 function Workspace() {
-  const api = usePlatform()
-  const store = useReaderSessionStore()
+  const platform = usePlatform()
+  const sessionStore = useReaderSessionStore()
   const appearance = useAppConfig((state) => state.appearance)
-  const readerActive = useMatches().some((match) => match.id === "reader")
+  const isReaderActive = useMatches().some((match) => match.id === "reader")
   const [host, setHost] = useState<HTMLDivElement | null>(null)
   const [workspace, setWorkspace] = useState<ReaderWorkspace | null>(null)
+
   // Activity disconnects refs while retaining the DOM. Ignore that null so hiding the
   // reader does not dispose its session; a genuine Workspace unmount runs owner cleanup.
   const attachHost = useCallback((element: HTMLDivElement | null) => {
@@ -35,26 +36,30 @@ function Workspace() {
   }, [])
 
   useEffect(() => {
-    const scheme = window.matchMedia("(prefers-color-scheme: dark)")
-    const sync = () =>
+    const colorScheme = window.matchMedia("(prefers-color-scheme: dark)")
+    const syncAppearance = () =>
       document.documentElement.classList.toggle(
         "dark",
-        appearance === "dark" || (appearance === "system" && scheme.matches),
+        appearance === "dark" || (appearance === "system" && colorScheme.matches),
       )
-    sync()
-    scheme.addEventListener("change", sync)
-    return () => scheme.removeEventListener("change", sync)
+
+    syncAppearance()
+    colorScheme.addEventListener("change", syncAppearance)
+
+    return () => colorScheme.removeEventListener("change", syncAppearance)
   }, [appearance])
 
   useEffect(() => {
     if (!host) return
+
     const owner = new ReaderWorkspace(
-      api,
-      store,
-      createReaderSurfaces(host, store),
+      platform,
+      sessionStore,
+      createReaderSurfaces(host, sessionStore),
       new ReaderPreviewCache(),
       createReaderWorker,
     )
+
     // ReaderLifecycle is the sole resumer and only mounts while Activity is visible.
     owner.suspend(true)
     setWorkspace(owner)
@@ -63,16 +68,17 @@ function Workspace() {
     const firstFrame = requestAnimationFrame(() => {
       secondFrame = requestAnimationFrame(() => owner.warm())
     })
+
     return () => {
       cancelAnimationFrame(firstFrame)
       cancelAnimationFrame(secondFrame)
       void owner.dispose()
     }
-  }, [api, host, store])
+  }, [host, platform, sessionStore])
 
   return (
     <ChatSessionProvider>
-      <Activity mode={readerActive ? "visible" : "hidden"}>
+      <Activity mode={isReaderActive ? "visible" : "hidden"}>
         <ReaderPage host={attachHost} hostElement={host} workspace={workspace} />
       </Activity>
       <Outlet />

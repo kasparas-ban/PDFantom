@@ -52,14 +52,12 @@ export async function launchTestApplication({
 
 async function launchApplication(profilePath: string, windowMode: ApplicationWindowMode) {
   const launchStartedAt = performance.now()
+  const applicationExecutable = process.env.PDFANTOM_APPLICATION_EXECUTABLE
+  const applicationEntry = process.env.PDFANTOM_APPLICATION_ENTRY || ".vite/build/main.js"
   const application = await electron.launch({
-    ...(process.env.PDFANTOM_APPLICATION_EXECUTABLE
-      ? { executablePath: process.env.PDFANTOM_APPLICATION_EXECUTABLE }
-      : {}),
+    ...(applicationExecutable ? { executablePath: applicationExecutable } : {}),
     args: [
-      ...(process.env.PDFANTOM_APPLICATION_EXECUTABLE
-        ? []
-        : [path.resolve(process.env.PDFANTOM_APPLICATION_ENTRY ?? ".vite/build/main.js")]),
+      ...(applicationExecutable ? [] : [path.resolve(applicationEntry)]),
       `--user-data-dir=${profilePath}`,
       ...(windowMode === "background" ? [BACKGROUND_E2E_SWITCH] : []),
     ],

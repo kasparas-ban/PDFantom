@@ -22,19 +22,20 @@ const ChatSessionOwner = lazy(() =>
 )
 
 export function ChatSessionProvider({ children }: PropsWithChildren) {
-  const open = useAppConfig((state) => state.isChatPanelOpen)
-  const [initialized, setInitialized] = useState(open)
+  const isChatPanelOpen = useAppConfig((state) => state.isChatPanelOpen)
+  const [isInitialized, setIsInitialized] = useState(isChatPanelOpen)
   const [runtime, setRuntime] = useState<AssistantRuntime | null>(null)
   const [model, setModel] = useState("gpt-5.4-nano")
+
   useEffect(() => {
-    if (open) setInitialized(true)
-  }, [open])
+    if (isChatPanelOpen) setIsInitialized(true)
+  }, [isChatPanelOpen])
 
   const modelContext = useMemo(() => ({ model, setModel }), [model])
 
   return (
     <ChatModelContext value={modelContext}>
-      {initialized && (
+      {isInitialized && (
         <Suspense fallback={null}>
           <ChatSessionOwner onReady={setRuntime} model={model} />
         </Suspense>

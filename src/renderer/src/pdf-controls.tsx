@@ -37,13 +37,9 @@ export function PDFControls() {
           className="window-no-drag flex items-center gap-2 justify-self-center disabled:opacity-50"
         >
           <PageControls />
-
           <ZoomControls />
-
           <PageViewControl />
-
           <PageLayoutControl />
-
           <PageFitControl />
         </fieldset>
       </div>
