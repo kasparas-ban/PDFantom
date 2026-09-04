@@ -3,54 +3,16 @@ import { ChevronLeft, ChevronRight } from "lucide-react"
 
 import { Button } from "./components/ui/button"
 import { Input } from "./components/ui/input"
-import { useAppConfig } from "./store/app-config-provider"
 import { useReaderSession } from "./store/reader-session-provider"
 
 export function PageControls() {
   const currentPage = useReaderSession((state) => state.currentPage)
   const pageCount = useReaderSession((state) => state.pageCount)
-  const pageView = useReaderSession((state) => state.pageView)
   const requestPage = useReaderSession((state) => state.requestPage)
-  const interactive = useReaderSession((state) => state.interactive)
-  const settingsOpen = useAppConfig((state) => state.isSettingsOpen)
 
   const [pageNumber, setPageNumber] = useState(String(currentPage))
 
   useEffect(() => setPageNumber(String(currentPage)), [currentPage])
-
-  useEffect(() => {
-    const navigateWithArrowKey = (event: globalThis.KeyboardEvent) => {
-      if (
-        !interactive ||
-        settingsOpen ||
-        event.defaultPrevented ||
-        event.altKey ||
-        event.ctrlKey ||
-        event.metaKey ||
-        event.shiftKey ||
-        !(event.target instanceof Element) ||
-        event.target.closest("input, textarea, select, [contenteditable='true']")
-      ) {
-        return
-      }
-
-      const pagesPerView = pageView === "double" ? 2 : 1
-      const viewStartPage = currentPage - ((currentPage - 1) % pagesPerView)
-
-      if (event.key === "ArrowLeft") {
-        requestPage(viewStartPage - pagesPerView)
-      } else if (event.key === "ArrowRight") {
-        requestPage(viewStartPage + pagesPerView)
-      } else {
-        return
-      }
-
-      event.preventDefault()
-    }
-
-    window.addEventListener("keydown", navigateWithArrowKey)
-    return () => window.removeEventListener("keydown", navigateWithArrowKey)
-  }, [currentPage, pageView, requestPage, interactive, settingsOpen])
 
   const commitPageNumber = () => {
     const requestedPage = Number(pageNumber)

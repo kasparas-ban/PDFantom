@@ -4,11 +4,15 @@ import { defineConfig } from "vite-plus"
 
 export default defineConfig({
   base: "./",
+  resolve: { alias: { "@": path.resolve("src/renderer/src") } },
   build: {
     rollupOptions: {
-      input: path.resolve("tests/renderer/reader-boundary.ts"),
+      input: {
+        "reader-boundary": path.resolve("tests/renderer/reader-boundary.ts"),
+        "routing-boundary": path.resolve("tests/renderer/routing-boundary.ts"),
+      },
       preserveEntrySignatures: "strict",
-      output: { entryFileNames: "reader-boundary.mjs" },
+      output: { entryFileNames: "[name].mjs" },
     },
     outDir: ".vite/reader-tests",
     emptyOutDir: true,

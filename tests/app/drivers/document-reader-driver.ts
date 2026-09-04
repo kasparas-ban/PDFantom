@@ -48,7 +48,7 @@ export class DocumentReaderDriver {
   }
 
   get openAiProviderSettingsFromChatButton() {
-    return this.chatPanel.getByRole("button", { name: "Choose provider" })
+    return this.chatPanel.getByRole("link", { name: "Choose provider" })
   }
 
   get chatPanelResizeHandle() {
@@ -56,7 +56,7 @@ export class DocumentReaderDriver {
   }
 
   get settingsButton() {
-    return this.page.getByRole("button", { name: "Open settings" })
+    return this.page.getByRole("link", { name: "Open settings" })
   }
 
   get settings() {
@@ -64,11 +64,11 @@ export class DocumentReaderDriver {
   }
 
   get appearanceSettingsButton() {
-    return this.settings.getByRole("button", { name: "Appearance" })
+    return this.settings.getByRole("link", { name: "Appearance" })
   }
 
   get aiProviderSettingsButton() {
-    return this.settings.getByRole("button", { name: "AI Provider" })
+    return this.settings.getByRole("link", { name: "AI Provider" })
   }
 
   get openRouterApiKeyInput() {
@@ -96,7 +96,7 @@ export class DocumentReaderDriver {
   }
 
   get backToAppButton() {
-    return this.settings.getByRole("button", { name: "Back to app" })
+    return this.settings.getByRole("link", { name: "Back to app" })
   }
 
   get renderedPages() {

@@ -1,5 +1,4 @@
-import { useEffect, useRef, useState } from "react"
-import { useAui } from "@assistant-ui/react"
+import { useLayoutEffect, useRef, useState } from "react"
 import { ChevronDownIcon, CpuIcon, SearchIcon } from "lucide-react"
 
 import { GoogleLogo, GroqLogo, MetaLogo, OpenAILogo, XAILogo } from "@/components/model-logos"
@@ -11,6 +10,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
+import { usePagePortal } from "../page-surface"
+import { useChatModel } from "../sidebar/chat-session"
 
 const modelOptions = [
   { id: "gpt-5.4-nano", name: "GPT-5.4 Nano", provider: "OpenAI", icon: OpenAILogo },
@@ -39,12 +40,14 @@ const modelOptions = [
 ] as const
 
 export function ChatModelSelector() {
-  const api = useAui()
+  const { model: modelId, setModel } = useChatModel()
+  const portalContainer = usePagePortal()
+  const active = useRef(false)
   const filterInputRef = useRef<HTMLInputElement>(null)
   const modelOptionRefs = useRef(new Map<(typeof modelOptions)[number]["id"], HTMLElement>())
   const [isOpen, setIsOpen] = useState(false)
   const [query, setQuery] = useState("")
-  const [selectedModel, setSelectedModel] = useState<(typeof modelOptions)[number]>(modelOptions[0])
+  const selectedModel = modelOptions.find((option) => option.id === modelId) ?? modelOptions[0]
   const normalizedQuery = query.trim().toLocaleLowerCase()
   const filteredModels = modelOptions.filter((model) =>
     model.name.toLocaleLowerCase().includes(normalizedQuery),
@@ -57,16 +60,17 @@ export function ChatModelSelector() {
 
   const selectModel = (value: unknown) => {
     const model = modelOptions.find((option) => option.id === value)
-    if (model) setSelectedModel(model)
+    if (model) setModel(model.id)
   }
 
-  useEffect(
-    () =>
-      api.modelContext().register({
-        getModelContext: () => ({ config: { modelName: selectedModel.id } }),
-      }),
-    [api, selectedModel.id],
-  )
+  useLayoutEffect(() => {
+    active.current = true
+    setIsOpen(false)
+    setQuery("")
+    return () => {
+      active.current = false
+    }
+  }, [])
 
   const SelectedModelIcon = selectedModel.icon
 
@@ -74,13 +78,20 @@ export function ChatModelSelector() {
     <DropdownMenu open={isOpen} onOpenChange={setDropdownOpen}>
       <DropdownMenuTrigger
         aria-label="Choose model"
-        className="flex h-7 min-w-0 shrink items-center justify-start gap-1 rounded-full px-1.5 text-xs font-medium transition-all outline-none hover:bg-muted focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:scale-[0.97] data-popup-open:bg-muted"
+        className="flex h-7 min-w-0 shrink items-center justify-start gap-1 rounded-full px-1.5 text-xs font-medium transition-[color,background-color,border-color,box-shadow,opacity,transform,translate,scale] outline-none hover:bg-muted focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:scale-[0.97] data-popup-open:bg-muted"
       >
         <SelectedModelIcon className="size-3.5 shrink-0" />
         <span className="min-w-0 truncate">{selectedModel.name}</span>
         <ChevronDownIcon className="size-3 shrink-0 text-muted-foreground" />
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="w-64" side="top" sideOffset={6}>
+      <DropdownMenuContent
+        finalFocus={() => active.current}
+        align="start"
+        className="w-64"
+        portalContainer={portalContainer}
+        side="top"
+        sideOffset={6}
+      >
         <div className="relative p-1">
           <SearchIcon className="pointer-events-none absolute top-1/2 left-3 size-3.5 -translate-y-1/2 text-muted-foreground" />
           <Input

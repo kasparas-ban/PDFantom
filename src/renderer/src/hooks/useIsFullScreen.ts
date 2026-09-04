@@ -1,18 +1,21 @@
 import { useEffect, useState } from "react"
 
+import { usePlatform } from "../platform"
+
 export function useIsFullScreen() {
+  const platform = usePlatform()
   const [isFullScreen, setIsFullScreen] = useState(false)
 
   useEffect(() => {
     let active = true
     let receivedChange = false
 
-    const unsubscribe = window.pdfantom.onFullScreenChange((value) => {
+    const unsubscribe = platform.onFullScreenChange((value) => {
       receivedChange = true
       setIsFullScreen(value)
     })
 
-    void window.pdfantom.getIsFullScreen().then((value) => {
+    void platform.getIsFullScreen().then((value) => {
       if (active && !receivedChange) setIsFullScreen(value)
     })
 
@@ -20,7 +23,7 @@ export function useIsFullScreen() {
       active = false
       unsubscribe()
     }
-  }, [])
+  }, [platform])
 
   return isFullScreen
 }

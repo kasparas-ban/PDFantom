@@ -85,11 +85,15 @@ function workspaceFixture(workerStartup = () => Promise.resolve()) {
     openDocument: () => opened,
   }
   let previewVisible = false
+  let previewDisposed = 0
+  let appearance = { width: 800, height: 600, density: 1, background: "white" }
+  const decoding = Promise.withResolvers<void>()
+  let delayDecoding = false
   const owner = new ReaderWorkspace(
     api,
     store,
     {
-      appearance: () => ({ width: 800, height: 600, density: 1, background: "white" }),
+      appearance: () => appearance,
       create: (document, _worker, onStatus) => {
         let ready = false
         const entry = {
@@ -132,14 +136,18 @@ function workspaceFixture(workerStartup = () => Promise.resolve()) {
         }
         return surface
       },
-      preview: async () => ({
-        show: () => {
-          previewVisible = true
-        },
-        dispose: () => {
-          previewVisible = false
-        },
-      }),
+      preview: async () => {
+        if (delayDecoding) await decoding.promise
+        return {
+          show: () => {
+            previewVisible = true
+          },
+          dispose: () => {
+            previewVisible = false
+            previewDisposed++
+          },
+        }
+      },
     },
     {
       read: () => preview.promise,
@@ -175,6 +183,14 @@ function workspaceFixture(workerStartup = () => Promise.resolve()) {
     workerCount: () => workerCount,
     workerDestroyed: () => workerDestroyed,
     previewVisible: () => previewVisible,
+    previewDisposed: () => previewDisposed,
+    delayPreviewDecoding: () => {
+      delayDecoding = true
+    },
+    finishDecoding: () => decoding.resolve(),
+    setAppearance: (next: typeof appearance) => {
+      appearance = next
+    },
     setOpen: (value: Promise<DocumentOpenResult | null>) => {
       opened = value
     },
@@ -411,4 +427,56 @@ test("a setup-cleanup-setup cycle ignores late worker startup from the disposed 
   expect(second.workerCount()).toBe(1)
   expect(second.store.getState().activeDocument.status).toBe("loaded")
   await second.owner.dispose()
+})
+
+test("loads and retained verification finish hidden without preparation or revelation", async () => {
+  const fixture = workspaceFixture()
+  await fixture.owner.restore()
+  await fixture.owner.activate("A")
+  fixture.created[0].ready()
+  const load = Promise.withResolvers<DocumentLoadResult>()
+  fixture.pending.set("B", load.promise)
+  const activation = fixture.owner.activate("B")
+  fixture.owner.suspend(true)
+  load.resolve(verified(documents[1]))
+  await activation
+  fixture.created[1].ready()
+  expect(fixture.created.map(({ mode }) => mode)).toEqual(["inactive", "inactive"])
+  await fixture.owner.activate("A")
+  expect(fixture.created[0].mode).toBe("inactive")
+  fixture.owner.suspend(false)
+  fixture.owner.suspend(false)
+  expect(fixture.created[0].mode).toBe("presented")
+  expect(fixture.created[1].mode).toBe("inactive")
+  fixture.owner.suspend(true)
+  await fixture.owner.activate("B")
+  fixture.owner.suspend(false)
+  expect(fixture.created[1].mode).toBe("presented")
+  expect(fixture.workerCount()).toBe(1)
+  await fixture.owner.dispose()
+})
+
+test("decoded previews are disposed while hidden and retried only for a compatible active target", async () => {
+  const fixture = workspaceFixture()
+  await fixture.owner.restore()
+  fixture.delayPreviewDecoding()
+  await fixture.owner.activate("A")
+  fixture.preview.resolve(previewRecord)
+  await Promise.resolve()
+  fixture.owner.suspend(true)
+  fixture.finishDecoding()
+  await expect.poll(fixture.previewDisposed).toBe(1)
+  expect(fixture.previewVisible()).toBe(false)
+  fixture.owner.suspend(false)
+  await expect.poll(fixture.previewVisible).toBe(true)
+  fixture.owner.suspend(true)
+  fixture.setAppearance({ width: 0, height: 0, density: 1, background: "black" })
+  fixture.owner.layoutChanged()
+  expect(fixture.created[0].mode).toBe("inactive")
+  fixture.setAppearance({ width: 800, height: 600, density: 1, background: "white" })
+  fixture.owner.suspend(false)
+  fixture.created[0].ready()
+  expect(fixture.previewVisible()).toBe(false)
+  expect(fixture.created[0].mode).toBe("presented")
+  await fixture.owner.dispose()
 })

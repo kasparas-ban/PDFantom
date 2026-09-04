@@ -4,11 +4,13 @@ import { CircleCheckIcon, EyeIcon, EyeOffIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
+import { usePlatform } from "../platform"
 import { SettingsCard, SettingsPageLayout, SettingsSection } from "./settings-layout"
 
 type ApiKeyStatus = "error" | "idle" | "loading" | "saved" | "saving"
 
 export function ProviderSettings() {
+  const platform = usePlatform()
   const [apiKeyDraft, setApiKeyDraft] = useState("")
   const [revealedApiKey, setRevealedApiKey] = useState<string | null>(null)
   const [isConfigured, setIsConfigured] = useState(false)
@@ -18,7 +20,7 @@ export function ProviderSettings() {
   useEffect(() => {
     let isCurrent = true
 
-    void window.pdfantom
+    void platform
       .getOpenRouterApiKeyStatus()
       .then(({ isConfigured: savedApiKeyExists }) => {
         if (!isCurrent) return
@@ -32,7 +34,7 @@ export function ProviderSettings() {
     return () => {
       isCurrent = false
     }
-  }, [])
+  }, [platform])
 
   const revealApiKey = async () => {
     if (revealedApiKey !== null) {
@@ -43,7 +45,7 @@ export function ProviderSettings() {
     setStatus("loading")
 
     try {
-      const savedApiKey = await window.pdfantom.getOpenRouterApiKey()
+      const savedApiKey = await platform.getOpenRouterApiKey()
       setRevealedApiKey(savedApiKey)
       setIsConfigured(savedApiKey !== null)
       setStatus("idle")
@@ -65,7 +67,7 @@ export function ProviderSettings() {
     setStatus("loading")
 
     try {
-      const savedApiKey = await window.pdfantom.getOpenRouterApiKey()
+      const savedApiKey = await platform.getOpenRouterApiKey()
       setApiKeyDraft(savedApiKey ?? "")
       setIsConfigured(savedApiKey !== null)
       setMode("edit")
@@ -87,7 +89,7 @@ export function ProviderSettings() {
     setStatus("saving")
 
     try {
-      await window.pdfantom.saveOpenRouterApiKey(nextApiKey)
+      await platform.saveOpenRouterApiKey(nextApiKey)
       setApiKeyDraft("")
       setIsConfigured(nextApiKey.length > 0)
       setMode("view")
@@ -159,9 +161,7 @@ export function ProviderSettings() {
                     Cancel
                   </Button>
                   <Button
-                    disabled={
-                      (!isConfigured && !apiKeyDraft.trim()) || status === "saving"
-                    }
+                    disabled={(!isConfigured && !apiKeyDraft.trim()) || status === "saving"}
                     onClick={saveApiKey}
                     type="button"
                   >
@@ -169,11 +169,7 @@ export function ProviderSettings() {
                   </Button>
                 </>
               ) : (
-                <Button
-                  disabled={status === "loading"}
-                  onClick={startEditing}
-                  type="button"
-                >
+                <Button disabled={status === "loading"} onClick={startEditing} type="button">
                   Edit key
                 </Button>
               )}

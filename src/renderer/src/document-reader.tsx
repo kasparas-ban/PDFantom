@@ -33,6 +33,7 @@ export function createReaderSurfaces(host: HTMLElement, store: ReaderSessionStor
         worker,
         container,
         viewer,
+        initialLifecycle: "inactive",
         initialReadingPosition: initial.initialReadingPosition,
         onPageChange: (currentPage) => store.getState().reportView(document, { currentPage }),
         onPageCountChange: (pageCount) =>
@@ -78,6 +79,7 @@ export function createReaderSurfaces(host: HTMLElement, store: ReaderSessionStor
           const current = viewportAppearance(host)
           const changed = current.width !== dimensions.width || current.height !== dimensions.height
 
+          if (!current.width || !current.height) return
           section.style.width = section.style.height = ""
           runtime.setLifecycle("preparing")
 
@@ -96,7 +98,8 @@ export function createReaderSurfaces(host: HTMLElement, store: ReaderSessionStor
         },
         hide: () => {
           runtime.setLifecycle("inactive")
-          dimensions = viewportAppearance(section)
+          const current = viewportAppearance(section)
+          if (current.width > 0 && current.height > 0) dimensions = current
 
           section.style.width = `${dimensions.width}px`
           section.style.height = `${dimensions.height}px`
