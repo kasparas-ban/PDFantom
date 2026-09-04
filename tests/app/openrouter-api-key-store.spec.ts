@@ -2,8 +2,9 @@ import { mkdtemp, readFile, rm, stat } from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
 
-import { OpenRouterApiKeyStore } from "../../src/main/openrouter-api-key-store"
 import { expect, test } from "@playwright/test"
+
+import { OpenRouterApiKeyStore } from "../../src/main/openrouter-api-key-store"
 
 const encryption = {
   decryptString: (encrypted: Buffer) =>
@@ -26,9 +27,7 @@ test("encrypts and restores the OpenRouter API key", async () => {
 
     expect((await readFile(storagePath)).includes(apiKey)).toBe(false)
     expect((await stat(storagePath)).mode & 0o777).toBe(0o600)
-    expect(await new OpenRouterApiKeyStore(storagePath, encryption).getApiKey()).toBe(
-      apiKey,
-    )
+    expect(await new OpenRouterApiKeyStore(storagePath, encryption).getApiKey()).toBe(apiKey)
   } finally {
     await rm(workspace, { force: true, recursive: true })
   }

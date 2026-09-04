@@ -2,12 +2,7 @@ import type { ComponentProps } from "react"
 
 export function PdfantomLogo(props: ComponentProps<"svg">) {
   return (
-    <svg
-      fill="none"
-      viewBox="0 0 1024 1024"
-      xmlns="http://www.w3.org/2000/svg"
-      {...props}
-    >
+    <svg fill="none" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg" {...props}>
       <path
         d="M331 154h362c101 0 161 62 161 162v376c0 101-60 163-161 163H331c-101 0-161-62-161-163V316c0-100 60-162 161-162Z"
         fill="currentColor"

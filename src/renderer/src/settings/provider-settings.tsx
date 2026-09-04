@@ -16,6 +16,7 @@ export function ProviderSettings() {
   const [isConfigured, setIsConfigured] = useState(false)
   const [mode, setMode] = useState<"edit" | "view">("view")
   const [status, setStatus] = useState<ApiKeyStatus>("loading")
+  const isApiKeyRevealed = Boolean(revealedApiKey)
 
   useEffect(() => {
     let isCurrent = true
@@ -37,7 +38,7 @@ export function ProviderSettings() {
   }, [platform])
 
   const revealApiKey = async () => {
-    if (revealedApiKey !== null) {
+    if (revealedApiKey) {
       setRevealedApiKey(null)
       return
     }
@@ -47,7 +48,7 @@ export function ProviderSettings() {
     try {
       const savedApiKey = await platform.getOpenRouterApiKey()
       setRevealedApiKey(savedApiKey)
-      setIsConfigured(savedApiKey !== null)
+      setIsConfigured(Boolean(savedApiKey))
       setStatus("idle")
     } catch {
       setStatus("error")
@@ -69,7 +70,7 @@ export function ProviderSettings() {
     try {
       const savedApiKey = await platform.getOpenRouterApiKey()
       setApiKeyDraft(savedApiKey ?? "")
-      setIsConfigured(savedApiKey !== null)
+      setIsConfigured(Boolean(savedApiKey))
       setMode("edit")
       setStatus("idle")
     } catch {
@@ -91,7 +92,7 @@ export function ProviderSettings() {
     try {
       await platform.saveOpenRouterApiKey(nextApiKey)
       setApiKeyDraft("")
-      setIsConfigured(nextApiKey.length > 0)
+      setIsConfigured(Boolean(nextApiKey))
       setMode("view")
       setStatus("saved")
     } catch {
@@ -132,21 +133,21 @@ export function ProviderSettings() {
                   placeholder={isConfigured ? "••••••••••••••••" : "No API key saved"}
                   readOnly={mode === "view"}
                   tabIndex={mode === "view" ? -1 : undefined}
-                  type={mode === "edit" || revealedApiKey !== null ? "text" : "password"}
+                  type={mode === "edit" || isApiKeyRevealed ? "text" : "password"}
                   value={mode === "edit" ? apiKeyDraft : (revealedApiKey ?? "")}
                 />
                 {mode === "view" && isConfigured && (
                   <Button
-                    aria-label={revealedApiKey === null ? "View key" : "Hide key"}
+                    aria-label={isApiKeyRevealed ? "Hide key" : "View key"}
                     className="absolute inset-y-0 right-0.5 my-auto text-muted-foreground active:not-aria-[haspopup]:translate-y-0"
                     disabled={status === "loading"}
                     onClick={revealApiKey}
                     size="icon-sm"
-                    title={revealedApiKey === null ? "View key" : "Hide key"}
+                    title={isApiKeyRevealed ? "Hide key" : "View key"}
                     type="button"
                     variant="ghost"
                   >
-                    {revealedApiKey === null ? <EyeIcon /> : <EyeOffIcon />}
+                    {isApiKeyRevealed ? <EyeOffIcon /> : <EyeIcon />}
                   </Button>
                 )}
               </div>

@@ -1,11 +1,6 @@
 import { CircleCheckIcon, FileLock2Icon } from "lucide-react"
 
-import {
-  SettingsCard,
-  SettingsPageLayout,
-  SettingsRow,
-  SettingsSection,
-} from "./settings-layout"
+import { SettingsCard, SettingsPageLayout, SettingsRow, SettingsSection } from "./settings-layout"
 
 export function GeneralSettings() {
   return (

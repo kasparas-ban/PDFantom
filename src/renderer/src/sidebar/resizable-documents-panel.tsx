@@ -26,10 +26,7 @@ export function ResizableDocumentsPanel({
       side="left"
       width={width}
     >
-      <DocumentsPanel
-        onActivateDocument={onActivateDocument}
-        onOpenDocument={onOpenDocument}
-      />
+      <DocumentsPanel onActivateDocument={onActivateDocument} onOpenDocument={onOpenDocument} />
     </ResizablePanel>
   )
 }

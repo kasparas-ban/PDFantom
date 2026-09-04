@@ -24,10 +24,7 @@ export function ZoomControls() {
       >
         <Minus />
       </Button>
-      <output
-        className="min-w-11 text-center text-[0.72rem] tabular-nums"
-        aria-label="Zoom level"
-      >
+      <output className="min-w-11 text-center text-[0.72rem] tabular-nums" aria-label="Zoom level">
         {Math.round(zoom * 100)}%
       </output>
       <Button

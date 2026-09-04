@@ -114,9 +114,7 @@ test("handles missing, malformed, and unreadable stored data without blocking op
 })
 
 test("rejects positions for other fingerprints and clears replaced positions", () => {
-  const storage = createStorage(
-    JSON.stringify({ fingerprint: document.fingerprint, ...position }),
-  )
+  const storage = createStorage(JSON.stringify({ fingerprint: document.fingerprint, ...position }))
   const replacement = { ...document, fingerprint: "b".repeat(64) }
   expect(loadReadingPosition(storage, replacement)).toBeNull()
 

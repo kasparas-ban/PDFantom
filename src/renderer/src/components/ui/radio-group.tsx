@@ -4,10 +4,7 @@ import { CircleIcon } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 
-function RadioGroup<Value>({
-  className,
-  ...props
-}: RadioGroupPrimitive.Props<Value>) {
+function RadioGroup<Value>({ className, ...props }: RadioGroupPrimitive.Props<Value>) {
   return (
     <RadioGroupPrimitive
       className={cn("grid gap-3", className)}
@@ -17,14 +14,11 @@ function RadioGroup<Value>({
   )
 }
 
-function RadioGroupItem<Value>({
-  className,
-  ...props
-}: RadioPrimitive.Root.Props<Value>) {
+function RadioGroupItem<Value>({ className, ...props }: RadioPrimitive.Root.Props<Value>) {
   return (
     <RadioPrimitive.Root
       className={cn(
-        "inline-flex size-4 shrink-0 items-center justify-center rounded-full border border-input bg-background shadow-xs outline-none transition-[color,box-shadow] data-checked:border-primary focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50",
+        "inline-flex size-4 shrink-0 items-center justify-center rounded-full border border-input bg-background shadow-xs transition-[color,box-shadow] outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 data-checked:border-primary",
         className,
       )}
       data-slot="radio-group-item"

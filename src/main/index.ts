@@ -17,7 +17,7 @@ const launchConfiguration = resolveApplicationLaunchConfiguration({
   platform: process.platform,
 })
 
-if (launchConfiguration.activationPolicy !== undefined) {
+if (launchConfiguration.activationPolicy) {
   app.setActivationPolicy(launchConfiguration.activationPolicy)
 }
 

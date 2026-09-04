@@ -1,11 +1,7 @@
 import { createContext, type PropsWithChildren, useContext, useRef } from "react"
 import { useStore } from "zustand"
 
-import {
-  createAppConfigStore,
-  type AppConfigState,
-  type AppConfigStore,
-} from "./app-config-store"
+import { createAppConfigStore, type AppConfigState, type AppConfigStore } from "./app-config-store"
 
 const AppConfigStoreContext = createContext<AppConfigStore | null>(null)
 

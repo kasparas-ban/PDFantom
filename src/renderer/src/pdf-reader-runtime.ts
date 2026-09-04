@@ -339,7 +339,7 @@ export function createPDFReaderRuntime({
 
     const page = viewer.querySelector<HTMLElement>(`.page[data-page-number="${requestedPage}"]`)
 
-    if (initialReadingPosition && page) {
+    if (page) {
       // Retain the saved scale for mixed-size pages unless the host changed
       // during loading. A fit preference only recalculates for new geometry.
       if (!reconcileInitialPosition || !initialReadingPosition.scalePreset) {

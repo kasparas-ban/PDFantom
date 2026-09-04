@@ -1,5 +1,4 @@
-export const GET_OPENROUTER_API_KEY_STATUS_CHANNEL =
-  "settings:get-openrouter-api-key-status"
+export const GET_OPENROUTER_API_KEY_STATUS_CHANNEL = "settings:get-openrouter-api-key-status"
 export const GET_OPENROUTER_API_KEY_CHANNEL = "settings:get-openrouter-api-key"
 export const SAVE_OPENROUTER_API_KEY_CHANNEL = "settings:save-openrouter-api-key"
 

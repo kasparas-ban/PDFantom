@@ -80,10 +80,7 @@ export function safeViewport({ width, height, density }: ViewportAppearance) {
   )
 }
 
-export function sameAppearance(
-  first: ViewportAppearance | null,
-  second: ViewportAppearance,
-) {
+export function sameAppearance(first: ViewportAppearance | null, second: ViewportAppearance) {
   if (!first) return false
 
   return (
@@ -103,12 +100,12 @@ export function viewportAppearance(element: HTMLElement) {
   }
 }
 
-export const samePosition = (a: ReadingPosition | null, b: ReadingPosition | null) =>
-  a !== null &&
-  b !== null &&
+export const samePosition = (first: ReadingPosition | null, second: ReadingPosition | null) =>
+  first !== null &&
+  second !== null &&
   (
     ["pageNumber", "offsetX", "offsetY", "zoom", "scalePreset", "pageLayout", "pageView"] as const
-  ).every((key) => a[key] === b[key])
+  ).every((key) => first[key] === second[key])
 
 export function compatiblePreview(
   value: ReaderPreview,
