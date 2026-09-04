@@ -7,8 +7,8 @@ import {
   type ComponentProps,
 } from "react"
 
-const PagePortalContext = createContext<HTMLElement | null>(null)
-export const usePagePortal = () => useContext(PagePortalContext)
+const PagePortalContainerContext = createContext<HTMLElement | null>(null)
+export const usePagePortalContainer = () => useContext(PagePortalContainerContext)
 
 export function PageSurface({ children, ...props }: ComponentProps<"main">) {
   const pageRef = useRef<HTMLElement>(null)
@@ -40,10 +40,10 @@ export function PageSurface({ children, ...props }: ComponentProps<"main">) {
 
   return (
     <main ref={pageRef} tabIndex={-1} {...props}>
-      <PagePortalContext value={portalContainer}>
+      <PagePortalContainerContext value={portalContainer}>
         {children}
         <div ref={setPortalContainer} data-page-portals="" />
-      </PagePortalContext>
+      </PagePortalContainerContext>
     </main>
   )
 }

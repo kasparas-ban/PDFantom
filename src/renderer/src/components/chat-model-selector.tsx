@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState } from "react"
+import { useLayoutEffect, useRef, useState, type KeyboardEvent } from "react"
 import { ChevronDownIcon, CpuIcon, SearchIcon } from "lucide-react"
 
 import { GoogleLogo, GroqLogo, MetaLogo, OpenAILogo, XAILogo } from "@/components/model-logos"
@@ -10,7 +10,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
-import { usePagePortal } from "../page-surface"
+import { usePagePortalContainer } from "../page-surface"
 import { useChatModel } from "../sidebar/chat-session"
 
 const modelOptions = [
@@ -39,11 +39,13 @@ const modelOptions = [
   },
 ] as const
 
+type ModelId = (typeof modelOptions)[number]["id"]
+
 export function ChatModelSelector() {
   const { model: modelId, setModel } = useChatModel()
-  const portalContainer = usePagePortal()
-  const active = useRef(false)
-  const modelOptionRefs = useRef(new Map<(typeof modelOptions)[number]["id"], HTMLElement>())
+  const portalContainer = usePagePortalContainer()
+  const shouldRestoreFocus = useRef(false)
+  const modelOptionRefs = useRef(new Map<ModelId, HTMLElement>())
   const [isOpen, setIsOpen] = useState(false)
   const [query, setQuery] = useState("")
   const selectedModel = modelOptions.find((option) => option.id === modelId) ?? modelOptions[0]
@@ -52,29 +54,56 @@ export function ChatModelSelector() {
     model.name.toLocaleLowerCase().includes(normalizedQuery),
   )
 
-  const setDropdownOpen = (open: boolean) => {
+  const handleOpenChange = (open: boolean) => {
     setIsOpen(open)
     if (!open) setQuery("")
   }
 
-  const selectModel = (value: unknown) => {
+  const handleModelChange = (value: unknown) => {
     const model = modelOptions.find((option) => option.id === value)
-    if (model) setModel(model.id)
+    if (!model) return
+
+    setModel(model.id)
+  }
+
+  const handleFilterKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === "Escape") return
+
+    event.stopPropagation()
+
+    if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return
+
+    event.preventDefault()
+    const modelToFocus =
+      event.key === "ArrowDown" ? filteredModels[0] : filteredModels[filteredModels.length - 1]
+    if (!modelToFocus) return
+
+    modelOptionRefs.current.get(modelToFocus.id)?.focus()
+  }
+
+  const setModelOptionRef = (id: ModelId, element: HTMLElement | null) => {
+    if (!element) {
+      modelOptionRefs.current.delete(id)
+      return
+    }
+
+    modelOptionRefs.current.set(id, element)
   }
 
   useLayoutEffect(() => {
-    active.current = true
+    shouldRestoreFocus.current = true
     setIsOpen(false)
     setQuery("")
+
     return () => {
-      active.current = false
+      shouldRestoreFocus.current = false
     }
   }, [])
 
   const SelectedModelIcon = selectedModel.icon
 
   return (
-    <DropdownMenu open={isOpen} onOpenChange={setDropdownOpen}>
+    <DropdownMenu open={isOpen} onOpenChange={handleOpenChange}>
       <DropdownMenuTrigger
         aria-label="Choose model"
         className="flex h-7 min-w-0 shrink items-center justify-start gap-1 rounded-full px-1.5 text-xs font-medium transition-[color,background-color,border-color,box-shadow,opacity,transform,translate,scale] outline-none hover:bg-muted focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:scale-[0.97] data-popup-open:bg-muted"
@@ -84,7 +113,7 @@ export function ChatModelSelector() {
         <ChevronDownIcon className="size-3 shrink-0 text-muted-foreground" />
       </DropdownMenuTrigger>
       <DropdownMenuContent
-        finalFocus={() => active.current}
+        finalFocus={() => shouldRestoreFocus.current}
         align="start"
         className="w-64"
         portalContainer={portalContainer}
@@ -97,37 +126,18 @@ export function ChatModelSelector() {
             aria-label="Filter models"
             className="h-8 pl-8 text-xs"
             onChange={(event) => setQuery(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Escape") return
-
-              event.stopPropagation()
-
-              if (event.key === "ArrowDown" || event.key === "ArrowUp") {
-                event.preventDefault()
-                const model =
-                  event.key === "ArrowDown"
-                    ? filteredModels[0]
-                    : filteredModels[filteredModels.length - 1]
-                if (model) modelOptionRefs.current.get(model.id)?.focus()
-              }
-            }}
+            onKeyDown={handleFilterKeyDown}
             placeholder="Filter models..."
             value={query}
           />
         </div>
-        <DropdownMenuRadioGroup value={selectedModel.id} onValueChange={selectModel}>
+        <DropdownMenuRadioGroup value={selectedModel.id} onValueChange={handleModelChange}>
           {filteredModels.map((model) => {
             const ModelIcon = model.icon
 
             return (
               <DropdownMenuRadioItem
-                ref={(element) => {
-                  if (element) {
-                    modelOptionRefs.current.set(model.id, element)
-                  } else {
-                    modelOptionRefs.current.delete(model.id)
-                  }
-                }}
+                ref={(element) => setModelOptionRef(model.id, element)}
                 closeOnClick
                 key={model.id}
                 value={model.id}

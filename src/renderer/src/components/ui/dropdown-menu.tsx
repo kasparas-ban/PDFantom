@@ -3,6 +3,11 @@ import { CheckIcon } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 
+type DropdownMenuContentProps = MenuPrimitive.Popup.Props &
+  Pick<MenuPrimitive.Positioner.Props, "align" | "alignOffset" | "side" | "sideOffset"> & {
+    portalContainer?: MenuPrimitive.Portal.Props["container"]
+  }
+
 function DropdownMenu(props: MenuPrimitive.Root.Props) {
   return <MenuPrimitive.Root data-slot="dropdown-menu" {...props} />
 }
@@ -19,10 +24,7 @@ function DropdownMenuContent({
   portalContainer,
   className,
   ...props
-}: MenuPrimitive.Popup.Props &
-  Pick<MenuPrimitive.Positioner.Props, "align" | "alignOffset" | "side" | "sideOffset"> & {
-    portalContainer?: MenuPrimitive.Portal.Props["container"]
-  }) {
+}: DropdownMenuContentProps) {
   if (portalContainer === null) return null
 
   return (
