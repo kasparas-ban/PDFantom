@@ -284,10 +284,11 @@ export class ReaderWorkspace {
   }
 
   private async tryPreview(document: DocumentSummary, generation: number, check: number) {
-    if (!this.canPresent()) return
+    const appearance = this.surfaces.appearance()
+    if (!this.canPresent(appearance)) return
+
     const key = documentVersionKey(document)
     const view = this.store.getState().initializeDocument(document)
-    const appearance = this.surfaces.appearance()
     const record = await this.previews.read(document, view.position, appearance)
 
     if (
@@ -303,13 +304,14 @@ export class ReaderWorkspace {
     const preview = await this.surfaces.preview(record)
     if (!preview) return
 
+    const currentAppearance = this.surfaces.appearance()
     if (
-      !this.canPresent() ||
+      !this.canPresent(currentAppearance) ||
       !this.current(generation) ||
       this.checks.get(key) !== check ||
       this.target !== key ||
       (this.presented === key && this.store.getState().activeDocument.status === "loaded") ||
-      !sameAppearance(appearance, this.surfaces.appearance())
+      !sameAppearance(appearance, currentAppearance)
     ) {
       preview.dispose()
       return
@@ -436,25 +438,35 @@ export class ReaderWorkspace {
       !position ||
       this.presented !== key ||
       this.preview ||
-      !this.canPresent() ||
-      !entry.surface.runtime.isReady() ||
       this.store.getState().readingPositionError
     ) {
       return
     }
 
     const appearance = this.surfaces.appearance()
+    if (!this.canPresent(appearance) || !entry.surface.runtime.isReady()) return
+
     const ticket = this.previews.ticket(document)
     const revision = ++entry.captureRevision
-    const eligible = () =>
-      ticket.valid() &&
-      this.entries.get(key) === entry &&
-      entry.captureRevision === revision &&
-      this.presented === key &&
-      this.canPresent() &&
-      Boolean(entry.surface.runtime.isReady()) &&
-      sameAppearance(appearance, this.surfaces.appearance()) &&
-      this.store.getState().views[key]?.position === position
+    const eligible = () => {
+      if (
+        !ticket.valid() ||
+        this.entries.get(key) !== entry ||
+        entry.captureRevision !== revision ||
+        this.presented !== key ||
+        this.store.getState().views[key]?.position !== position
+      ) {
+        return false
+      }
+
+      const currentAppearance = this.surfaces.appearance()
+
+      return (
+        this.canPresent(currentAppearance) &&
+        Boolean(entry.surface.runtime.isReady()) &&
+        sameAppearance(appearance, currentAppearance)
+      )
+    }
 
     try {
       const blob = await entry.surface.capture()
@@ -481,10 +493,10 @@ export class ReaderWorkspace {
     }
   }
 
-  private canPresent() {
+  private canPresent(appearance?: ViewportAppearance) {
     if (this.disposed || this.suspended) return false
-    const { width, height } = this.surfaces.appearance()
-    return width > 0 && height > 0
+    const currentAppearance = appearance ?? this.surfaces.appearance()
+    return currentAppearance.width > 0 && currentAppearance.height > 0
   }
 
   suspend(suspended: boolean) {
@@ -530,8 +542,10 @@ export class ReaderWorkspace {
   }
 
   layoutChanged() {
-    if (!this.canPresent()) return
-    if (this.preview && !sameAppearance(this.previewAppearance, this.surfaces.appearance())) {
+    const appearance = this.surfaces.appearance()
+    if (!this.canPresent(appearance)) return
+
+    if (this.preview && !sameAppearance(this.previewAppearance, appearance)) {
       this.clearPresentation()
       this.store.getState().present({ status: "none" })
     }
