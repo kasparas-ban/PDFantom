@@ -1,7 +1,7 @@
 import { useLayoutEffect, useRef, useState, type KeyboardEvent } from "react"
 import { ChevronDownIcon, CpuIcon, SearchIcon } from "lucide-react"
 
-import { GoogleLogo, GroqLogo, MetaLogo, OpenAILogo, XAILogo } from "@/components/model-logos"
+import { GoogleLogo, MetaLogo, OpenAILogo, XAILogo } from "@/components/model-logos"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,23 +14,22 @@ import { usePagePortalContainer } from "../app/page-surface"
 import { useChatModel } from "../sidebar/chat-session"
 
 const modelOptions = [
-  { id: "gpt-5.4-nano", name: "GPT-5.4 Nano", provider: "OpenAI", icon: OpenAILogo },
-  { id: "gpt-5.4-mini", name: "GPT-5.4 Mini", provider: "OpenAI", icon: OpenAILogo },
+  { id: "openai/gpt-5.4-nano", name: "GPT-5.4 Nano", provider: "OpenAI", icon: OpenAILogo },
+  { id: "openai/gpt-5.4-mini", name: "GPT-5.4 Mini", provider: "OpenAI", icon: OpenAILogo },
   {
-    id: "google-ai-studio/gemini-3.1-flash-lite-preview",
+    id: "google/gemini-3.1-flash-lite-preview",
     name: "Gemini 3.1 Flash Lite",
     provider: "Google",
     icon: GoogleLogo,
   },
-  { id: "grok/grok-4-1-fast", name: "Grok 4.1 Fast", provider: "xAI", icon: XAILogo },
-  { id: "grok/grok-3-mini", name: "Grok 3 Mini", provider: "xAI", icon: XAILogo },
+  { id: "x-ai/grok-4.6", name: "Grok 4.6", provider: "xAI", icon: XAILogo },
   {
-    id: "groq/meta-llama/llama-4-scout-17b-16e-instruct",
+    id: "meta-llama/llama-4-scout",
     name: "Llama 4 Scout 17B",
     provider: "Meta",
     icon: MetaLogo,
   },
-  { id: "groq/qwen/qwen3-32b", name: "Qwen3 32B", provider: "Groq", icon: GroqLogo },
+  { id: "qwen/qwen3-32b", name: "Qwen3 32B", provider: "Qwen", icon: CpuIcon },
   {
     id: "nvidia/nemotron-3-ultra-550b-a55b:free",
     name: "Nemotron 3 Ultra (free)",

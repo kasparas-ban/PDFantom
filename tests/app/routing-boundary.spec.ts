@@ -34,6 +34,8 @@ test("shared memory routes defer the reader on direct entry and preserve one own
         loadDocument: async () => {
           throw new Error("No documents")
         },
+        generateChat: async () => ({ text: "Test response" }),
+        cancelChat: async () => {},
         getOpenRouterApiKeyStatus: async () => ({ isConfigured: false }),
         getOpenRouterApiKey: async () => null,
         saveOpenRouterApiKey: async () => {},

@@ -25,7 +25,7 @@ export function ChatSessionProvider({ children }: PropsWithChildren) {
   const isChatPanelOpen = useAppConfig((state) => state.isChatPanelOpen)
   const [isInitialized, setIsInitialized] = useState(isChatPanelOpen)
   const [runtime, setRuntime] = useState<AssistantRuntime | null>(null)
-  const [model, setModel] = useState("gpt-5.4-nano")
+  const [model, setModel] = useState("openai/gpt-5.4-nano")
 
   useEffect(() => {
     if (isChatPanelOpen) setIsInitialized(true)

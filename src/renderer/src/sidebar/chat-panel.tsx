@@ -7,6 +7,7 @@ import {
   ErrorPrimitive,
   MessagePrimitive,
   ThreadPrimitive,
+  useAuiState,
   useMessageTiming,
   type AssistantRuntime,
 } from "@assistant-ui/react"
@@ -27,6 +28,7 @@ import { ChatModelSelector } from "@/components/chat-model-selector"
 import { PdfantomLogo } from "@/components/pdfantom-logo"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
+import { GENERIC_CHAT_ERROR } from "../../../shared/chat-api"
 import { usePlatform } from "../app/platform"
 import { ChatPanelShell } from "./chat-panel-shell"
 
@@ -220,6 +222,16 @@ function AssistantMessage() {
 }
 
 function ChatError() {
+  const error = useAuiState((state) => {
+    const status = state.message.status
+    const messageError = status?.type === "incomplete" ? status.error : undefined
+
+    if (typeof messageError === "object" && messageError !== null && "message" in messageError) {
+      return messageError.message
+    }
+
+    return messageError
+  })
   const isApiKeyMissing = useContext(ApiKeyMissingContext)
 
   return (
@@ -240,7 +252,7 @@ function ChatError() {
         </>
       ) : (
         <ErrorPrimitive.Message>
-          Unable to generate response. Please try again later.
+          {typeof error === "string" && error.trim() ? error : GENERIC_CHAT_ERROR}
         </ErrorPrimitive.Message>
       )}
     </ErrorPrimitive.Root>

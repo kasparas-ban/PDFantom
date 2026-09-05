@@ -1,5 +1,6 @@
 import { contextBridge, ipcRenderer } from "electron"
 
+import { CANCEL_CHAT_CHANNEL, GENERATE_CHAT_CHANNEL } from "../shared/chat-api"
 import {
   ACTIVATE_DOCUMENT_CHANNEL,
   GET_DOCUMENT_LIBRARY_CHANNEL,
@@ -15,6 +16,8 @@ import {
 import { FULL_SCREEN_CHANGED_CHANNEL, GET_FULL_SCREEN_CHANNEL } from "../shared/window-api"
 
 const rendererApi: RendererApi = {
+  generateChat: (request) => ipcRenderer.invoke(GENERATE_CHAT_CHANNEL, request),
+  cancelChat: (id) => ipcRenderer.invoke(CANCEL_CHAT_CHANNEL, id),
   activateDocument: (documentId, fingerprint) =>
     ipcRenderer.invoke(ACTIVATE_DOCUMENT_CHANNEL, documentId, fingerprint),
   loadDocument: (documentId, fingerprint, bytesNeeded) =>

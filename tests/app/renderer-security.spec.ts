@@ -51,6 +51,8 @@ test("the renderer exposes only the allowlisted preload API", async ({ applicati
   expect(boundary).toEqual({
     apiProperties: [
       "activateDocument",
+      "cancelChat",
+      "generateChat",
       "getDocumentLibrary",
       "getIsFullScreen",
       "getOpenRouterApiKey",
@@ -96,7 +98,7 @@ test("new document IPC arguments reject malformed IDs, fingerprints and bytes fl
   expect(errors).toEqual([true, true, true, true, true])
 })
 
-test("every document channel denies foreign senders and non-main frames", async ({
+test("document and chat channels deny foreign senders and non-main frames", async ({
   application,
 }) => {
   const denied = await application.electronApplication.evaluate(
@@ -107,24 +109,30 @@ test("every document channel denies foreign senders and non-main frames", async 
       )
       const contents = BrowserWindow.getAllWindows()[0].webContents
       return Promise.all(
-        ["document:open", "document:get-library", "document:activate", "document:load"].flatMap(
-          (channel) =>
-            [
-              { sender: null, senderFrame: contents.mainFrame },
-              { sender: contents, senderFrame: { url: contents.mainFrame.url } },
-            ].map(async (event) => {
-              try {
-                await handlers.get(channel)!(event, "unknown", "a".repeat(64), true)
-                return false
-              } catch (error) {
-                return error instanceof Error && error.message.includes("untrusted sender")
-              }
-            }),
+        [
+          "document:open",
+          "document:get-library",
+          "document:activate",
+          "document:load",
+          "chat:generate",
+          "chat:cancel",
+        ].flatMap((channel) =>
+          [
+            { sender: null, senderFrame: contents.mainFrame },
+            { sender: contents, senderFrame: { url: contents.mainFrame.url } },
+          ].map(async (event) => {
+            try {
+              await handlers.get(channel)!(event, "unknown", "a".repeat(64), true)
+              return false
+            } catch (error) {
+              return error instanceof Error && error.message.includes("untrusted sender")
+            }
+          }),
         ),
       )
     },
   )
-  expect(denied).toEqual(Array.from({ length: 8 }, () => true))
+  expect(denied).toEqual(Array.from({ length: 12 }, () => true))
 })
 
 test(
