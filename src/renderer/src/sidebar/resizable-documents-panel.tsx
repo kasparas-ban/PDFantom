@@ -1,4 +1,4 @@
-import { MINIMUM_PANEL_WIDTH } from "../reader-workspace-layout"
+import { MINIMUM_PANEL_WIDTH } from "../reader/reader-workspace-layout"
 import { DocumentsPanel } from "./documents-panel"
 import { ResizablePanel } from "./resizable-panel"
 

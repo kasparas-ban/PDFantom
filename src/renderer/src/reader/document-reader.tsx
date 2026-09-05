@@ -1,8 +1,8 @@
-import { documentVersionKey } from "../../shared/document-api"
+import { documentVersionKey } from "../../../shared/document-api"
 import { createPDFReaderRuntime } from "./pdf-reader-runtime"
 import { capturePreview, decodePreview, viewportAppearance } from "./reader-preview"
 import type { ReaderSurfaces } from "./reader-workspace"
-import type { ReaderSessionStore } from "./store/reader-session-store"
+import type { ReaderSessionStore } from "../store/reader-session-store"
 
 export function createReaderSurfaces(host: HTMLElement, store: ReaderSessionStore): ReaderSurfaces {
   return {

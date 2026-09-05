@@ -1,8 +1,8 @@
 import { expect, test } from "@playwright/test"
 import type { PDFWorker } from "pdfjs-dist"
 
-import type { ReaderPreview } from "../../src/renderer/src/reader-preview"
-import { ReaderWorkspace, type ReaderSurface } from "../../src/renderer/src/reader-workspace"
+import type { ReaderPreview } from "../../src/renderer/src/reader/reader-preview"
+import { ReaderWorkspace, type ReaderSurface } from "../../src/renderer/src/reader/reader-workspace"
 import { createReaderSessionStore } from "../../src/renderer/src/store/reader-session-store"
 import type {
   DocumentApi,

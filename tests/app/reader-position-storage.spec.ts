@@ -5,7 +5,7 @@ import {
   MIN_PDF_SCALE,
   readingPositionSchema,
   type ReadingPosition,
-} from "../../src/renderer/src/reader-model"
+} from "../../src/renderer/src/reader/reader-model"
 import {
   loadReadingPosition,
   saveReadingPosition,

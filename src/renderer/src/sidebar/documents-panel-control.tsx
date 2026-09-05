@@ -1,9 +1,9 @@
 import { PanelLeftClose, PanelLeftOpen } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
-import { useIsFullScreen } from "./hooks/useIsFullScreen"
-import { cn } from "./lib/utils"
-import { useAppConfig } from "./store/app-config-provider"
+import { useIsFullScreen } from "../hooks/useIsFullScreen"
+import { cn } from "../lib/utils"
+import { useAppConfig } from "../store/app-config-provider"
 
 export function DocumentsPanelControl() {
   const isFullScreen = useIsFullScreen()

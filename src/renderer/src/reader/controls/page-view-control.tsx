@@ -1,6 +1,6 @@
-import { Button } from "./components/ui/button"
-import { DoublePageIcon, SinglePageIcon } from "./icons/page-view-icons"
-import { useReaderSession } from "./store/reader-session-provider"
+import { Button } from "@/components/ui/button"
+import { DoublePageIcon, SinglePageIcon } from "../../icons/page-view-icons"
+import { useReaderSession } from "../../store/reader-session-provider"
 
 export function PageViewControl() {
   const pageView = useReaderSession((state) => state.pageView)

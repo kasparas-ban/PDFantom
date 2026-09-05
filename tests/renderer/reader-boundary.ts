@@ -5,13 +5,13 @@ export {
   compatiblePreview,
   decodePreview,
   safeViewport,
-} from "../../src/renderer/src/reader-preview"
+} from "../../src/renderer/src/reader/reader-preview"
 export {
   createPDFReaderRuntime,
   createReaderWorker,
-} from "../../src/renderer/src/pdf-reader-runtime"
-export { ReaderWorkspace } from "../../src/renderer/src/reader-workspace"
-export { createReaderSurfaces } from "../../src/renderer/src/document-reader"
+} from "../../src/renderer/src/reader/pdf-reader-runtime"
+export { ReaderWorkspace } from "../../src/renderer/src/reader/reader-workspace"
+export { createReaderSurfaces } from "../../src/renderer/src/reader/document-reader"
 export { createReaderSessionStore } from "../../src/renderer/src/store/reader-session-store"
 export { getDocument, PDFWorker } from "pdfjs-dist"
 export { PDFViewer } from "pdfjs-dist/web/pdf_viewer.mjs"

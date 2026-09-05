@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test"
 
-import { installPDFRenderingGate } from "../../src/renderer/src/pdf-rendering-gate"
+import { installPDFRenderingGate } from "../../src/renderer/src/reader/pdf-rendering-gate"
 
 test("the PDF rendering gate suspends, resumes and restores its queue", () => {
   const calls: string[] = []

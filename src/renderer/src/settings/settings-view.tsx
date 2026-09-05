@@ -2,7 +2,7 @@ import { ArrowLeftIcon, InfoIcon, KeyRoundIcon, MonitorIcon, SettingsIcon } from
 import { Link, NavLink, Outlet } from "react-router"
 
 import { buttonVariants } from "@/components/ui/button"
-import { PageSurface } from "../page-surface"
+import { PageSurface } from "../app/page-surface"
 
 const navigationItems = [
   {

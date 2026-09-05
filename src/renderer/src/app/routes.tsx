@@ -1,13 +1,13 @@
 import { Link, Navigate, type RouteObject } from "react-router"
 
 import { AppShell } from "./app-shell"
-import { buttonVariants } from "./components/ui/button"
+import { buttonVariants } from "@/components/ui/button"
 import { PageSurface } from "./page-surface"
-import { AboutSettings } from "./settings/about-settings"
-import { AppearanceSettings } from "./settings/appearance-settings"
-import { GeneralSettings } from "./settings/general-settings"
-import { ProviderSettings } from "./settings/provider-settings"
-import { SettingsView } from "./settings/settings-view"
+import { AboutSettings } from "../settings/about-settings"
+import { AppearanceSettings } from "../settings/appearance-settings"
+import { GeneralSettings } from "../settings/general-settings"
+import { ProviderSettings } from "../settings/provider-settings"
+import { SettingsView } from "../settings/settings-view"
 
 export const routes: RouteObject[] = [
   {

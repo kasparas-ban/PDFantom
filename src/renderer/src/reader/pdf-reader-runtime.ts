@@ -9,7 +9,7 @@ import {
   type PDFPageView as PDFPage,
 } from "pdfjs-dist/web/pdf_viewer.mjs"
 
-import type { OpenedDocument } from "../../shared/document-api"
+import type { OpenedDocument } from "../../../shared/document-api"
 import { installPDFRenderingGate } from "./pdf-rendering-gate"
 import {
   DEFAULT_READER_VIEW,

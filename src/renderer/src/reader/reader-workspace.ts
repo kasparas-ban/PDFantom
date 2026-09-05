@@ -5,7 +5,7 @@ import {
   type DocumentApi,
   type DocumentSummary,
   type OpenedDocument,
-} from "../../shared/document-api"
+} from "../../../shared/document-api"
 import type { PDFReaderRuntime, PDFReaderStatus } from "./pdf-reader-runtime"
 import {
   sameAppearance,
@@ -13,7 +13,7 @@ import {
   type ReaderPreviewCache,
   type ViewportAppearance,
 } from "./reader-preview"
-import type { ReaderSessionStore } from "./store/reader-session-store"
+import type { ReaderSessionStore } from "../store/reader-session-store"
 
 export type ReaderSurface = {
   runtime: PDFReaderRuntime

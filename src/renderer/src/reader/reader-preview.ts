@@ -1,6 +1,6 @@
 import { z } from "zod"
 
-import { documentVersionKey, type DocumentSummary } from "../../shared/document-api"
+import { documentVersionKey, type DocumentSummary } from "../../../shared/document-api"
 import { readingPositionSchema, type ReadingPosition } from "./reader-model"
 
 const DATABASE = "pdfantom-reader-previews"

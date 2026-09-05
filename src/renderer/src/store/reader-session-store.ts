@@ -6,7 +6,7 @@ import {
   type DocumentLibrarySnapshot,
   type DocumentSummary,
 } from "../../../shared/document-api"
-import { DEFAULT_READER_VIEW, type PDFScalePreset, type ReadingPosition } from "../reader-model"
+import { DEFAULT_READER_VIEW, type PDFScalePreset, type ReadingPosition } from "../reader/reader-model"
 import {
   loadReadingPosition,
   saveReadingPosition,

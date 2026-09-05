@@ -1,9 +1,9 @@
 import { useEffect, useState, type KeyboardEvent } from "react"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 
-import { Button } from "./components/ui/button"
-import { Input } from "./components/ui/input"
-import { useReaderSession } from "./store/reader-session-provider"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { useReaderSession } from "../../store/reader-session-provider"
 
 export function PageControls() {
   const currentPage = useReaderSession((state) => state.currentPage)

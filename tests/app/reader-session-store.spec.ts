@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test"
 
-import type { ReadingPosition } from "../../src/renderer/src/reader-model"
+import type { ReadingPosition } from "../../src/renderer/src/reader/reader-model"
 import { createReaderSessionStore } from "../../src/renderer/src/store/reader-session-store"
 import { documentVersionKey } from "../../src/shared/document-api"
 

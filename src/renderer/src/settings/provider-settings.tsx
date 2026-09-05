@@ -4,7 +4,7 @@ import { CircleCheckIcon, EyeIcon, EyeOffIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
-import { usePlatform } from "../platform"
+import { usePlatform } from "../app/platform"
 import { SettingsCard, SettingsPageLayout, SettingsSection } from "./settings-layout"
 
 type ApiKeyStatus = "error" | "idle" | "loading" | "saved" | "saving"

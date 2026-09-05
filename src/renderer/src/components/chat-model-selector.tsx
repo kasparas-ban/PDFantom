@@ -10,7 +10,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
-import { usePagePortalContainer } from "../page-surface"
+import { usePagePortalContainer } from "../app/page-surface"
 import { useChatModel } from "../sidebar/chat-session"
 
 const modelOptions = [

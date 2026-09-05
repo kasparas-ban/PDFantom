@@ -1,6 +1,6 @@
 import { lazy, Suspense } from "react"
 
-import { MINIMUM_PANEL_WIDTH } from "../reader-workspace-layout"
+import { MINIMUM_PANEL_WIDTH } from "../reader/reader-workspace-layout"
 import { ChatPanelShell } from "./chat-panel-shell"
 import { useChatSession } from "./chat-session"
 import { ResizablePanel } from "./resizable-panel"

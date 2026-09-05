@@ -3,8 +3,8 @@ import { createRoot } from "react-dom/client"
 import { createMemoryRouter } from "react-router"
 import { RouterProvider } from "react-router/dom"
 
-import { PlatformContext, type Platform } from "../../src/renderer/src/platform"
-import { routes } from "../../src/renderer/src/routes"
+import { PlatformContext, type Platform } from "../../src/renderer/src/app/platform"
+import { routes } from "../../src/renderer/src/app/routes"
 
 export function mountRoutes(host: HTMLElement, platform: Platform, initialEntries: string[]) {
   const router = createMemoryRouter(routes, { initialEntries })

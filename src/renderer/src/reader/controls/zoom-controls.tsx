@@ -1,8 +1,8 @@
 import { Minus, Plus } from "lucide-react"
 
-import { Button } from "./components/ui/button"
-import { MAX_PDF_SCALE, MIN_PDF_SCALE } from "./reader-model"
-import { useReaderSession } from "./store/reader-session-provider"
+import { Button } from "@/components/ui/button"
+import { MAX_PDF_SCALE, MIN_PDF_SCALE } from "../reader-model"
+import { useReaderSession } from "../../store/reader-session-provider"
 
 export function ZoomControls() {
   const zoom = useReaderSession((state) => state.zoom)

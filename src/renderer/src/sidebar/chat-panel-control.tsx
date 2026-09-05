@@ -2,7 +2,7 @@ import { MessageCircleIcon, PanelRightClose, SettingsIcon } from "lucide-react"
 import { Link } from "react-router"
 
 import { Button, buttonVariants } from "@/components/ui/button"
-import { useAppConfig } from "./store/app-config-provider"
+import { useAppConfig } from "../store/app-config-provider"
 
 export function ChatPanelControl() {
   const isChatPanelOpen = useAppConfig((state) => state.isChatPanelOpen)

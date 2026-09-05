@@ -1,15 +1,15 @@
 import { Activity, useCallback, useEffect, useState } from "react"
 import { Outlet, useMatches } from "react-router"
 
-import { createReaderSurfaces } from "./document-reader"
-import { createReaderWorker } from "./pdf-reader-runtime"
+import { createReaderSurfaces } from "../reader/document-reader"
+import { createReaderWorker } from "../reader/pdf-reader-runtime"
 import { usePlatform } from "./platform"
-import { ReaderPage } from "./reader-page"
-import { ReaderPreviewCache } from "./reader-preview"
-import { ReaderWorkspace } from "./reader-workspace"
-import { ChatSessionProvider } from "./sidebar/chat-session"
-import { AppConfigProvider, useAppConfig } from "./store/app-config-provider"
-import { ReaderSessionProvider, useReaderSessionStore } from "./store/reader-session-provider"
+import { ReaderPage } from "../reader/reader-page"
+import { ReaderPreviewCache } from "../reader/reader-preview"
+import { ReaderWorkspace } from "../reader/reader-workspace"
+import { ChatSessionProvider } from "../sidebar/chat-session"
+import { AppConfigProvider, useAppConfig } from "../store/app-config-provider"
+import { ReaderSessionProvider, useReaderSessionStore } from "../store/reader-session-provider"
 
 export function AppShell() {
   return (

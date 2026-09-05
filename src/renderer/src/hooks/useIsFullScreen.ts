@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
 
-import { usePlatform } from "../platform"
+import { usePlatform } from "../app/platform"
 
 export function useIsFullScreen() {
   const platform = usePlatform()

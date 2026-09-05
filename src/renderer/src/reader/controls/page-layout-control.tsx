@@ -1,6 +1,6 @@
-import { Button } from "./components/ui/button"
-import { LayoutHorizontalIcon, LayoutVerticalIcon } from "./icons/layout-icons"
-import { useReaderSession } from "./store/reader-session-provider"
+import { Button } from "@/components/ui/button"
+import { LayoutHorizontalIcon, LayoutVerticalIcon } from "../../icons/layout-icons"
+import { useReaderSession } from "../../store/reader-session-provider"
 
 export function PageLayoutControl() {
   const pageLayout = useReaderSession((state) => state.pageLayout)

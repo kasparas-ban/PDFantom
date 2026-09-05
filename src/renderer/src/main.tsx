@@ -3,8 +3,8 @@ import { createRoot } from "react-dom/client"
 import { createHashRouter } from "react-router"
 import { RouterProvider } from "react-router/dom"
 
-import { PlatformContext } from "./platform"
-import { routes } from "./routes"
+import { PlatformContext } from "./app/platform"
+import { routes } from "./app/routes"
 
 import "pdfjs-dist/web/pdf_viewer.css"
 import "./styles.css"

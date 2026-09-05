@@ -27,7 +27,7 @@ import { ChatModelSelector } from "@/components/chat-model-selector"
 import { PdfantomLogo } from "@/components/pdfantom-logo"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
-import { usePlatform } from "../platform"
+import { usePlatform } from "../app/platform"
 import { ChatPanelShell } from "./chat-panel-shell"
 
 const ApiKeyMissingContext = createContext(false)

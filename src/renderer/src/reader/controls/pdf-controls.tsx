@@ -1,11 +1,11 @@
-import { useIsFullScreen } from "./hooks/useIsFullScreen"
-import { cn } from "./lib/utils"
+import { useIsFullScreen } from "../../hooks/useIsFullScreen"
+import { cn } from "../../lib/utils"
 import { PageControls } from "./page-controls"
 import { PageFitControl } from "./page-fit-control"
 import { PageLayoutControl } from "./page-layout-control"
 import { PageViewControl } from "./page-view-control"
-import { useAppConfig } from "./store/app-config-provider"
-import { useReaderSession } from "./store/reader-session-provider"
+import { useAppConfig } from "../../store/app-config-provider"
+import { useReaderSession } from "../../store/reader-session-provider"
 import { ZoomControls } from "./zoom-controls"
 
 export function PDFControls() {

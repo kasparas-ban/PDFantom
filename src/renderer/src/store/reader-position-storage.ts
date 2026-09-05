@@ -1,7 +1,7 @@
 import { z } from "zod"
 
 import type { DocumentSummary } from "../../../shared/document-api"
-import { readingPositionSchema, type ReadingPosition } from "../reader-model"
+import { readingPositionSchema, type ReadingPosition } from "../reader/reader-model"
 
 export type ReadingPositionStorage = Pick<Storage, "getItem" | "removeItem" | "setItem">
 

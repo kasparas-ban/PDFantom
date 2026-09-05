@@ -1,6 +1,6 @@
-import { Button } from "./components/ui/button"
-import { FitPageIcon } from "./icons/fit-page-icon"
-import { useReaderSession } from "./store/reader-session-provider"
+import { Button } from "@/components/ui/button"
+import { FitPageIcon } from "../../icons/fit-page-icon"
+import { useReaderSession } from "../../store/reader-session-provider"
 
 export function PageFitControl() {
   const scalePreset = useReaderSession((state) => state.scalePreset)
