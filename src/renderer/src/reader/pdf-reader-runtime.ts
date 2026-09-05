@@ -11,6 +11,7 @@ import {
 
 import type { OpenedDocument } from "../../../shared/document-api"
 import { installPDFRenderingGate } from "./pdf-rendering-gate"
+import { defaultPinchGesturePolicy, type PinchGesturePolicy } from "./pinch-gesture-policy"
 import {
   DEFAULT_READER_VIEW,
   MAX_PDF_SCALE,
@@ -54,6 +55,7 @@ type PDFReaderRuntimeOptions = {
   readonly onPinchZoom: (scale: number) => void
   readonly onStatusChange: (status: PDFReaderStatus) => void
   readonly onSettled: () => void
+  readonly pinchGesturePolicy?: PinchGesturePolicy
 }
 
 export const createReaderWorker = () => new PDFWorker()
@@ -72,6 +74,7 @@ export function createPDFReaderRuntime({
   onStatusChange,
   onSettled,
   worker,
+  pinchGesturePolicy = defaultPinchGesturePolicy(),
 }: PDFReaderRuntimeOptions) {
   const documentId = document.id
   const abortController = new AbortController()
@@ -102,8 +105,8 @@ export function createPDFReaderRuntime({
   let requestedPageLayout: PDFPageLayout = DEFAULT_READER_VIEW.pageLayout
   let requestedPageView: PDFPageView = DEFAULT_READER_VIEW.pageView
   let requestedScale: PDFScale = DEFAULT_READER_VIEW.scalePreset
-  let pendingPinchFactor = 1
-  let pinchDirection = 0
+  let pinchUnusedFactor = 1
+  let pinchContainerBox: { left: number; top: number } | null = null
   let isCtrlKeyDown = false
 
   const savePosition = () => {
@@ -414,8 +417,6 @@ export function createPDFReaderRuntime({
   }
 
   const handleKeyDown = (event: KeyboardEvent) => {
-    if (lifecycle !== "presented") return
-
     if (event.key === "Control") isCtrlKeyDown = true
   }
 
@@ -423,54 +424,40 @@ export function createPDFReaderRuntime({
     if (event.key === "Control") isCtrlKeyDown = false
   }
 
+  const readPinchContainerBox = () => {
+    const bounds = container.getBoundingClientRect()
+
+    return { left: bounds.left, top: bounds.top }
+  }
+
   const handleWheel = (event: WheelEvent) => {
     if (lifecycle !== "presented" || !pdfViewer?.pagesCount) return
 
-    // Chromium represents a trackpad pinch as a pixel-based Ctrl+wheel gesture.
-    // Keep the same conservative shape check used by the pdf.js viewer so a
-    // regular horizontal or coarse mouse-wheel scroll remains a scroll.
-    const deltaMode = event.deltaMode
-    const scaleFactor = Math.exp(-event.deltaY / 100)
-    const isTrackpadPinch =
-      event.ctrlKey &&
-      !isCtrlKeyDown &&
-      deltaMode === WheelEvent.DOM_DELTA_PIXEL &&
-      event.deltaX === 0 &&
-      Math.abs(scaleFactor - 1) < 0.05 &&
-      event.deltaZ === 0
-
-    if (!isTrackpadPinch) return
+    if (!pinchGesturePolicy.isPinch(event, isCtrlKeyDown)) return
 
     event.preventDefault()
 
-    const direction = Math.sign(scaleFactor - 1)
-
-    if (direction !== pinchDirection) {
-      pendingPinchFactor = 1
-      pinchDirection = direction
-    }
-
-    pendingPinchFactor *= scaleFactor
-
-    const unboundedScale = pdfViewer.currentScale * pendingPinchFactor
-    const nextScale = Math.min(
+    const rawFactor = Math.exp(-event.deltaY / 100)
+    const target = Math.min(
       MAX_PDF_SCALE,
-      Math.max(
-        MIN_PDF_SCALE,
-        direction > 0
-          ? Math.floor(unboundedScale * 100) / 100
-          : Math.ceil(unboundedScale * 100) / 100,
-      ),
+      Math.max(MIN_PDF_SCALE, pdfViewer.currentScale * rawFactor * pinchUnusedFactor),
     )
+    const nextScale = Math.round(target * 100) / 100
+    pinchUnusedFactor = target / nextScale
     if (nextScale === pdfViewer.currentScale) return
 
-    pendingPinchFactor = unboundedScale / nextScale
     requestedScale = nextScale
+
+    pinchContainerBox ??= readPinchContainerBox()
+    const origin: [number, number] = [
+      event.clientX - pinchContainerBox.left + container.offsetLeft,
+      event.clientY - pinchContainerBox.top + container.offsetTop,
+    ]
 
     pdfViewer.updateScale({
       drawingDelay: PINCH_RENDER_DELAY,
       scaleFactor: nextScale / pdfViewer.currentScale,
-      origin: [event.clientX, event.clientY],
+      origin,
     })
     onPinchZoom(nextScale)
   }
@@ -480,6 +467,8 @@ export function createPDFReaderRuntime({
   }
 
   const resizeObserver = new ResizeObserver(() => {
+    pinchContainerBox = null
+
     if (
       !container.clientWidth ||
       !container.clientHeight ||
@@ -594,6 +583,7 @@ export function createPDFReaderRuntime({
 
       lifecycle = next
       renderingGate?.setActive(next !== "inactive")
+      pinchContainerBox = null
       isCtrlKeyDown = false
 
       if (next === "inactive") {
