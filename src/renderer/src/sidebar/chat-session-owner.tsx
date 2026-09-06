@@ -1,4 +1,4 @@
-import { useLayoutEffect } from "react"
+import { useLayoutEffect, useMemo } from "react"
 import {
   AssistantRuntimeProvider,
   useAui,
@@ -7,7 +7,7 @@ import {
 } from "@assistant-ui/react"
 
 import { usePlatform } from "../app/platform"
-import { supportsEffortChatModel } from "./chat-models"
+import { createChatModelAdapter } from "./chat-model-adapter"
 import { useChatModelStore } from "./chat-session"
 
 type ChatSessionOwnerProps = {
@@ -17,44 +17,23 @@ type ChatSessionOwnerProps = {
 export function ChatSessionOwner({ onReady }: ChatSessionOwnerProps) {
   const platform = usePlatform()
   const chatModelStore = useChatModelStore()
-
-  const runtime = useLocalRuntime({
-    async run({ messages, abortSignal }) {
-      const id = crypto.randomUUID()
-      const cancel = () => {
-        void platform.cancelChat(id).catch(() => undefined)
-      }
-      abortSignal.throwIfAborted()
-      abortSignal.addEventListener("abort", cancel, { once: true })
-
-      try {
+  const adapter = useMemo(
+    () =>
+      createChatModelAdapter(platform, () => {
         const { model, effort, models } = chatModelStore.getState()
-        const supportsEffort = models.some(
-          (option) => option.id === model && supportsEffortChatModel(option),
-        )
-        const result = await platform.generateChat({
-          id,
-          model,
-          ...(supportsEffort && { effort }),
-          messages: messages
-            .map((message) => ({
-              role: message.role,
-              content: message.content
-                .filter((part) => part.type === "text")
-                .map((part) => part.text)
-                .join("\n"),
-            }))
-            .filter((message) => message.content.length > 0),
-        })
-        abortSignal.throwIfAborted()
-        if (!result.text) throw new Error(result.error)
+        const selectedModel = models.find((option) => option.id === model)
+        if (!selectedModel) throw new Error("The selected chat model must belong to the catalog")
 
-        return { content: [{ type: "text", text: result.text }] }
-      } finally {
-        abortSignal.removeEventListener("abort", cancel)
-      }
-    },
-  })
+        return {
+          model,
+          effort,
+          source: selectedModel.source,
+          supportsEffort: selectedModel.supportsEffort === true,
+        }
+      }),
+    [chatModelStore, platform],
+  )
+  const runtime = useLocalRuntime(adapter)
 
   return (
     <AssistantRuntimeProvider runtime={runtime}>

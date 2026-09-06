@@ -1,7 +1,7 @@
-import type { BrowserWindow, IpcMainInvokeEvent } from "electron"
+import type { BrowserWindow, IpcMainEvent, IpcMainInvokeEvent } from "electron"
 
 export function isTrustedRenderer(
-  event: IpcMainInvokeEvent,
+  event: IpcMainEvent | IpcMainInvokeEvent,
   window: BrowserWindow,
   rendererUrl: string,
 ) {

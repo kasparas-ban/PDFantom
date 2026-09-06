@@ -204,7 +204,12 @@ for (const destination of ["Settings", "hidden panel"] as const) {
         return new Promise<Response>((resolve, reject) => {
           init?.signal?.addEventListener("abort", () => reject(new Error("Aborted")), { once: true })
           Reflect.set(globalThis, "finishChat", () => {
-            resolve(Response.json({ choices: [{ message: { content: "Started while hidden" } }] }))
+            resolve(
+              new Response(
+                'data: {"choices":[{"delta":{"content":"Started while hidden"}}]}\n\ndata: [DONE]\n\n',
+                { headers: { "Content-Type": "text/event-stream" } },
+              ),
+            )
           })
         })
       }

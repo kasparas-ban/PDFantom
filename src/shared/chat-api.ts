@@ -1,10 +1,13 @@
-export const GENERATE_CHAT_CHANNEL = "chat:generate"
-export const CANCEL_CHAT_CHANNEL = "chat:cancel"
+export const STREAM_CHAT_CHANNEL = "chat:stream"
 export const LIST_PROVIDER_MODELS_CHANNEL = "chat:list-provider-models"
 
 export const GENERIC_CHAT_ERROR = "Unable to generate response. Please try again later."
 
 export type ChatModelSourceId = "openrouter" | "chatgpt"
+
+export const CHAT_PROVIDER_IDS = ["openrouter"] as const
+
+export type ChatProviderId = (typeof CHAT_PROVIDER_IDS)[number]
 
 export const CHAT_EFFORT_LEVELS = ["low", "medium", "high"] as const
 
@@ -14,12 +17,28 @@ export const DEFAULT_CHAT_EFFORT: ChatEffortLevel = "medium"
 
 export type ChatRequest = {
   id: string
+  provider: ChatProviderId
   model: string
   messages: { role: "user" | "assistant" | "system"; content: string }[]
   effort?: ChatEffortLevel
 }
 
-export type ChatResult = { text: string; error?: never } | { error: string; text?: never }
+export type ChatUsage = {
+  inputTokens?: number
+  outputTokens?: number
+  totalTokens?: number
+}
+
+export type ChatResponseMetadata = {
+  provider: ChatProviderId
+  model: string
+  usage?: ChatUsage
+}
+
+export type ChatStreamEvent =
+  | { type: "delta"; text: string }
+  | { type: "done"; metadata: ChatResponseMetadata }
+  | { type: "error"; message: string }
 
 export type ChatModelInfo = {
   id: string
@@ -37,9 +56,7 @@ export function isFreeOpenRouterModelId(id: string) {
 }
 
 export function isTextOutputModel(outputModalities?: string[] | null) {
-  return (
-    outputModalities?.some((modality) => modality.toLocaleLowerCase() === "text") ?? true
-  )
+  return outputModalities?.some((modality) => modality.toLocaleLowerCase() === "text") ?? true
 }
 
 export type ChatModelListResult =
@@ -47,7 +64,6 @@ export type ChatModelListResult =
   | { error: string; models?: never }
 
 export type ChatApi = {
-  generateChat(request: ChatRequest): Promise<ChatResult>
-  cancelChat(id: string): Promise<void>
+  streamChat(request: ChatRequest, onEvent: (event: ChatStreamEvent) => void): () => void
   listProviderModels(source: ChatModelSourceId): Promise<ChatModelListResult>
 }

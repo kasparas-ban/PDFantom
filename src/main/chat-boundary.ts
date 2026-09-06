@@ -1,18 +1,20 @@
-import { ipcMain, type BrowserWindow } from "electron"
+import { ipcMain, type BrowserWindow, type IpcMainEvent, type MessagePortMain } from "electron"
 import { z } from "zod"
 
 import {
-  CANCEL_CHAT_CHANNEL,
   CHAT_EFFORT_LEVELS,
-  GENERATE_CHAT_CHANNEL,
+  CHAT_PROVIDER_IDS,
   GENERIC_CHAT_ERROR,
-  type ChatResult,
+  STREAM_CHAT_CHANNEL,
+  type ChatStreamEvent,
 } from "../shared/chat-api"
 import type { OpenRouterApiKeyStore } from "./openrouter-api-key-store"
+import { streamOpenRouterChat } from "./openrouter-chat"
 import { isTrustedRenderer } from "./trusted-renderer"
 
 const requestSchema = z.object({
   id: z.uuid(),
+  provider: z.enum(CHAT_PROVIDER_IDS),
   model: z
     .string()
     .min(1)
@@ -29,78 +31,82 @@ const requestSchema = z.object({
     .max(200),
   effort: z.enum(CHAT_EFFORT_LEVELS).optional(),
 })
-const responseSchema = z.object({
-  choices: z.array(z.object({ message: z.object({ content: z.string().min(1) }) })).min(1),
-})
-
-const errorResponseSchema = z.object({
-  error: z.object({ message: z.string().trim().min(1).max(2_000) }),
-})
 
 export function registerChatBoundary(
   window: BrowserWindow,
   rendererUrl: string,
   apiKeyStore: OpenRouterApiKeyStore,
 ) {
-  const requests = new Map<string, AbortController>()
+  const requests = new Map<string, { controller: AbortController; port: MessagePortMain }>()
 
-  ipcMain.handle(GENERATE_CHAT_CHANNEL, async (event, input: unknown): Promise<ChatResult> => {
+  const handleStream = (event: IpcMainEvent, input: unknown) => {
+    const [port] = event.ports
+    if (!port) return
+
     if (!isTrustedRenderer(event, window, rendererUrl)) {
-      throw new Error("Chat access was denied for an untrusted sender.")
+      port.close()
+      return
     }
+
+    port.start()
 
     const parsed = requestSchema.safeParse(input)
-    if (!parsed.success) return { error: GENERIC_CHAT_ERROR }
+    if (!parsed.success) {
+      port.postMessage({ type: "error", message: GENERIC_CHAT_ERROR } satisfies ChatStreamEvent)
+      return
+    }
 
-    const { id, model, messages, effort } = parsed.data
-    if (requests.size > 0) return { error: GENERIC_CHAT_ERROR }
+    const { id } = parsed.data
+    if (requests.size > 0) {
+      port.postMessage({ type: "error", message: GENERIC_CHAT_ERROR } satisfies ChatStreamEvent)
+      return
+    }
 
     const controller = new AbortController()
-    requests.set(id, controller)
+    requests.set(id, { controller, port })
+    port.once("close", () => controller.abort())
 
-    try {
-      const apiKey = await apiKeyStore.getApiKey()
-      if (!apiKey) return { error: "Connect an AI provider" }
+    void (async () => {
+      try {
+        const apiKey = await apiKeyStore.getApiKey()
+        if (!apiKey) {
+          port.postMessage({
+            type: "error",
+            message: "Connect an AI provider",
+          } satisfies ChatStreamEvent)
+          return
+        }
 
-      const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model,
-          messages,
-          stream: false,
-          ...(effort && { reasoning: { effort } }),
-        }),
-        signal: AbortSignal.any([controller.signal, AbortSignal.timeout(120_000)]),
-        redirect: "error",
-      })
+        for await (const streamEvent of streamOpenRouterChat(
+          parsed.data,
+          apiKey,
+          controller.signal,
+        )) {
+          port.postMessage(streamEvent)
+        }
+      } catch {
+        if (controller.signal.aborted) return
 
-      if (!response.ok) {
-        const body = errorResponseSchema.safeParse(await response.json())
-        return { error: body.success ? body.data.error.message : GENERIC_CHAT_ERROR }
+        port.postMessage({
+          type: "error",
+          message: GENERIC_CHAT_ERROR,
+        } satisfies ChatStreamEvent)
+      } finally {
+        requests.delete(id)
       }
+    })()
+  }
 
-      const body = responseSchema.safeParse(await response.json())
-      if (!body.success) return { error: GENERIC_CHAT_ERROR }
-
-      return { text: body.data.choices[0].message.content }
-    } catch {
-      return { error: GENERIC_CHAT_ERROR }
-    } finally {
-      requests.delete(id)
-    }
-  })
-
-  ipcMain.handle(CANCEL_CHAT_CHANNEL, (event, id: unknown) => {
-    if (!isTrustedRenderer(event, window, rendererUrl)) {
-      throw new Error("Chat access was denied for an untrusted sender.")
-    }
-
-    if (typeof id === "string") requests.get(id)?.abort()
-  })
+  ipcMain.on(STREAM_CHAT_CHANNEL, handleStream)
 
   window.webContents.on("destroyed", () => {
-    for (const controller of requests.values()) controller.abort()
+    ipcMain.removeListener(STREAM_CHAT_CHANNEL, handleStream)
+
+    for (const { controller, port } of requests.values()) {
+      controller.abort()
+      port.close()
+    }
+
     requests.clear()
   })
 }

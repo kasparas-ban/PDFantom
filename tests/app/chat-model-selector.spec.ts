@@ -29,10 +29,20 @@ test.beforeEach(async ({ application }) => {
         loadDocument: async () => {
           throw new Error("No documents")
         },
-        generateChat: async ({ model, effort }) => ({
-          text: `Response from ${model}${effort ? ` at ${effort} effort` : ""}`,
-        }),
-        cancelChat: async () => {},
+        streamChat: ({ model, effort }, onEvent) => {
+          queueMicrotask(() => {
+            onEvent({
+              type: "delta",
+              text: `Response from ${model}${effort ? ` at ${effort} effort` : ""}`,
+            })
+            onEvent({
+              type: "done",
+              metadata: { provider: "openrouter", model },
+            })
+          })
+
+          return () => {}
+        },
         listProviderModels: async () => ({
           models: [
             { id: "test/live-model", name: "Live test model" },

@@ -1,10 +1,10 @@
 import { contextBridge, ipcRenderer } from "electron"
 
 import {
-  CANCEL_CHAT_CHANNEL,
-  GENERATE_CHAT_CHANNEL,
   LIST_PROVIDER_MODELS_CHANNEL,
+  STREAM_CHAT_CHANNEL,
   type ChatModelSourceId,
+  type ChatStreamEvent,
 } from "../shared/chat-api"
 import {
   ACTIVATE_DOCUMENT_CHANNEL,
@@ -21,8 +21,34 @@ import {
 import { FULL_SCREEN_CHANGED_CHANNEL, GET_FULL_SCREEN_CHANNEL } from "../shared/window-api"
 
 const rendererApi: RendererApi = {
-  generateChat: (request) => ipcRenderer.invoke(GENERATE_CHAT_CHANNEL, request),
-  cancelChat: (id) => ipcRenderer.invoke(CANCEL_CHAT_CHANNEL, id),
+  streamChat: (request, onEvent) => {
+    const { port1, port2 } = new MessageChannel()
+    let stopped = false
+
+    function stop() {
+      if (stopped) return
+
+      stopped = true
+      port1.removeEventListener("message", handleMessage)
+      port1.close()
+    }
+
+    function handleMessage(event: MessageEvent<ChatStreamEvent>) {
+      const isTerminal = event.data.type === "done" || event.data.type === "error"
+
+      try {
+        onEvent(event.data)
+      } finally {
+        if (isTerminal) stop()
+      }
+    }
+
+    port1.addEventListener("message", handleMessage)
+    port1.start()
+    ipcRenderer.postMessage(STREAM_CHAT_CHANNEL, request, [port2])
+
+    return stop
+  },
   activateDocument: (documentId, fingerprint) =>
     ipcRenderer.invoke(ACTIVATE_DOCUMENT_CHANNEL, documentId, fingerprint),
   loadDocument: (documentId, fingerprint, bytesNeeded) =>

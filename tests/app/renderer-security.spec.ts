@@ -51,8 +51,6 @@ test("the renderer exposes only the allowlisted preload API", async ({ applicati
   expect(boundary).toEqual({
     apiProperties: [
       "activateDocument",
-      "cancelChat",
-      "generateChat",
       "getDocumentLibrary",
       "getIsFullScreen",
       "getOpenRouterApiKey",
@@ -62,6 +60,7 @@ test("the renderer exposes only the allowlisted preload API", async ({ applicati
       "onFullScreenChange",
       "openDocument",
       "saveOpenRouterApiKey",
+      "streamChat",
     ],
     apiSymbols: [],
     exposedGlobals: [],
@@ -115,8 +114,6 @@ test("document and chat channels deny foreign senders and non-main frames", asyn
           "document:get-library",
           "document:activate",
           "document:load",
-          "chat:generate",
-          "chat:cancel",
           "chat:list-provider-models",
         ].flatMap((channel) =>
           [
@@ -134,7 +131,55 @@ test("document and chat channels deny foreign senders and non-main frames", asyn
       )
     },
   )
-  expect(denied).toEqual(Array.from({ length: 14 }, () => true))
+  expect(denied).toEqual(Array.from({ length: 10 }, () => true))
+})
+
+test("the chat stream closes ports from foreign senders and non-main frames", async ({
+  application,
+}) => {
+  const denied = await application.electronApplication.evaluate(
+    async ({ ipcMain, BrowserWindow, MessageChannelMain }) => {
+      const [listener] = ipcMain.listeners("chat:stream")
+      const contents = BrowserWindow.getAllWindows()[0].webContents
+
+      return Promise.all(
+        [
+          { sender: null, senderFrame: contents.mainFrame },
+          { sender: contents, senderFrame: { url: contents.mainFrame.url } },
+        ].map(
+          (event) =>
+            new Promise<boolean>((resolve) => {
+              const { port1, port2 } = new MessageChannelMain()
+              const timeout = setTimeout(() => {
+                resolve(false)
+                port1.close()
+              }, 1_000)
+
+              port1.once("close", () => {
+                clearTimeout(timeout)
+                resolve(true)
+              })
+              port1.once("message", () => {
+                clearTimeout(timeout)
+                resolve(false)
+                port1.close()
+              })
+              port1.start()
+              listener(
+                { ...event, ports: [port2] },
+                {
+                  id: crypto.randomUUID(),
+                  model: "openai/gpt-5.4-nano",
+                  messages: [{ role: "user", content: "Hello" }],
+                },
+              )
+            }),
+        ),
+      )
+    },
+  )
+
+  expect(denied).toEqual([true, true])
 })
 
 test(
