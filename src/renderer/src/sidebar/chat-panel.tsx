@@ -11,6 +11,7 @@ import {
   useAuiState,
   useMessageTiming,
   type AssistantClient,
+  type TextMessagePartProps,
 } from "@assistant-ui/react"
 import {
   ArrowUpIcon,
@@ -32,6 +33,7 @@ import { Button, buttonVariants } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { GENERIC_CHAT_ERROR } from "../../../shared/chat-api"
 import { usePlatform } from "../app/platform"
+import { ChatMarkdown } from "./chat-markdown"
 import { ChatPanelShell } from "./chat-panel-shell"
 
 const ApiKeyMissingContext = createContext(false)
@@ -117,7 +119,7 @@ function ChatThread() {
           />
         </div>
 
-        <ThreadPrimitive.ViewportFooter className="sticky bottom-0 mt-auto bg-sidebar pb-4">
+        <ThreadPrimitive.ViewportFooter className="sticky bottom-0 mt-auto rounded-t-xl bg-sidebar pb-4">
           <ChatComposer />
         </ThreadPrimitive.ViewportFooter>
       </ThreadPrimitive.Viewport>
@@ -207,7 +209,7 @@ function AssistantMessage() {
   return (
     <MessagePrimitive.Root className="group/message text-sm leading-relaxed wrap-break-word">
       <div className="py-1">
-        <MessagePrimitive.Parts />
+        <MessagePrimitive.Parts components={{ Text: AssistantMarkdown }} />
         <AuiIf
           condition={(state) =>
             state.message.status?.type === "running" && state.message.parts.length === 0
@@ -224,6 +226,10 @@ function AssistantMessage() {
       <AssistantActionBar />
     </MessagePrimitive.Root>
   )
+}
+
+function AssistantMarkdown({ text }: TextMessagePartProps) {
+  return <ChatMarkdown text={text} />
 }
 
 function ChatError() {
