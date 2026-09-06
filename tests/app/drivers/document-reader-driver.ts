@@ -36,7 +36,7 @@ export class DocumentReaderDriver {
   }
 
   chatModelOption(name: string) {
-    return this.page.getByRole("menuitemradio", { name })
+    return this.page.getByRole("menuitemradio", { name, exact: true })
   }
 
   get chatVoiceInputButton() {

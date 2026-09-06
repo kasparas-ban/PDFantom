@@ -14,6 +14,7 @@ export type ChatModelOption = {
   providerLabel: string
   source: ChatModelSourceId
   icon: ChatModelIcon
+  unavailableReason?: string
   /** Renders the model inside a named reveal section instead of the main list. */
   groupId?: ChatModelGroupId
 }
@@ -171,33 +172,24 @@ export const CHAT_MODEL_PROVIDERS: ChatModelProvider[] = [
     source: "chatgpt",
     label: "ChatGPT models",
     icon: OpenAILogo,
-    bundledModels: BUNDLED_CHATGPT_MODELS,
+    bundledModels: BUNDLED_CHATGPT_MODELS.map((model) => ({
+      ...model,
+      unavailableReason: "ChatGPT support is not available yet",
+    })),
   },
 ]
-
-export const CHAT_MODELS: readonly ChatModelOption[] = CHAT_MODEL_PROVIDERS.flatMap(
-  (provider) => provider.bundledModels,
-)
-
-export function getChatModel(id: string | null | undefined) {
-  return CHAT_MODELS.find((model) => model.id === id) ?? CHAT_MODELS[0]
-}
-
-export function getChatModelSource(id: string | null | undefined): ChatModelSourceId {
-  return getChatModel(id).source
-}
 
 export function getChatModelGroupLabel(groupId: ChatModelGroupId) {
   return CHAT_MODEL_GROUPS[groupId].label
 }
 
 export function mergeProviderListings(
-  bundled: readonly ChatModelOption[],
+  existingModels: readonly ChatModelOption[],
   listings: ChatModelInfo[],
   mapListing: (listing: ChatModelInfo) => ChatModelOption,
 ): ChatModelOption[] {
-  const knownIds = new Set(bundled.map((model) => model.id))
-  const merged = [...bundled]
+  const knownIds = new Set(existingModels.map((model) => model.id))
+  const merged = [...existingModels]
 
   for (const listing of listings) {
     if (knownIds.has(listing.id)) continue

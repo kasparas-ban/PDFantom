@@ -13,7 +13,7 @@ import { useStore } from "zustand"
 import { usePlatform } from "../app/platform"
 import { useAppConfig } from "../store/app-config-provider"
 import { createChatModelStore, type ChatModelStore } from "./chat-model-store"
-import { CHAT_MODEL_PROVIDERS, mergeProviderListings } from "./chat-models"
+import { CHAT_MODEL_PROVIDERS } from "./chat-models"
 
 const ChatClientContext = createContext<AssistantClient | null>(null)
 const ChatModelStoreContext = createContext<ChatModelStore | null>(null)
@@ -47,12 +47,7 @@ export function ChatSessionProvider({ children }: PropsWithChildren) {
 
             if (cancelled || !result?.models) return
 
-            modelStore
-              .getState()
-              .setProviderModels(
-                provider.source,
-                mergeProviderListings(provider.bundledModels, result.models, provider.mapListing),
-              )
+            modelStore.getState().addProviderListings(provider.source, result.models)
           })(),
         )
       }
@@ -88,5 +83,9 @@ export function useChatModelStore() {
 
 export function useChatModel() {
   const store = useChatModelStore()
-  return useStore(store)
+  const state = useStore(store)
+  const selectedModel = state.models.find((model) => model.id === state.model)
+  if (!selectedModel) throw new Error("The selected chat model must belong to the catalog")
+
+  return { ...state, selectedModel }
 }

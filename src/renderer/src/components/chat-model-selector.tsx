@@ -1,11 +1,4 @@
-import {
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-  type KeyboardEvent,
-  type MouseEvent,
-} from "react"
+import { useLayoutEffect, useRef, useState, type KeyboardEvent, type MouseEvent } from "react"
 import { ChevronDownIcon, ChevronRightIcon, SearchIcon, StarIcon } from "lucide-react"
 
 import { OpenCodeLogo } from "@/components/model-logos"
@@ -20,11 +13,8 @@ import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
 import { usePagePortalContainer } from "../app/page-surface"
 import {
-  CHAT_MODELS,
   CHAT_MODEL_PROVIDERS,
-  getChatModel,
   getChatModelGroupLabel,
-  getChatModelSource,
   type ChatModelGroupId,
   type ChatModelOption,
   type ChatModelSourceId,
@@ -50,7 +40,7 @@ function SourceGlyph({ model, className }: { model: ChatModelOption; className?:
 }
 
 type ModelListRow =
-  | { kind: "model"; model: ChatModelOption; index: number }
+  | { kind: "model"; model: ChatModelOption }
   | { kind: "group"; id: ChatModelGroupId; label: string; count: number }
 
 function buildModelRows(
@@ -60,9 +50,8 @@ function buildModelRows(
   isFiltering: boolean,
 ) {
   const rows: ModelListRow[] = []
-  let index = 0
 
-  for (const model of primary) rows.push({ kind: "model", model, index: index++ })
+  for (const model of primary) rows.push({ kind: "model", model })
 
   for (const [id, models] of grouped) {
     if (!revealed.includes(id) && !isFiltering) {
@@ -70,36 +59,22 @@ function buildModelRows(
       continue
     }
 
-    for (const model of models) rows.push({ kind: "model", model, index: index++ })
+    for (const model of models) rows.push({ kind: "model", model })
   }
 
   return rows
 }
 
 export function ChatModelSelector() {
-  const {
-    model: modelId,
-    setModel,
-    favoriteModelIds,
-    toggleFavorite,
-    providerModels,
-  } = useChatModel()
+  const { selectedModel, setModel, favoriteModelIds, toggleFavorite, models } = useChatModel()
   const portalContainer = usePagePortalContainer()
   const shouldRestoreFocus = useRef(false)
   const searchRef = useRef<HTMLInputElement | null>(null)
   const modelOptionRefs = useRef(new Map<string, HTMLElement>())
   const [isOpen, setIsOpen] = useState(false)
   const [query, setQuery] = useState("")
-  const [activeTab, setActiveTab] = useState<ModelTab>(() => getChatModelSource(modelId))
+  const [activeTab, setActiveTab] = useState<ModelTab>(selectedModel.source)
   const [revealedGroups, setRevealedGroups] = useState<ChatModelGroupId[]>([])
-
-  const knownModels = new Map<string, ChatModelOption>()
-
-  for (const provider of CHAT_MODEL_PROVIDERS) {
-    for (const model of providerModels[provider.source]) knownModels.set(model.id, model)
-  }
-
-  const selectedModel = knownModels.get(modelId) ?? getChatModel(modelId)
 
   const normalizedQuery = query.trim().toLocaleLowerCase()
   const isFiltering = normalizedQuery.length > 0
@@ -110,10 +85,10 @@ export function ChatModelSelector() {
 
   const getBaseModels = (): ChatModelOption[] => {
     if (activeTab === "favorites") {
-      return [...knownModels.values()].filter((model) => favoriteModelIds.includes(model.id))
+      return models.filter((model) => favoriteModelIds.includes(model.id))
     }
 
-    return providerModels[activeTab].filter((model) => !model.groupId)
+    return models.filter((model) => model.source === activeTab && !model.groupId)
   }
 
   const primaryModels = getBaseModels().filter(matchesQuery)
@@ -121,8 +96,8 @@ export function ChatModelSelector() {
   const groupedModels = new Map<ChatModelGroupId, ChatModelOption[]>()
 
   if (activeTab !== "favorites") {
-    for (const model of providerModels[activeTab]) {
-      if (!model.groupId || !matchesQuery(model)) continue
+    for (const model of models) {
+      if (model.source !== activeTab || !model.groupId || !matchesQuery(model)) continue
 
       const group = groupedModels.get(model.groupId)
 
@@ -136,6 +111,8 @@ export function ChatModelSelector() {
 
   const rows = buildModelRows(primaryModels, [...groupedModels], revealedGroups, isFiltering)
   const visibleModels = rows.flatMap((row) => (row.kind === "model" ? [row.model] : []))
+  const selectableModels = visibleModels.filter((model) => !model.unavailableReason)
+  const shortcutModels = selectableModels.slice(0, 9)
 
   const handleOpenChange = (open: boolean) => {
     setIsOpen(open)
@@ -150,10 +127,7 @@ export function ChatModelSelector() {
   }
 
   const handleModelChange = (value: unknown) => {
-    const model = CHAT_MODELS.find((option) => option.id === value)
-    if (!model) return
-
-    setModel(model.id)
+    if (typeof value === "string") setModel(value)
   }
 
   const handleFavoriteClick = (event: MouseEvent, model: ChatModelOption) => {
@@ -171,7 +145,7 @@ export function ChatModelSelector() {
     if (event.key === "Escape") return
 
     if ((event.metaKey || event.ctrlKey) && /^[1-9]$/.test(event.key)) {
-      const modelToSelect = visibleModels[Number.parseInt(event.key, 10) - 1]
+      const modelToSelect = shortcutModels[Number.parseInt(event.key, 10) - 1]
       if (!modelToSelect) return
 
       event.preventDefault()
@@ -187,7 +161,9 @@ export function ChatModelSelector() {
 
     event.preventDefault()
     const modelToFocus =
-      event.key === "ArrowDown" ? visibleModels[0] : visibleModels[visibleModels.length - 1]
+      event.key === "ArrowDown"
+        ? selectableModels[0]
+        : selectableModels[selectableModels.length - 1]
     if (!modelToFocus) return
 
     modelOptionRefs.current.get(modelToFocus.id)?.focus()
@@ -202,8 +178,9 @@ export function ChatModelSelector() {
     modelOptionRefs.current.set(id, element)
   }
 
-  const renderModelRow = (model: ChatModelOption, index: number) => {
+  const renderModelRow = (model: ChatModelOption) => {
     const isFavorite = favoriteModelIds.includes(model.id)
+    const shortcutIndex = shortcutModels.indexOf(model)
 
     return (
       <div className="relative flex items-center" key={model.id}>
@@ -211,6 +188,8 @@ export function ChatModelSelector() {
           ref={(element) => setModelOptionRef(model.id, element)}
           className="min-w-0 flex-1 py-2 pr-24 pl-2"
           closeOnClick
+          disabled={Boolean(model.unavailableReason)}
+          title={model.unavailableReason}
           value={model.id}
         >
           <span className="flex min-w-0 flex-col">
@@ -218,16 +197,16 @@ export function ChatModelSelector() {
             <span className="flex items-center gap-1.5 truncate text-xs text-muted-foreground">
               <SourceGlyph className="size-3.5 shrink-0" model={model} />
               <span aria-hidden="true" className="truncate">
-                {model.providerLabel}
+                {model.unavailableReason ?? model.providerLabel}
               </span>
             </span>
           </span>
         </DropdownMenuRadioItem>
 
         <div className="pointer-events-none absolute right-16 flex items-center">
-          {index < 9 && (
+          {shortcutIndex >= 0 && (
             <kbd className="rounded bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground tabular-nums">
-              ⌘{index + 1}
+              ⌘{shortcutIndex + 1}
             </kbd>
           )}
         </div>
@@ -276,14 +255,16 @@ export function ChatModelSelector() {
     }
   }, [])
 
-  useEffect(() => {
-    if (isOpen) searchRef.current?.focus()
-  }, [isOpen])
-
   const SelectedModelIcon = selectedModel.icon
 
   return (
-    <DropdownMenu open={isOpen} onOpenChange={handleOpenChange}>
+    <DropdownMenu
+      open={isOpen}
+      onOpenChange={handleOpenChange}
+      onOpenChangeComplete={(open) => {
+        if (open) searchRef.current?.focus()
+      }}
+    >
       <DropdownMenuTrigger
         aria-label="Choose model"
         className="flex h-7 min-w-0 shrink items-center justify-start gap-1 rounded-full px-1.5 text-xs font-medium transition-[color,background-color,border-color,box-shadow,opacity,transform,translate,scale] outline-none hover:bg-muted focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:scale-[0.97] data-popup-open:bg-muted"
@@ -301,10 +282,9 @@ export function ChatModelSelector() {
         sideOffset={6}
       >
         <div className="flex h-full overflow-hidden">
-          <div
+          <fieldset
             aria-label="Model sources"
             className="flex w-14 shrink-0 flex-col items-center gap-1 border-r border-border/60 py-2"
-            role="group"
           >
             {RAIL_TABS.map(({ id, label, Icon }) => {
               const isActive = activeTab === id
@@ -334,7 +314,7 @@ export function ChatModelSelector() {
                 </div>
               )
             })}
-          </div>
+          </fieldset>
 
           <div className="flex min-w-0 flex-1 flex-col">
             <div className="relative border-b border-border/60 p-2">
@@ -356,7 +336,7 @@ export function ChatModelSelector() {
               onValueChange={handleModelChange}
             >
               {rows.map((row) =>
-                row.kind === "model" ? renderModelRow(row.model, row.index) : renderGroupRow(row),
+                row.kind === "model" ? renderModelRow(row.model) : renderGroupRow(row),
               )}
 
               {visibleModels.length === 0 && (
