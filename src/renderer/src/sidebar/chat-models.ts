@@ -1,7 +1,25 @@
 import type { ComponentType } from "react"
 import { CpuIcon } from "lucide-react"
 
-import { GoogleLogo, MetaLogo, OpenAILogo, OpenRouterLogo, XAILogo } from "@/components/model-logos"
+import {
+  AnthropicLogo,
+  DeepSeekLogo,
+  ElevenLabsLogo,
+  GoogleLogo,
+  GroqLogo,
+  HuggingFaceLogo,
+  MetaLogo,
+  MiniMaxLogo,
+  MistralLogo,
+  MoonshotLogo,
+  NvidiaLogo,
+  OpenAILogo,
+  OpenRouterLogo,
+  PerplexityLogo,
+  QwenLogo,
+  XAILogo,
+  XiaomiLogo,
+} from "@/components/model-logos"
 import {
   isFreeOpenRouterModelId,
   type ChatModelInfo,
@@ -177,20 +195,39 @@ const BUNDLED_CHATGPT_MODELS: ChatModelOption[] = [
 
 const OPENROUTER_ICONS: { prefix: string; icon: ChatModelIcon }[] = [
   { prefix: "openai/", icon: OpenAILogo },
+  { prefix: "anthropic/", icon: AnthropicLogo },
   { prefix: "google/", icon: GoogleLogo },
   { prefix: "x-ai/", icon: XAILogo },
   { prefix: "meta-llama/", icon: MetaLogo },
+  { prefix: "meta/", icon: MetaLogo },
+  { prefix: "deepseek/", icon: DeepSeekLogo },
+  { prefix: "qwen/", icon: QwenLogo },
+  { prefix: "mistralai/", icon: MistralLogo },
+  { prefix: "mistral/", icon: MistralLogo },
+  { prefix: "nvidia/", icon: NvidiaLogo },
+  { prefix: "perplexity/", icon: PerplexityLogo },
+  { prefix: "openrouter/", icon: OpenRouterLogo },
+  { prefix: "groq/", icon: GroqLogo },
+  { prefix: "minimax/", icon: MiniMaxLogo },
+  { prefix: "moonshotai/", icon: MoonshotLogo },
+  { prefix: "xiaomi/", icon: XiaomiLogo },
+  { prefix: "elevenlabs/", icon: ElevenLabsLogo },
+  { prefix: "huggingfaceh4/", icon: HuggingFaceLogo },
+  { prefix: "huggingface/", icon: HuggingFaceLogo },
 ]
 
 const OPENROUTER_COMPANY_LABELS: Record<string, string> = {
   anthropic: "Anthropic",
   deepseek: "DeepSeek",
   google: "Google",
+  huggingfaceh4: "Hugging Face",
   meta: "Meta",
   "meta-llama": "Meta",
   microsoft: "Microsoft",
+  minimax: "MiniMax",
   mistral: "Mistral",
   mistralai: "Mistral",
+  moonshotai: "Moonshot AI",
   nvidia: "Nvidia",
   openai: "OpenAI",
   openrouter: "OpenRouter",
