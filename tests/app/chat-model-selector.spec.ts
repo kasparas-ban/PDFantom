@@ -68,7 +68,7 @@ for (const interaction of ["click", "arrows", "shortcut"] as const) {
 
     await expect(reader.chatModelButton).toContainText("Live test model")
     await reader.chatModelButton.click()
-    await expect(application.page.getByRole("button", { name: "OpenCode models" })).toHaveAttribute(
+    await expect(application.page.getByRole("button", { name: "OpenRouter models" })).toHaveAttribute(
       "aria-pressed",
       "true",
     )
@@ -87,11 +87,11 @@ test("ChatGPT models stay unavailable through search, legacy groups and favorite
   await reader.toggleChatPanel("Show")
   await reader.chatModelButton.click()
   await application.page.getByRole("button", { name: "ChatGPT models", exact: true }).click()
-  const option = reader.chatModelOption("GPT-6-Astra")
+  const option = application.page.getByRole("menuitemradio", { name: "GPT-6-Astra" })
   await expect(option).toBeDisabled()
   await expect(option).toContainText("ChatGPT support is not available yet")
   await application.page.getByRole("button", { name: "Legacy models" }).click()
-  await expect(reader.chatModelOption("GPT-5.5")).toBeDisabled()
+  await expect(application.page.getByRole("menuitemradio", { name: "GPT-5.5" })).toBeDisabled()
 
   await reader.chatModelFilterInput.fill("Astra")
   await reader.chatModelFilterInput.press("Meta+1")

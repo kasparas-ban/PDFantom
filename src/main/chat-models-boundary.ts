@@ -71,9 +71,9 @@ export function registerChatModelsBoundary(window: BrowserWindow, rendererUrl: s
         throw new Error("Chat model list access was denied for an untrusted sender.")
       }
 
-      // Only OpenCode currently has a live listing. Every other source resolves to
+      // Only OpenRouter currently has a live listing. Every other source resolves to
       // its bundled catalog on the renderer side.
-      if (source !== "opencode") return { models: [] }
+      if (source !== "openrouter") return { models: [] }
 
       return loadModels()
     },
