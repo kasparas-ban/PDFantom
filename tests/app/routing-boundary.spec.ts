@@ -36,6 +36,7 @@ test("shared memory routes defer the reader on direct entry and preserve one own
         },
         generateChat: async () => ({ text: "Test response" }),
         cancelChat: async () => {},
+        listProviderModels: async () => ({ models: [] }),
         getOpenRouterApiKeyStatus: async () => ({ isConfigured: false }),
         getOpenRouterApiKey: async () => null,
         saveOpenRouterApiKey: async () => {},

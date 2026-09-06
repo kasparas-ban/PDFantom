@@ -71,6 +71,24 @@ export function MetaLogo(props: ComponentProps<"svg">) {
   )
 }
 
+export function OpenCodeLogo(props: ComponentProps<"svg">) {
+  return (
+    <svg
+      aria-hidden="true"
+      fill="currentColor"
+      viewBox="0 0 24 24"
+      xmlns="http://www.w3.org/2000/svg"
+      {...props}
+    >
+      <path
+        clipRule="evenodd"
+        d="M5 2h14a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1Zm6 5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h2a1 1 0 0 0 1-1V8a1 1 0 0 0-1-1h-2Z"
+        fillRule="evenodd"
+      />
+    </svg>
+  )
+}
+
 export function GroqLogo(props: ComponentProps<"svg">) {
   return (
     <svg aria-hidden="true" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" {...props}>

@@ -1,7 +1,7 @@
-import { useLayoutEffect, useRef, useState, type KeyboardEvent } from "react"
-import { ChevronDownIcon, CpuIcon, SearchIcon } from "lucide-react"
+import { useLayoutEffect, useRef, useState, type KeyboardEvent, type MouseEvent } from "react"
+import { ChevronDownIcon, ChevronRightIcon, SearchIcon, StarIcon } from "lucide-react"
 
-import { GoogleLogo, MetaLogo, OpenAILogo, XAILogo } from "@/components/model-logos"
+import { OpenCodeLogo } from "@/components/model-logos"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -10,63 +10,150 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
+import { cn } from "@/lib/utils"
 import { usePagePortalContainer } from "../app/page-surface"
+import {
+  CHAT_MODEL_PROVIDERS,
+  getChatModelGroupLabel,
+  type ChatModelGroupId,
+  type ChatModelOption,
+  type ChatModelSourceId,
+} from "../sidebar/chat-models"
 import { useChatModel } from "../sidebar/chat-session"
 
-const modelOptions = [
-  { id: "openai/gpt-5.4-nano", name: "GPT-5.4 Nano", provider: "OpenAI", icon: OpenAILogo },
-  { id: "openai/gpt-5.4-mini", name: "GPT-5.4 Mini", provider: "OpenAI", icon: OpenAILogo },
-  {
-    id: "google/gemini-3.1-flash-lite-preview",
-    name: "Gemini 3.1 Flash Lite",
-    provider: "Google",
-    icon: GoogleLogo,
-  },
-  { id: "x-ai/grok-4.6", name: "Grok 4.6", provider: "xAI", icon: XAILogo },
-  {
-    id: "meta-llama/llama-4-scout",
-    name: "Llama 4 Scout 17B",
-    provider: "Meta",
-    icon: MetaLogo,
-  },
-  { id: "qwen/qwen3-32b", name: "Qwen3 32B", provider: "Qwen", icon: CpuIcon },
-  {
-    id: "nvidia/nemotron-3-ultra-550b-a55b:free",
-    name: "Nemotron 3 Ultra (free)",
-    provider: "NVIDIA",
-    icon: CpuIcon,
-  },
-] as const
+type ModelTab = ChatModelSourceId | "favorites"
 
-type ModelId = (typeof modelOptions)[number]["id"]
+const RAIL_TABS = [
+  { id: "favorites" as const, label: "Favorite models", Icon: StarIcon },
+  ...CHAT_MODEL_PROVIDERS.map((provider) => ({
+    id: provider.source,
+    label: provider.label,
+    Icon: provider.icon,
+  })),
+]
+
+function SourceGlyph({ model, className }: { model: ChatModelOption; className?: string }) {
+  const Icon =
+    CHAT_MODEL_PROVIDERS.find((provider) => provider.source === model.source)?.icon ?? OpenCodeLogo
+
+  return <Icon className={className} />
+}
+
+type ModelListRow =
+  | { kind: "model"; model: ChatModelOption }
+  | { kind: "group"; id: ChatModelGroupId; label: string; count: number }
+
+function buildModelRows(
+  primary: ChatModelOption[],
+  grouped: [ChatModelGroupId, ChatModelOption[]][],
+  revealed: ChatModelGroupId[],
+  isFiltering: boolean,
+) {
+  const rows: ModelListRow[] = []
+
+  for (const model of primary) rows.push({ kind: "model", model })
+
+  for (const [id, models] of grouped) {
+    if (!revealed.includes(id) && !isFiltering) {
+      rows.push({ kind: "group", id, label: getChatModelGroupLabel(id), count: models.length })
+      continue
+    }
+
+    for (const model of models) rows.push({ kind: "model", model })
+  }
+
+  return rows
+}
 
 export function ChatModelSelector() {
-  const { model: modelId, setModel } = useChatModel()
+  const { selectedModel, setModel, favoriteModelIds, toggleFavorite, models } = useChatModel()
   const portalContainer = usePagePortalContainer()
   const shouldRestoreFocus = useRef(false)
-  const modelOptionRefs = useRef(new Map<ModelId, HTMLElement>())
+  const searchRef = useRef<HTMLInputElement | null>(null)
+  const modelOptionRefs = useRef(new Map<string, HTMLElement>())
   const [isOpen, setIsOpen] = useState(false)
   const [query, setQuery] = useState("")
-  const selectedModel = modelOptions.find((option) => option.id === modelId) ?? modelOptions[0]
+  const [activeTab, setActiveTab] = useState<ModelTab>(selectedModel.source)
+  const [revealedGroups, setRevealedGroups] = useState<ChatModelGroupId[]>([])
+
   const normalizedQuery = query.trim().toLocaleLowerCase()
-  const filteredModels = modelOptions.filter((model) =>
-    model.name.toLocaleLowerCase().includes(normalizedQuery),
-  )
+  const isFiltering = normalizedQuery.length > 0
+
+  const matchesQuery = (model: ChatModelOption) =>
+    model.name.toLocaleLowerCase().includes(normalizedQuery) ||
+    model.providerLabel.toLocaleLowerCase().includes(normalizedQuery)
+
+  const getBaseModels = (): ChatModelOption[] => {
+    if (activeTab === "favorites") {
+      return models.filter((model) => favoriteModelIds.includes(model.id))
+    }
+
+    return models.filter((model) => model.source === activeTab && !model.groupId)
+  }
+
+  const primaryModels = getBaseModels().filter(matchesQuery)
+
+  const groupedModels = new Map<ChatModelGroupId, ChatModelOption[]>()
+
+  if (activeTab !== "favorites") {
+    for (const model of models) {
+      if (model.source !== activeTab || !model.groupId || !matchesQuery(model)) continue
+
+      const group = groupedModels.get(model.groupId)
+
+      if (group) {
+        group.push(model)
+      } else {
+        groupedModels.set(model.groupId, [model])
+      }
+    }
+  }
+
+  const rows = buildModelRows(primaryModels, [...groupedModels], revealedGroups, isFiltering)
+  const visibleModels = rows.flatMap((row) => (row.kind === "model" ? [row.model] : []))
+  const selectableModels = visibleModels.filter((model) => !model.unavailableReason)
+  const shortcutModels = selectableModels.slice(0, 9)
 
   const handleOpenChange = (open: boolean) => {
     setIsOpen(open)
-    if (!open) setQuery("")
+
+    if (open) {
+      setActiveTab(selectedModel.source)
+      setRevealedGroups(selectedModel.groupId ? [selectedModel.groupId] : [])
+    } else {
+      setQuery("")
+      setRevealedGroups([])
+    }
   }
 
   const handleModelChange = (value: unknown) => {
-    const model = modelOptions.find((option) => option.id === value)
-    if (!model) return
-
-    setModel(model.id)
+    if (typeof value === "string") setModel(value)
   }
+
+  const handleFavoriteClick = (event: MouseEvent, model: ChatModelOption) => {
+    event.stopPropagation()
+    event.preventDefault()
+    toggleFavorite(model.id)
+  }
+
+  const revealGroup = (groupId: ChatModelGroupId) =>
+    setRevealedGroups((revealed) =>
+      revealed.includes(groupId) ? revealed : [...revealed, groupId],
+    )
 
   const handleFilterKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
     if (event.key === "Escape") return
+
+    if ((event.metaKey || event.ctrlKey) && /^[1-9]$/.test(event.key)) {
+      const modelToSelect = shortcutModels[Number.parseInt(event.key, 10) - 1]
+      if (!modelToSelect) return
+
+      event.preventDefault()
+      event.stopPropagation()
+      setModel(modelToSelect.id)
+
+      return
+    }
 
     event.stopPropagation()
 
@@ -74,13 +161,15 @@ export function ChatModelSelector() {
 
     event.preventDefault()
     const modelToFocus =
-      event.key === "ArrowDown" ? filteredModels[0] : filteredModels[filteredModels.length - 1]
+      event.key === "ArrowDown"
+        ? selectableModels[0]
+        : selectableModels[selectableModels.length - 1]
     if (!modelToFocus) return
 
     modelOptionRefs.current.get(modelToFocus.id)?.focus()
   }
 
-  const setModelOptionRef = (id: ModelId, element: HTMLElement | null) => {
+  const setModelOptionRef = (id: string, element: HTMLElement | null) => {
     if (!element) {
       modelOptionRefs.current.delete(id)
       return
@@ -88,6 +177,73 @@ export function ChatModelSelector() {
 
     modelOptionRefs.current.set(id, element)
   }
+
+  const renderModelRow = (model: ChatModelOption) => {
+    const isFavorite = favoriteModelIds.includes(model.id)
+    const shortcutIndex = shortcutModels.indexOf(model)
+
+    return (
+      <div className="relative flex items-center" key={model.id}>
+        <DropdownMenuRadioItem
+          ref={(element) => setModelOptionRef(model.id, element)}
+          className="min-w-0 flex-1 py-2 pr-24 pl-2"
+          closeOnClick
+          disabled={Boolean(model.unavailableReason)}
+          title={model.unavailableReason}
+          value={model.id}
+        >
+          <span className="flex min-w-0 flex-col">
+            <span className="truncate font-medium">{model.name}</span>
+            <span className="flex items-center gap-1.5 truncate text-xs text-muted-foreground">
+              <SourceGlyph className="size-3.5 shrink-0" model={model} />
+              <span aria-hidden="true" className="truncate">
+                {model.unavailableReason ?? model.providerLabel}
+              </span>
+            </span>
+          </span>
+        </DropdownMenuRadioItem>
+
+        <div className="pointer-events-none absolute right-16 flex items-center">
+          {shortcutIndex >= 0 && (
+            <kbd className="rounded bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground tabular-nums">
+              ⌘{shortcutIndex + 1}
+            </kbd>
+          )}
+        </div>
+
+        <button
+          aria-label={isFavorite ? `Unfavorite ${model.name}` : `Favorite ${model.name}`}
+          aria-pressed={isFavorite}
+          className={cn(
+            "absolute right-8 flex size-6 items-center justify-center rounded-md text-muted-foreground transition-colors outline-none hover:bg-accent hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50",
+            isFavorite && "text-foreground",
+          )}
+          onClick={(event) => handleFavoriteClick(event, model)}
+          title={isFavorite ? `Unfavorite ${model.name}` : `Favorite ${model.name}`}
+          type="button"
+        >
+          <StarIcon className={cn("size-3.5", isFavorite && "fill-current")} />
+        </button>
+      </div>
+    )
+  }
+
+  const renderGroupRow = (group: { id: ChatModelGroupId; label: string; count: number }) => (
+    <button
+      className="flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-sm transition-colors outline-none hover:bg-accent focus-visible:ring-3 focus-visible:ring-ring/50"
+      key={group.id}
+      onClick={() => revealGroup(group.id)}
+      type="button"
+    >
+      <span className="flex min-w-0 flex-1 flex-col">
+        <span className="truncate font-medium">{group.label}</span>
+        <span className="truncate text-xs text-muted-foreground">
+          {group.count} {group.count === 1 ? "model" : "models"}
+        </span>
+      </span>
+      <ChevronRightIcon className="size-4 shrink-0 text-muted-foreground" />
+    </button>
+  )
 
   useLayoutEffect(() => {
     shouldRestoreFocus.current = true
@@ -102,7 +258,13 @@ export function ChatModelSelector() {
   const SelectedModelIcon = selectedModel.icon
 
   return (
-    <DropdownMenu open={isOpen} onOpenChange={handleOpenChange}>
+    <DropdownMenu
+      open={isOpen}
+      onOpenChange={handleOpenChange}
+      onOpenChangeComplete={(open) => {
+        if (open) searchRef.current?.focus()
+      }}
+    >
       <DropdownMenuTrigger
         aria-label="Choose model"
         className="flex h-7 min-w-0 shrink items-center justify-start gap-1 rounded-full px-1.5 text-xs font-medium transition-[color,background-color,border-color,box-shadow,opacity,transform,translate,scale] outline-none hover:bg-muted focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:scale-[0.97] data-popup-open:bg-muted"
@@ -114,49 +276,79 @@ export function ChatModelSelector() {
       <DropdownMenuContent
         finalFocus={() => shouldRestoreFocus.current}
         align="start"
-        className="w-64"
+        className="h-[380px] w-[26rem] max-w-[calc(var(--available-width)-1rem)] p-0"
         portalContainer={portalContainer}
         side="top"
         sideOffset={6}
       >
-        <div className="relative p-1">
-          <SearchIcon className="pointer-events-none absolute top-1/2 left-3 size-3.5 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            aria-label="Filter models"
-            className="h-8 pl-8 text-xs"
-            onChange={(event) => setQuery(event.target.value)}
-            onKeyDown={handleFilterKeyDown}
-            placeholder="Filter models..."
-            value={query}
-          />
-        </div>
-        <DropdownMenuRadioGroup value={selectedModel.id} onValueChange={handleModelChange}>
-          {filteredModels.map((model) => {
-            const ModelIcon = model.icon
+        <div className="flex h-full overflow-hidden">
+          <fieldset
+            aria-label="Model sources"
+            className="flex w-14 shrink-0 flex-col items-center gap-1 border-r border-border/60 py-2"
+          >
+            {RAIL_TABS.map(({ id, label, Icon }) => {
+              const isActive = activeTab === id
+              const isStar = id === "favorites"
 
-            return (
-              <DropdownMenuRadioItem
-                ref={(element) => setModelOptionRef(model.id, element)}
-                closeOnClick
-                key={model.id}
-                value={model.id}
-              >
-                <ModelIcon className="size-4" />
-                <span className="flex min-w-0 flex-col">
-                  <span className="truncate font-medium">{model.name}</span>
-                  <span aria-hidden="true" className="truncate text-xs text-muted-foreground">
-                    {model.provider}
-                  </span>
-                </span>
-              </DropdownMenuRadioItem>
-            )
-          })}
-          {filteredModels.length === 0 && (
-            <output className="block px-2 py-4 text-center text-xs text-muted-foreground">
-              No models found.
-            </output>
-          )}
-        </DropdownMenuRadioGroup>
+              return (
+                <div className="relative flex w-full justify-center" key={id}>
+                  {isActive && (
+                    <span
+                      aria-hidden="true"
+                      className="absolute top-1/2 -right-px h-6 w-[3px] -translate-y-1/2 rounded-full bg-blue-600"
+                    />
+                  )}
+                  <button
+                    aria-label={label}
+                    aria-pressed={isActive}
+                    className={cn(
+                      "flex size-9 items-center justify-center rounded-lg text-muted-foreground transition-colors outline-none hover:bg-accent hover:text-accent-foreground focus-visible:ring-3 focus-visible:ring-ring/50",
+                      isActive && "bg-accent text-foreground",
+                    )}
+                    onClick={() => setActiveTab(id)}
+                    title={label}
+                    type="button"
+                  >
+                    <Icon className={cn("size-5", isStar && isActive && "fill-current")} />
+                  </button>
+                </div>
+              )
+            })}
+          </fieldset>
+
+          <div className="flex min-w-0 flex-1 flex-col">
+            <div className="relative border-b border-border/60 p-2">
+              <SearchIcon className="pointer-events-none absolute top-1/2 left-4 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                aria-label="Filter models"
+                className="h-8 border-0 bg-transparent pl-8 text-sm shadow-none focus-visible:ring-0"
+                onChange={(event) => setQuery(event.target.value)}
+                onKeyDown={handleFilterKeyDown}
+                placeholder="Search models..."
+                ref={searchRef}
+                value={query}
+              />
+            </div>
+
+            <DropdownMenuRadioGroup
+              className="flex min-h-0 flex-1 flex-col overflow-y-auto p-1"
+              value={selectedModel.id}
+              onValueChange={handleModelChange}
+            >
+              {rows.map((row) =>
+                row.kind === "model" ? renderModelRow(row.model) : renderGroupRow(row),
+              )}
+
+              {visibleModels.length === 0 && (
+                <output className="m-auto block px-2 text-center text-xs text-muted-foreground">
+                  {activeTab === "favorites" && !isFiltering
+                    ? "No favorites yet. Star models to pin them here."
+                    : "No models found."}
+                </output>
+              )}
+            </DropdownMenuRadioGroup>
+          </div>
+        </div>
       </DropdownMenuContent>
     </DropdownMenu>
   )

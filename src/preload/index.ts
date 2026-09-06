@@ -1,6 +1,11 @@
 import { contextBridge, ipcRenderer } from "electron"
 
-import { CANCEL_CHAT_CHANNEL, GENERATE_CHAT_CHANNEL } from "../shared/chat-api"
+import {
+  CANCEL_CHAT_CHANNEL,
+  GENERATE_CHAT_CHANNEL,
+  LIST_PROVIDER_MODELS_CHANNEL,
+  type ChatModelSourceId,
+} from "../shared/chat-api"
 import {
   ACTIVATE_DOCUMENT_CHANNEL,
   GET_DOCUMENT_LIBRARY_CHANNEL,
@@ -26,6 +31,8 @@ const rendererApi: RendererApi = {
   getIsFullScreen: () => ipcRenderer.invoke(GET_FULL_SCREEN_CHANNEL),
   getOpenRouterApiKey: () => ipcRenderer.invoke(GET_OPENROUTER_API_KEY_CHANNEL),
   getOpenRouterApiKeyStatus: () => ipcRenderer.invoke(GET_OPENROUTER_API_KEY_STATUS_CHANNEL),
+  listProviderModels: (source: ChatModelSourceId) =>
+    ipcRenderer.invoke(LIST_PROVIDER_MODELS_CHANNEL, source),
   onFullScreenChange: (listener) => {
     const handler = (_event: Electron.IpcRendererEvent, isFullScreen: boolean) => {
       listener(isFullScreen)
