@@ -55,8 +55,10 @@ export function isFreeOpenRouterModelId(id: string) {
   return id.toLowerCase().endsWith(":free")
 }
 
-export function isTextOutputModel(outputModalities?: string[] | null) {
-  return outputModalities?.some((modality) => modality.toLocaleLowerCase() === "text") ?? true
+export function isTextOnlyOutputModel(outputModalities?: string[] | null) {
+  return (
+    outputModalities?.length === 1 && outputModalities[0].toLocaleLowerCase() === "text"
+  )
 }
 
 export type ChatModelListResult =

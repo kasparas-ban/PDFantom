@@ -45,8 +45,22 @@ test.beforeEach(async ({ application }) => {
         },
         listProviderModels: async () => ({
           models: [
-            { id: "test/live-model", name: "Live test model" },
-            { id: "test/effort-model", name: "Effort test model", supportsEffort: true },
+            {
+              id: "test/live-model",
+              name: "Live test model",
+              outputModalities: ["text"],
+            },
+            {
+              id: "test/effort-model",
+              name: "Effort test model",
+              supportsEffort: true,
+              outputModalities: ["text"],
+            },
+            {
+              id: "test/music-model",
+              name: "Music test model",
+              outputModalities: ["text", "audio"],
+            },
           ],
         }),
         getOpenRouterApiKeyStatus: async () => ({ isConfigured: true }),
@@ -93,6 +107,17 @@ for (const interaction of ["click", "arrows", "shortcut"] as const) {
     await expect(reader.chatPanel.getByText("Response from test/live-model")).toBeVisible()
   })
 }
+
+test("hides models that produce text alongside another output modality", async ({
+  application,
+}) => {
+  const reader = new DocumentReaderDriver(application.page)
+  await reader.toggleChatPanel("Show")
+  await reader.chatModelButton.click()
+  await reader.chatModelFilterInput.fill("Music test model")
+
+  await expect(reader.chatModelOption("Music test model")).toHaveCount(0)
+})
 
 test("ChatGPT models stay unavailable through search, legacy groups and favorites", async ({
   application,

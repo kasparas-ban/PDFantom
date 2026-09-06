@@ -5,7 +5,7 @@ import {
   GENERIC_CHAT_ERROR,
   LIST_PROVIDER_MODELS_CHANNEL,
   isFreeOpenRouterModelId,
-  isTextOutputModel,
+  isTextOnlyOutputModel,
   type ChatModelInfo,
   type ChatModelListResult,
 } from "../shared/chat-api"
@@ -92,7 +92,7 @@ export function registerChatModelsBoundary(window: BrowserWindow, rendererUrl: s
       if (!body.success) return { error: GENERIC_CHAT_ERROR }
 
       const models: ChatModelInfo[] = body.data.data
-        .filter(({ architecture }) => isTextOutputModel(architecture?.output_modalities))
+        .filter(({ architecture }) => isTextOnlyOutputModel(architecture?.output_modalities))
         .map(
           (
             { id, name, pricing, architecture, supported_parameters, reasoning },

@@ -22,7 +22,7 @@ import {
 } from "@/components/model-logos"
 import {
   isFreeOpenRouterModelId,
-  isTextOutputModel,
+  isTextOnlyOutputModel,
   type ChatModelInfo,
   type ChatModelSourceId,
 } from "../../../shared/chat-api"
@@ -103,7 +103,7 @@ function isHiddenOpenRouterListing(listing: ChatModelInfo) {
 }
 
 function isExcludedOpenRouterListing(listing: ChatModelInfo) {
-  return isHiddenOpenRouterListing(listing) || !isTextOutputModel(listing.outputModalities)
+  return isHiddenOpenRouterListing(listing) || !isTextOnlyOutputModel(listing.outputModalities)
 }
 
 const BUNDLED_OPENROUTER_MODELS: ChatModelOption[] = [
