@@ -1,7 +1,14 @@
-import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type MouseEvent } from "react"
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type MouseEvent,
+} from "react"
 import { ChevronDownIcon, ChevronRightIcon, SearchIcon, StarIcon } from "lucide-react"
 
-import { OpenAILogo, OpenCodeLogo } from "@/components/model-logos"
+import { OpenCodeLogo } from "@/components/model-logos"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,8 +21,11 @@ import { cn } from "@/lib/utils"
 import { usePagePortalContainer } from "../app/page-surface"
 import {
   CHAT_MODELS,
+  CHAT_MODEL_SOURCES,
   getChatModel,
+  getChatModelGroupLabel,
   getChatModelSource,
+  type ChatModelGroupId,
   type ChatModelOption,
   type ChatModelSourceId,
 } from "../sidebar/chat-models"
@@ -25,14 +35,44 @@ type ModelTab = ChatModelSourceId | "favorites"
 
 const RAIL_TABS = [
   { id: "favorites" as const, label: "Favorite models", Icon: StarIcon },
-  { id: "opencode" as const, label: "OpenCode models", Icon: OpenCodeLogo },
-  { id: "chatgpt" as const, label: "ChatGPT models", Icon: OpenAILogo },
+  ...CHAT_MODEL_SOURCES.map((source) => ({
+    id: source.id,
+    label: source.label,
+    Icon: source.icon,
+  })),
 ]
 
 function SourceGlyph({ model, className }: { model: ChatModelOption; className?: string }) {
-  if (model.source === "chatgpt") return <OpenAILogo className={className} />
+  const Icon = CHAT_MODEL_SOURCES.find((source) => source.id === model.source)?.icon ?? OpenCodeLogo
 
-  return <OpenCodeLogo className={className} />
+  return <Icon className={className} />
+}
+
+type ModelListRow =
+  | { kind: "model"; model: ChatModelOption; index: number }
+  | { kind: "group"; id: ChatModelGroupId; label: string; count: number }
+
+function buildModelRows(
+  primary: ChatModelOption[],
+  grouped: [ChatModelGroupId, ChatModelOption[]][],
+  revealed: ChatModelGroupId[],
+  isFiltering: boolean,
+) {
+  const rows: ModelListRow[] = []
+  let index = 0
+
+  for (const model of primary) rows.push({ kind: "model", model, index: index++ })
+
+  for (const [id, models] of grouped) {
+    if (!revealed.includes(id) && !isFiltering) {
+      rows.push({ kind: "group", id, label: getChatModelGroupLabel(id), count: models.length })
+      continue
+    }
+
+    for (const model of models) rows.push({ kind: "model", model, index: index++ })
+  }
+
+  return rows
 }
 
 export function ChatModelSelector() {
@@ -44,7 +84,7 @@ export function ChatModelSelector() {
   const [isOpen, setIsOpen] = useState(false)
   const [query, setQuery] = useState("")
   const [activeTab, setActiveTab] = useState<ModelTab>(() => getChatModelSource(modelId))
-  const [isLegacyExpanded, setIsLegacyExpanded] = useState(false)
+  const [revealedGroups, setRevealedGroups] = useState<ChatModelGroupId[]>([])
 
   const selectedModel = getChatModel(modelId)
 
@@ -58,21 +98,27 @@ export function ChatModelSelector() {
   const primaryModels = (
     activeTab === "favorites"
       ? CHAT_MODELS.filter((model) => favoriteModelIds.includes(model.id))
-      : CHAT_MODELS.filter((model) => model.source === activeTab && !model.legacy)
+      : CHAT_MODELS.filter((model) => model.source === activeTab && !model.groupId)
   ).filter(matchesQuery)
 
-  const legacyFiltered = CHAT_MODELS.filter(
-    (model) => model.source === "chatgpt" && model.legacy && matchesQuery(model),
-  )
+  const groupedModels = new Map<ChatModelGroupId, ChatModelOption[]>()
 
-  const showLegacyGroup =
-    activeTab === "chatgpt" && (legacyFiltered.length > 0 || !isFiltering)
+  if (activeTab !== "favorites") {
+    for (const model of CHAT_MODELS) {
+      if (model.source !== activeTab || !model.groupId || !matchesQuery(model)) continue
 
-  const legacyVisible =
-    showLegacyGroup && (isLegacyExpanded || isFiltering) ? legacyFiltered : []
+      const group = groupedModels.get(model.groupId)
 
-  const visibleModels =
-    activeTab === "chatgpt" ? [...primaryModels, ...legacyVisible] : primaryModels
+      if (group) {
+        group.push(model)
+      } else {
+        groupedModels.set(model.groupId, [model])
+      }
+    }
+  }
+
+  const rows = buildModelRows(primaryModels, [...groupedModels], revealedGroups, isFiltering)
+  const visibleModels = rows.flatMap((row) => (row.kind === "model" ? [row.model] : []))
 
   const handleOpenChange = (open: boolean) => {
     setIsOpen(open)
@@ -81,9 +127,10 @@ export function ChatModelSelector() {
       const selected = getChatModel(modelId)
 
       setActiveTab(selected.source)
-      setIsLegacyExpanded(selected.source === "chatgpt" && selected.legacy === true)
+      setRevealedGroups(selected.groupId ? [selected.groupId] : [])
     } else {
       setQuery("")
+      setRevealedGroups([])
     }
   }
 
@@ -99,6 +146,11 @@ export function ChatModelSelector() {
     event.preventDefault()
     toggleFavorite(model.id)
   }
+
+  const revealGroup = (groupId: ChatModelGroupId) =>
+    setRevealedGroups((revealed) =>
+      revealed.includes(groupId) ? revealed : [...revealed, groupId],
+    )
 
   const handleFilterKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
     if (event.key === "Escape") return
@@ -182,6 +234,23 @@ export function ChatModelSelector() {
     )
   }
 
+  const renderGroupRow = (group: { id: ChatModelGroupId; label: string; count: number }) => (
+    <button
+      className="flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-sm transition-colors outline-none hover:bg-accent focus-visible:ring-3 focus-visible:ring-ring/50"
+      key={group.id}
+      onClick={() => revealGroup(group.id)}
+      type="button"
+    >
+      <span className="flex min-w-0 flex-1 flex-col">
+        <span className="truncate font-medium">{group.label}</span>
+        <span className="truncate text-xs text-muted-foreground">
+          {group.count} {group.count === 1 ? "model" : "models"}
+        </span>
+      </span>
+      <ChevronRightIcon className="size-4 shrink-0 text-muted-foreground" />
+    </button>
+  )
+
   useLayoutEffect(() => {
     shouldRestoreFocus.current = true
     setIsOpen(false)
@@ -245,9 +314,7 @@ export function ChatModelSelector() {
                     title={label}
                     type="button"
                   >
-                    <Icon
-                      className={cn("size-5", isStar && isActive && "fill-current")}
-                    />
+                    <Icon className={cn("size-5", isStar && isActive && "fill-current")} />
                   </button>
                 </div>
               )
@@ -273,32 +340,8 @@ export function ChatModelSelector() {
               value={selectedModel.id}
               onValueChange={handleModelChange}
             >
-              {primaryModels.map((model, index) => renderModelRow(model, index))}
-
-              {showLegacyGroup && (
-                <button
-                  aria-expanded={isLegacyExpanded || isFiltering}
-                  className="flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-sm outline-none transition-colors hover:bg-accent focus-visible:ring-3 focus-visible:ring-ring/50"
-                  onClick={() => setIsLegacyExpanded((expanded) => !expanded)}
-                  type="button"
-                >
-                  <span className="flex min-w-0 flex-1 flex-col">
-                    <span className="truncate font-medium">Legacy models</span>
-                    <span className="truncate text-xs text-muted-foreground">
-                      {legacyFiltered.length} {legacyFiltered.length === 1 ? "model" : "models"}
-                    </span>
-                  </span>
-                  <ChevronRightIcon
-                    className={cn(
-                      "size-4 shrink-0 text-muted-foreground transition-transform",
-                      (isLegacyExpanded || isFiltering) && "rotate-90",
-                    )}
-                  />
-                </button>
-              )}
-
-              {legacyVisible.map((model, legacyIndex) =>
-                renderModelRow(model, primaryModels.length + legacyIndex),
+              {rows.map((row) =>
+                row.kind === "model" ? renderModelRow(row.model, row.index) : renderGroupRow(row),
               )}
 
               {visibleModels.length === 0 && (

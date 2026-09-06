@@ -1,7 +1,7 @@
 import type { ComponentType } from "react"
 import { CpuIcon } from "lucide-react"
 
-import { GoogleLogo, MetaLogo, OpenAILogo, XAILogo } from "@/components/model-logos"
+import { GoogleLogo, MetaLogo, OpenAILogo, OpenCodeLogo, XAILogo } from "@/components/model-logos"
 
 export type ChatModelSourceId = "opencode" | "chatgpt"
 
@@ -13,16 +13,24 @@ export type ChatModelOption = {
   providerLabel: string
   source: ChatModelSourceId
   icon: ChatModelIcon
-  legacy?: boolean
+  /** Renders the model inside a named reveal section instead of the main list. */
+  groupId?: ChatModelGroupId
 }
 
 export const CHAT_MODEL_SOURCES: {
   id: ChatModelSourceId
   label: string
+  icon: ChatModelIcon
 }[] = [
-  { id: "opencode", label: "OpenCode models" },
-  { id: "chatgpt", label: "ChatGPT models" },
+  { id: "opencode", label: "OpenCode models", icon: OpenCodeLogo },
+  { id: "chatgpt", label: "ChatGPT models", icon: OpenAILogo },
 ]
+
+export const CHAT_MODEL_GROUPS = {
+  legacy: { label: "Legacy models" },
+} as const
+
+export type ChatModelGroupId = keyof typeof CHAT_MODEL_GROUPS
 
 export const CHAT_MODELS: readonly ChatModelOption[] = [
   {
@@ -108,7 +116,7 @@ export const CHAT_MODELS: readonly ChatModelOption[] = [
     providerLabel: "Codex",
     source: "chatgpt",
     icon: OpenAILogo,
-    legacy: true,
+    groupId: "legacy",
   },
   {
     id: "chatgpt/gpt-5.4-mini",
@@ -116,7 +124,7 @@ export const CHAT_MODELS: readonly ChatModelOption[] = [
     providerLabel: "Codex",
     source: "chatgpt",
     icon: OpenAILogo,
-    legacy: true,
+    groupId: "legacy",
   },
   {
     id: "chatgpt/gpt-5.4",
@@ -124,7 +132,7 @@ export const CHAT_MODELS: readonly ChatModelOption[] = [
     providerLabel: "Codex",
     source: "chatgpt",
     icon: OpenAILogo,
-    legacy: true,
+    groupId: "legacy",
   },
 ]
 
@@ -134,4 +142,8 @@ export function getChatModel(id: string | null | undefined) {
 
 export function getChatModelSource(id: string | null | undefined): ChatModelSourceId {
   return getChatModel(id).source
+}
+
+export function getChatModelGroupLabel(groupId: ChatModelGroupId) {
+  return CHAT_MODEL_GROUPS[groupId].label
 }
