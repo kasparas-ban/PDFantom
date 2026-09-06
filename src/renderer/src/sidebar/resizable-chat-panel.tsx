@@ -20,7 +20,7 @@ export function ResizableChatPanel({
   onWidthChange,
   width,
 }: ResizableChatPanelProps) {
-  const runtime = useChatSession()
+  const client = useChatSession()
 
   return (
     <ResizablePanel
@@ -31,9 +31,9 @@ export function ResizableChatPanel({
       side="right"
       width={width}
     >
-      {runtime ? (
+      {client ? (
         <Suspense fallback={<ChatPanelShell />}>
-          <ChatPanel runtime={runtime} />
+          <ChatPanel client={client} />
         </Suspense>
       ) : (
         <ChatPanelShell />

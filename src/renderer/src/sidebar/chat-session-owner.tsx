@@ -1,11 +1,16 @@
 import { useLayoutEffect } from "react"
-import { useLocalRuntime, type AssistantRuntime } from "@assistant-ui/react"
+import {
+  AssistantRuntimeProvider,
+  useAui,
+  useLocalRuntime,
+  type AssistantClient,
+} from "@assistant-ui/react"
 
 import { usePlatform } from "../app/platform"
 import { useChatModelStore } from "./chat-session"
 
 type ChatSessionOwnerProps = {
-  readonly onReady: (runtime: AssistantRuntime) => void
+  readonly onReady: (client: AssistantClient) => void
 }
 
 export function ChatSessionOwner({ onReady }: ChatSessionOwnerProps) {
@@ -45,9 +50,19 @@ export function ChatSessionOwner({ onReady }: ChatSessionOwnerProps) {
     },
   })
 
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <ChatSessionReady onReady={onReady} />
+    </AssistantRuntimeProvider>
+  )
+}
+
+function ChatSessionReady({ onReady }: ChatSessionOwnerProps) {
+  const client = useAui()
+
   useLayoutEffect(() => {
-    onReady(runtime)
-  }, [runtime, onReady])
+    onReady(client)
+  }, [client, onReady])
 
   return null
 }

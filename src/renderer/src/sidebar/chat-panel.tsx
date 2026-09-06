@@ -1,15 +1,16 @@
 import { createContext, useContext, useEffect, useState } from "react"
 import {
   ActionBarPrimitive,
-  AssistantRuntimeProvider,
+  AuiConfig,
   AuiIf,
+  AuiProvider,
   ComposerPrimitive,
   ErrorPrimitive,
   MessagePrimitive,
   ThreadPrimitive,
   useAuiState,
   useMessageTiming,
-  type AssistantRuntime,
+  type AssistantClient,
 } from "@assistant-ui/react"
 import {
   ArrowUpIcon,
@@ -34,11 +35,13 @@ import { ChatPanelShell } from "./chat-panel-shell"
 
 const ApiKeyMissingContext = createContext(false)
 
-export function ChatPanel({ runtime }: { runtime: AssistantRuntime }) {
+export function ChatPanel({ client }: { client: AssistantClient }) {
+  const config = AuiConfig({})
+
   return (
-    <AssistantRuntimeProvider runtime={runtime}>
+    <AuiProvider extends={client} config={config}>
       <ChatPresentation />
-    </AssistantRuntimeProvider>
+    </AuiProvider>
   )
 }
 

@@ -184,58 +184,61 @@ test("Activity retains exact PDF geometry, canvas, selection, chat draft and mod
   await expect(reader.chatModelButton).toContainText("GPT-5.4 Mini")
 })
 
-test("in-flight chat continues while hidden and returns with messages and model", async ({
-  application,
-}) => {
-  const { page } = application
-  const reader = new DocumentReaderDriver(page)
-  await reader.toggleChatPanel("Show")
-  await reader.chatModelButton.click()
-  await reader.chatModelOption("GPT-5.4 Mini").click()
-  await page.evaluate(() => {
-    window.fetch = async (_url, init) => {
-      Reflect.set(
-        window,
-        "chatRequest",
-        JSON.parse(typeof init?.body === "string" ? init.body : "null"),
+for (const destination of ["Settings", "hidden panel"] as const) {
+  test(`in-flight chat continues in ${destination} and returns with messages and model`, async ({
+    application,
+  }) => {
+    const { page } = application
+    const reader = new DocumentReaderDriver(page)
+    await reader.toggleChatPanel("Show")
+    await reader.chatModelButton.click()
+    await reader.chatModelOption("GPT-5.4 Mini").click()
+    await page.evaluate(() => window.pdfantom.saveOpenRouterApiKey("sk-or-test"))
+    await application.electronApplication.evaluate(() => {
+      globalThis.fetch = async (_url, init) => {
+        Reflect.set(
+          globalThis,
+          "chatRequest",
+          JSON.parse(typeof init?.body === "string" ? init.body : "null"),
+        )
+        return new Promise<Response>((resolve, reject) => {
+          init?.signal?.addEventListener("abort", () => reject(new Error("Aborted")), { once: true })
+          Reflect.set(globalThis, "finishChat", () => {
+            resolve(Response.json({ choices: [{ message: { content: "Started while hidden" } }] }))
+          })
+        })
+      }
+    })
+    await reader.writeChatMessage("Mock a response")
+    await reader.chatSendMessageButton.click()
+    await expect(page.getByRole("button", { name: "Stop response" })).toBeVisible()
+    await expect
+      .poll(() =>
+        application.electronApplication.evaluate(() => Reflect.get(globalThis, "chatRequest")),
       )
-      const encoder = new TextEncoder()
-      return new Response(
-        new ReadableStream({
-          start(controller) {
-            const send = (event: unknown) =>
-              controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`))
-            send({ type: "start", messageId: "mock-response" })
-            send({ type: "text-start", id: "text" })
-            send({ type: "text-delta", id: "text", delta: "Started " })
-            Reflect.set(window, "finishChat", () => {
-              send({ type: "text-delta", id: "text", delta: "while hidden" })
-              send({ type: "text-end", id: "text" })
-              send({ type: "finish" })
-              controller.enqueue(encoder.encode("data: [DONE]\n\n"))
-              controller.close()
-            })
-          },
-        }),
-        { headers: { "Content-Type": "text/event-stream", "x-vercel-ai-ui-message-stream": "v1" } },
-      )
+      .toMatchObject({ model: "openai/gpt-5.4-mini" })
+    if (destination === "Settings") {
+      await reader.settingsButton.click()
+      await expect(reader.settings).toBeVisible()
+    } else {
+      await reader.toggleChatPanel("Hide")
+      await expect(reader.chatPanel).toBeHidden()
     }
+    await application.electronApplication.evaluate(() => {
+      const finish: () => void = Reflect.get(globalThis, "finishChat")
+      finish()
+    })
+    if (destination === "Settings") {
+      await reader.backToAppButton.click()
+    } else {
+      await reader.toggleChatPanel("Show")
+    }
+    await expect(reader.chatPanel.getByText("Started while hidden")).toBeVisible()
+    await expect(reader.chatPanel.getByText("Mock a response")).toBeVisible()
+    await expect(reader.chatModelButton).toContainText("GPT-5.4 Mini")
+    await expect(page.getByRole("button", { name: "Stop response" })).toHaveCount(0)
   })
-  await reader.writeChatMessage("Mock a response")
-  await reader.chatSendMessageButton.click()
-  await expect(page.getByRole("button", { name: "Stop response" })).toBeVisible()
-  await reader.settingsButton.click()
-  await expect(reader.settings).toBeVisible()
-  await page.evaluate(() => {
-    const finish: () => void = Reflect.get(window, "finishChat")
-    finish()
-  })
-  await reader.backToAppButton.click()
-  await expect(reader.chatPanel.getByText("Started while hidden")).toBeVisible()
-  await expect(reader.chatPanel.getByText("Mock a response")).toBeVisible()
-  await expect(reader.chatModelButton).toContainText("GPT-5.4 Mini")
-  await expect(page.getByRole("button", { name: "Stop response" })).toHaveCount(0)
-})
+}
 
 test("departure releases resize capture and body styles; initial Settings, history and IPC work", async ({
   application,
