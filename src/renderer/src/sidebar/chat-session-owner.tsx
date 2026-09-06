@@ -2,14 +2,16 @@ import { useLayoutEffect } from "react"
 import { useLocalRuntime, type AssistantRuntime } from "@assistant-ui/react"
 
 import { usePlatform } from "../app/platform"
+import { useChatModelStore } from "./chat-session"
 
 type ChatSessionOwnerProps = {
-  readonly model: string
   readonly onReady: (runtime: AssistantRuntime) => void
 }
 
-export function ChatSessionOwner({ onReady, model }: ChatSessionOwnerProps) {
+export function ChatSessionOwner({ onReady }: ChatSessionOwnerProps) {
   const platform = usePlatform()
+  const chatModelStore = useChatModelStore()
+
   const runtime = useLocalRuntime({
     async run({ messages, abortSignal }) {
       const id = crypto.randomUUID()
@@ -22,7 +24,7 @@ export function ChatSessionOwner({ onReady, model }: ChatSessionOwnerProps) {
       try {
         const result = await platform.generateChat({
           id,
-          model,
+          model: chatModelStore.getState().model,
           messages: messages
             .map((message) => ({
               role: message.role,

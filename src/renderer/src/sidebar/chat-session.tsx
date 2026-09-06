@@ -4,19 +4,17 @@ import {
   Suspense,
   useContext,
   useEffect,
-  useMemo,
   useState,
   type PropsWithChildren,
 } from "react"
 import type { AssistantRuntime } from "@assistant-ui/react"
+import { useStore } from "zustand"
 
 import { useAppConfig } from "../store/app-config-provider"
+import { createChatModelStore, type ChatModelStore } from "./chat-model-store"
 
 const ChatRuntimeContext = createContext<AssistantRuntime | null>(null)
-const ChatModelContext = createContext<{
-  readonly model: string
-  readonly setModel: (model: string) => void
-} | null>(null)
+const ChatModelStoreContext = createContext<ChatModelStore | null>(null)
 const ChatSessionOwner = lazy(() =>
   import("./chat-session-owner").then((module) => ({ default: module.ChatSessionOwner })),
 )
@@ -25,31 +23,34 @@ export function ChatSessionProvider({ children }: PropsWithChildren) {
   const isChatPanelOpen = useAppConfig((state) => state.isChatPanelOpen)
   const [isInitialized, setIsInitialized] = useState(isChatPanelOpen)
   const [runtime, setRuntime] = useState<AssistantRuntime | null>(null)
-  const [model, setModel] = useState("openai/gpt-5.4-nano")
+  const [modelStore] = useState(() => createChatModelStore())
 
   useEffect(() => {
     if (isChatPanelOpen) setIsInitialized(true)
   }, [isChatPanelOpen])
 
-  const modelContext = useMemo(() => ({ model, setModel }), [model])
-
   return (
-    <ChatModelContext value={modelContext}>
+    <ChatModelStoreContext value={modelStore}>
       {isInitialized && (
         <Suspense fallback={null}>
-          <ChatSessionOwner onReady={setRuntime} model={model} />
+          <ChatSessionOwner onReady={setRuntime} />
         </Suspense>
       )}
       <ChatRuntimeContext value={runtime}>{children}</ChatRuntimeContext>
-    </ChatModelContext>
+    </ChatModelStoreContext>
   )
 }
 
 export const useChatSession = () => useContext(ChatRuntimeContext)
 
-export function useChatModel() {
-  const context = useContext(ChatModelContext)
-  if (!context) throw new Error("useChatModel must be used within ChatSessionProvider")
+export function useChatModelStore() {
+  const store = useContext(ChatModelStoreContext)
+  if (!store) throw new Error("useChatModelStore must be used within ChatSessionProvider")
 
-  return context
+  return store
+}
+
+export function useChatModel() {
+  const store = useChatModelStore()
+  return useStore(store)
 }
