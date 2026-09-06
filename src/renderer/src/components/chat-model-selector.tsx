@@ -21,6 +21,8 @@ import {
   isFreeChatModel,
   POPULAR_OPENROUTER_COUNT,
   sortChatModelsByPopularity,
+  supportsImagesChatModel,
+  supportsReasoningChatModel,
   type ChatModelGroupId,
   type ChatModelIcon,
   type ChatModelOption,
@@ -116,6 +118,8 @@ export function ChatModelSelector() {
   const [revealedGroups, setRevealedGroups] = useState<ChatModelGroupId[]>([])
   const [showPopularOnly, setShowPopularOnly] = useState(false)
   const [showFreeOnly, setShowFreeOnly] = useState(false)
+  const [showReasoningOnly, setShowReasoningOnly] = useState(false)
+  const [showImagesOnly, setShowImagesOnly] = useState(false)
 
   const normalizedQuery = query.trim().toLocaleLowerCase()
   const isFiltering = normalizedQuery.length > 0
@@ -139,7 +143,10 @@ export function ChatModelSelector() {
   const isOpenRouterTab = activeTab === "openrouter"
 
   const matchesFilters = (model: ChatModelOption) =>
-    matchesQuery(model) && (!isOpenRouterTab || !showFreeOnly || isFreeChatModel(model))
+    matchesQuery(model) &&
+    (!isOpenRouterTab || !showFreeOnly || isFreeChatModel(model)) &&
+    (!isOpenRouterTab || !showReasoningOnly || supportsReasoningChatModel(model)) &&
+    (!isOpenRouterTab || !showImagesOnly || supportsImagesChatModel(model))
 
   const primaryModels = getBaseModels().filter(matchesFilters)
 
@@ -172,8 +179,8 @@ export function ChatModelSelector() {
   const shortcutModels = selectableModels.slice(0, 9)
 
   const activeFilterQualifiers =
-    isOpenRouterTab && (showPopularOnly || showFreeOnly)
-      ? `${showPopularOnly ? "popular " : ""}${showFreeOnly ? "free " : ""}`
+    isOpenRouterTab && (showPopularOnly || showFreeOnly || showReasoningOnly || showImagesOnly)
+      ? `${showPopularOnly ? "popular " : ""}${showFreeOnly ? "free " : ""}${showReasoningOnly ? "reasoning " : ""}${showImagesOnly ? "image-input " : ""}`
       : ""
 
   const handleOpenChange = (open: boolean) => {
@@ -187,6 +194,8 @@ export function ChatModelSelector() {
       setRevealedGroups([])
       setShowPopularOnly(false)
       setShowFreeOnly(false)
+      setShowReasoningOnly(false)
+      setShowImagesOnly(false)
     }
   }
 
@@ -414,7 +423,7 @@ export function ChatModelSelector() {
             </div>
 
             {isOpenRouterTab && (
-              <div className="flex shrink-0 items-center gap-1.5 px-2 py-1.5">
+              <div className="flex shrink-0 flex-wrap items-center gap-1.5 px-2 py-1.5">
                 <Button
                   aria-pressed={showPopularOnly}
                   onClick={() => setShowPopularOnly((visible) => !visible)}
@@ -432,6 +441,24 @@ export function ChatModelSelector() {
                   variant={showFreeOnly ? "default" : "outline"}
                 >
                   Free
+                </Button>
+                <Button
+                  aria-pressed={showReasoningOnly}
+                  onClick={() => setShowReasoningOnly((visible) => !visible)}
+                  size="xs"
+                  type="button"
+                  variant={showReasoningOnly ? "default" : "outline"}
+                >
+                  Reasoning
+                </Button>
+                <Button
+                  aria-pressed={showImagesOnly}
+                  onClick={() => setShowImagesOnly((visible) => !visible)}
+                  size="xs"
+                  type="button"
+                  variant={showImagesOnly ? "default" : "outline"}
+                >
+                  Images
                 </Button>
               </div>
             )}

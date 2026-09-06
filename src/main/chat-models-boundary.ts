@@ -5,14 +5,16 @@ import {
   GENERIC_CHAT_ERROR,
   LIST_PROVIDER_MODELS_CHANNEL,
   isFreeOpenRouterModelId,
+  isTextOutputModel,
   type ChatModelInfo,
   type ChatModelListResult,
 } from "../shared/chat-api"
 import { isTrustedRenderer } from "./trusted-renderer"
 
-const MODELS_URL = "https://openrouter.ai/api/v1/models?sort=most-popular"
+const MODELS_URL = "https://openrouter.ai/api/v1/models?sort=most-popular&output_modalities=text"
 const MODELS_CACHE_TTL_MS = 60 * 60 * 1000
 const MODELS_REQUEST_TIMEOUT_MS = 20_000
+const REASONING_PARAMETERS = new Set(["reasoning", "include_reasoning", "reasoning_effort"])
 
 const priceSchema = z.union([z.string(), z.number()])
 
@@ -25,11 +27,32 @@ const modelSchema = z.object({
       completion: priceSchema,
     })
     .optional(),
+  architecture: z
+    .object({
+      input_modalities: z.array(z.string()).nullish(),
+      output_modalities: z.array(z.string()).nullish(),
+    })
+    .nullish(),
+  supported_parameters: z.array(z.string()).nullish(),
+  reasoning: z.unknown().nullish(),
 })
 
 const responseSchema = z.object({
   data: z.array(modelSchema).max(10_000),
 })
+
+function isReasoningOpenRouterListing(
+  reasoning: unknown,
+  supportedParameters?: string[] | null,
+) {
+  if (reasoning !== undefined && reasoning !== null) return true
+
+  return supportedParameters?.some((parameter) => REASONING_PARAMETERS.has(parameter)) ?? false
+}
+
+function supportsImagesOpenRouterListing(inputModalities?: string[] | null) {
+  return inputModalities?.some((modality) => modality.toLocaleLowerCase() === "image") ?? false
+}
 
 function isFreeOpenRouterListing(
   id: string,
@@ -63,14 +86,22 @@ export function registerChatModelsBoundary(window: BrowserWindow, rendererUrl: s
       const body = responseSchema.safeParse(await response.json())
       if (!body.success) return { error: GENERIC_CHAT_ERROR }
 
-      const models: ChatModelInfo[] = body.data.data.map(
-        ({ id, name, pricing }, popularityRank) => ({
-          id,
-          name,
-          isFree: isFreeOpenRouterListing(id, pricing),
-          popularityRank,
-        }),
-      )
+      const models: ChatModelInfo[] = body.data.data
+        .filter(({ architecture }) => isTextOutputModel(architecture?.output_modalities))
+        .map(
+          (
+            { id, name, pricing, architecture, supported_parameters, reasoning },
+            popularityRank,
+          ) => ({
+            id,
+            name,
+            isFree: isFreeOpenRouterListing(id, pricing),
+            popularityRank,
+            supportsReasoning: isReasoningOpenRouterListing(reasoning, supported_parameters),
+            supportsImages: supportsImagesOpenRouterListing(architecture?.input_modalities),
+            outputModalities: architecture?.output_modalities ?? undefined,
+          }),
+        )
       cache = { expiresAt: Date.now() + MODELS_CACHE_TTL_MS, models }
 
       return { models }

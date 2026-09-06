@@ -22,6 +22,7 @@ import {
 } from "@/components/model-logos"
 import {
   isFreeOpenRouterModelId,
+  isTextOutputModel,
   type ChatModelInfo,
   type ChatModelSourceId,
 } from "../../../shared/chat-api"
@@ -39,6 +40,9 @@ export type ChatModelOption = {
   unavailableReason?: string
   isFree?: boolean
   popularityRank?: number
+  supportsReasoning?: boolean
+  supportsImages?: boolean
+  outputModalities?: string[]
   groupId?: ChatModelGroupId
 }
 
@@ -46,6 +50,14 @@ export const POPULAR_OPENROUTER_COUNT = 20
 
 export function isFreeChatModel(model: { id: string; isFree?: boolean }) {
   return model.isFree ?? isFreeOpenRouterModelId(model.id)
+}
+
+export function supportsReasoningChatModel(model: { supportsReasoning?: boolean }) {
+  return model.supportsReasoning === true
+}
+
+export function supportsImagesChatModel(model: { supportsImages?: boolean }) {
+  return model.supportsImages === true
 }
 
 export function sortChatModelsByPopularity(models: readonly ChatModelOption[]) {
@@ -85,6 +97,10 @@ function isHiddenOpenRouterListing(listing: ChatModelInfo) {
   return HIDDEN_OPENROUTER_LISTING_PATTERN.test(`${listing.id} ${listing.name}`)
 }
 
+function isExcludedOpenRouterListing(listing: ChatModelInfo) {
+  return isHiddenOpenRouterListing(listing) || !isTextOutputModel(listing.outputModalities)
+}
+
 const BUNDLED_OPENROUTER_MODELS: ChatModelOption[] = [
   {
     id: "openai/gpt-5.4-nano",
@@ -92,6 +108,8 @@ const BUNDLED_OPENROUTER_MODELS: ChatModelOption[] = [
     providerLabel: "OpenRouter",
     source: "openrouter",
     icon: OpenAILogo,
+    supportsReasoning: true,
+    supportsImages: true,
   },
   {
     id: "openai/gpt-5.4-mini",
@@ -99,6 +117,8 @@ const BUNDLED_OPENROUTER_MODELS: ChatModelOption[] = [
     providerLabel: "OpenRouter",
     source: "openrouter",
     icon: OpenAILogo,
+    supportsReasoning: true,
+    supportsImages: true,
   },
   {
     id: "google/gemini-3.1-flash-lite-preview",
@@ -106,6 +126,8 @@ const BUNDLED_OPENROUTER_MODELS: ChatModelOption[] = [
     providerLabel: "OpenRouter",
     source: "openrouter",
     icon: GoogleLogo,
+    supportsReasoning: true,
+    supportsImages: true,
   },
   {
     id: "x-ai/grok-4.6",
@@ -113,6 +135,8 @@ const BUNDLED_OPENROUTER_MODELS: ChatModelOption[] = [
     providerLabel: "OpenRouter",
     source: "openrouter",
     icon: XAILogo,
+    supportsReasoning: true,
+    supportsImages: true,
   },
   {
     id: "meta-llama/llama-4-scout",
@@ -120,6 +144,8 @@ const BUNDLED_OPENROUTER_MODELS: ChatModelOption[] = [
     providerLabel: "OpenRouter",
     source: "openrouter",
     icon: MetaLogo,
+    supportsReasoning: false,
+    supportsImages: true,
   },
   {
     id: "qwen/qwen3-32b",
@@ -127,6 +153,8 @@ const BUNDLED_OPENROUTER_MODELS: ChatModelOption[] = [
     providerLabel: "OpenRouter",
     source: "openrouter",
     icon: CpuIcon,
+    supportsReasoning: true,
+    supportsImages: false,
   },
   {
     id: "nvidia/nemotron-3-ultra-550b-a55b:free",
@@ -135,6 +163,8 @@ const BUNDLED_OPENROUTER_MODELS: ChatModelOption[] = [
     source: "openrouter",
     icon: CpuIcon,
     isFree: true,
+    supportsReasoning: true,
+    supportsImages: false,
   },
 ]
 
@@ -330,7 +360,7 @@ export const CHAT_MODEL_PROVIDERS: ChatModelProvider[] = [
     icon: OpenRouterLogo,
     bundledModels: BUNDLED_OPENROUTER_MODELS,
     liveListings: true,
-    excludeListing: isHiddenOpenRouterListing,
+    excludeListing: isExcludedOpenRouterListing,
     mapListing: (listing) => {
       const companyId = getOpenRouterCompanyId(listing.id)
 
@@ -342,6 +372,9 @@ export const CHAT_MODEL_PROVIDERS: ChatModelProvider[] = [
         icon: getOpenRouterCompanyIcon(companyId),
         isFree: isFreeChatModel(listing),
         popularityRank: listing.popularityRank,
+        supportsReasoning: listing.supportsReasoning,
+        supportsImages: listing.supportsImages,
+        outputModalities: listing.outputModalities,
       }
     },
   },
@@ -349,10 +382,9 @@ export const CHAT_MODEL_PROVIDERS: ChatModelProvider[] = [
     source: "chatgpt",
     label: "ChatGPT models",
     icon: OpenAILogo,
-    bundledModels: BUNDLED_CHATGPT_MODELS.map((model) => ({
-      ...model,
-      unavailableReason: "ChatGPT support is not available yet",
-    })),
+    bundledModels: BUNDLED_CHATGPT_MODELS.map((model) =>
+      Object.assign({}, model, { unavailableReason: "ChatGPT support is not available yet" }),
+    ),
   },
 ]
 
@@ -372,7 +404,14 @@ export function mergeProviderListings(
 
     if (!listing) return model
 
-    return { ...model, isFree: isFreeChatModel(listing), popularityRank: listing.popularityRank }
+    return {
+      ...model,
+      isFree: isFreeChatModel(listing),
+      popularityRank: listing.popularityRank,
+      supportsReasoning: listing.supportsReasoning ?? model.supportsReasoning,
+      supportsImages: listing.supportsImages ?? model.supportsImages,
+      outputModalities: listing.outputModalities ?? model.outputModalities,
+    }
   })
 
   for (const listing of listings) {

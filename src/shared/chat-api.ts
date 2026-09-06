@@ -19,10 +19,19 @@ export type ChatModelInfo = {
   name: string
   isFree?: boolean
   popularityRank?: number
+  supportsReasoning?: boolean
+  supportsImages?: boolean
+  outputModalities?: string[]
 }
 
 export function isFreeOpenRouterModelId(id: string) {
   return id.toLowerCase().endsWith(":free")
+}
+
+export function isTextOutputModel(outputModalities?: string[] | null) {
+  return (
+    outputModalities?.some((modality) => modality.toLocaleLowerCase() === "text") ?? true
+  )
 }
 
 export type ChatModelListResult =
