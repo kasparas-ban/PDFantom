@@ -47,8 +47,10 @@ export const createChatModelStore = () =>
           const provider = CHAT_MODEL_PROVIDERS.find((option) => option.source === source)
           if (!provider?.liveListings) return
 
+          const visibleListings = listings.filter((listing) => !provider.excludeListing(listing))
+
           set((state) => ({
-            models: mergeProviderListings(state.models, listings, provider.mapListing),
+            models: mergeProviderListings(state.models, visibleListings, provider.mapListing),
           }))
         },
       }),

@@ -1,7 +1,6 @@
 import { useLayoutEffect, useRef, useState, type KeyboardEvent, type MouseEvent } from "react"
 import { ChevronDownIcon, ChevronRightIcon, SearchIcon, StarIcon } from "lucide-react"
 
-import { OpenCodeLogo } from "@/components/model-logos"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,7 +14,11 @@ import { usePagePortalContainer } from "../app/page-surface"
 import {
   CHAT_MODEL_PROVIDERS,
   getChatModelGroupLabel,
+  getOpenRouterCompanyId,
+  getOpenRouterCompanyLabel,
+  groupOpenRouterModelsByCompany,
   type ChatModelGroupId,
+  type ChatModelIcon,
   type ChatModelOption,
   type ChatModelSourceId,
 } from "../sidebar/chat-models"
@@ -32,16 +35,26 @@ const RAIL_TABS = [
   })),
 ]
 
-function SourceGlyph({ model, className }: { model: ChatModelOption; className?: string }) {
-  const Icon =
-    CHAT_MODEL_PROVIDERS.find((provider) => provider.source === model.source)?.icon ?? OpenCodeLogo
-
-  return <Icon className={className} />
-}
-
 type ModelListRow =
   | { kind: "model"; model: ChatModelOption }
   | { kind: "group"; id: ChatModelGroupId; label: string; count: number }
+  | { kind: "company"; id: string; label: string; icon: ChatModelIcon; models: ChatModelOption[] }
+
+function appendGroupedRows(
+  rows: ModelListRow[],
+  grouped: [ChatModelGroupId, ChatModelOption[]][],
+  revealed: ChatModelGroupId[],
+  isFiltering: boolean,
+) {
+  for (const [id, models] of grouped) {
+    if (!revealed.includes(id) && !isFiltering) {
+      rows.push({ kind: "group", id, label: getChatModelGroupLabel(id), count: models.length })
+      continue
+    }
+
+    for (const model of models) rows.push({ kind: "model", model })
+  }
+}
 
 function buildModelRows(
   primary: ChatModelOption[],
@@ -53,14 +66,30 @@ function buildModelRows(
 
   for (const model of primary) rows.push({ kind: "model", model })
 
-  for (const [id, models] of grouped) {
-    if (!revealed.includes(id) && !isFiltering) {
-      rows.push({ kind: "group", id, label: getChatModelGroupLabel(id), count: models.length })
-      continue
-    }
+  appendGroupedRows(rows, grouped, revealed, isFiltering)
 
-    for (const model of models) rows.push({ kind: "model", model })
+  return rows
+}
+
+function buildOpenRouterRows(
+  primary: ChatModelOption[],
+  grouped: [ChatModelGroupId, ChatModelOption[]][],
+  revealed: ChatModelGroupId[],
+  isFiltering: boolean,
+) {
+  const rows: ModelListRow[] = []
+
+  for (const section of groupOpenRouterModelsByCompany(primary)) {
+    rows.push({
+      kind: "company",
+      id: section.id,
+      label: section.label,
+      icon: section.icon,
+      models: section.models,
+    })
   }
+
+  appendGroupedRows(rows, grouped, revealed, isFiltering)
 
   return rows
 }
@@ -81,7 +110,11 @@ export function ChatModelSelector() {
 
   const matchesQuery = (model: ChatModelOption) =>
     model.name.toLocaleLowerCase().includes(normalizedQuery) ||
-    model.providerLabel.toLocaleLowerCase().includes(normalizedQuery)
+    model.providerLabel.toLocaleLowerCase().includes(normalizedQuery) ||
+    model.id.toLocaleLowerCase().includes(normalizedQuery) ||
+    getOpenRouterCompanyLabel(getOpenRouterCompanyId(model.id))
+      .toLocaleLowerCase()
+      .includes(normalizedQuery)
 
   const getBaseModels = (): ChatModelOption[] => {
     if (activeTab === "favorites") {
@@ -109,8 +142,13 @@ export function ChatModelSelector() {
     }
   }
 
-  const rows = buildModelRows(primaryModels, [...groupedModels], revealedGroups, isFiltering)
-  const visibleModels = rows.flatMap((row) => (row.kind === "model" ? [row.model] : []))
+  const rows =
+    activeTab === "openrouter"
+      ? buildOpenRouterRows(primaryModels, [...groupedModels], revealedGroups, isFiltering)
+      : buildModelRows(primaryModels, [...groupedModels], revealedGroups, isFiltering)
+  const visibleModels = rows.flatMap((row) =>
+    row.kind === "model" ? [row.model] : row.kind === "company" ? row.models : [],
+  )
   const selectableModels = visibleModels.filter((model) => !model.unavailableReason)
   const shortcutModels = selectableModels.slice(0, 9)
 
@@ -194,12 +232,11 @@ export function ChatModelSelector() {
         >
           <span className="flex min-w-0 flex-col">
             <span className="truncate font-medium">{model.name}</span>
-            <span className="flex items-center gap-1.5 truncate text-xs text-muted-foreground">
-              <SourceGlyph className="size-3.5 shrink-0" model={model} />
-              <span aria-hidden="true" className="truncate">
-                {model.unavailableReason ?? model.providerLabel}
+            {model.unavailableReason && (
+              <span className="truncate text-xs text-muted-foreground">
+                {model.unavailableReason}
               </span>
-            </span>
+            )}
           </span>
         </DropdownMenuRadioItem>
 
@@ -244,6 +281,26 @@ export function ChatModelSelector() {
       <ChevronRightIcon className="size-4 shrink-0 text-muted-foreground" />
     </button>
   )
+
+  const renderCompanySection = (section: {
+    id: string
+    label: string
+    icon: ChatModelIcon
+    models: ChatModelOption[]
+  }) => {
+    const Icon = section.icon
+
+    return (
+      <div className="mt-3 pb-1 first:mt-0 first:pt-1" key={`company-${section.id}`}>
+        <div className="flex items-center gap-1.5 px-2 py-1 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+          <Icon aria-hidden="true" className="size-3.5 shrink-0" />
+          <span className="truncate">{section.label}</span>
+        </div>
+
+        {section.models.map((model) => renderModelRow(model))}
+      </div>
+    )
+  }
 
   useLayoutEffect(() => {
     shouldRestoreFocus.current = true
@@ -335,9 +392,12 @@ export function ChatModelSelector() {
               value={selectedModel.id}
               onValueChange={handleModelChange}
             >
-              {rows.map((row) =>
-                row.kind === "model" ? renderModelRow(row.model) : renderGroupRow(row),
-              )}
+              {rows.map((row) => {
+                if (row.kind === "model") return renderModelRow(row.model)
+                if (row.kind === "company") return renderCompanySection(row)
+
+                return renderGroupRow(row)
+              })}
 
               {visibleModels.length === 0 && (
                 <output className="m-auto block px-2 text-center text-xs text-muted-foreground">

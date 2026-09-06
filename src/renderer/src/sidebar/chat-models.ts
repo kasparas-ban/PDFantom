@@ -1,7 +1,7 @@
 import type { ComponentType } from "react"
 import { CpuIcon } from "lucide-react"
 
-import { GoogleLogo, MetaLogo, OpenAILogo, OpenCodeLogo, XAILogo } from "@/components/model-logos"
+import { GoogleLogo, MetaLogo, OpenAILogo, OpenRouterLogo, XAILogo } from "@/components/model-logos"
 import type { ChatModelInfo, ChatModelSourceId } from "../../../shared/chat-api"
 
 export type { ChatModelSourceId }
@@ -31,58 +31,68 @@ export type ChatModelProvider = {
   icon: ChatModelIcon
   bundledModels: readonly ChatModelOption[]
 } & (
-  | { liveListings: true; mapListing: (listing: ChatModelInfo) => ChatModelOption }
+  | {
+      liveListings: true
+      mapListing: (listing: ChatModelInfo) => ChatModelOption
+      excludeListing: (listing: ChatModelInfo) => boolean
+    }
   | { liveListings?: undefined }
 )
 
-const BUNDLED_OPENCODE_MODELS: ChatModelOption[] = [
+const HIDDEN_OPENROUTER_LISTING_PATTERN = /latest|batch/i
+
+function isHiddenOpenRouterListing(listing: ChatModelInfo) {
+  return HIDDEN_OPENROUTER_LISTING_PATTERN.test(`${listing.id} ${listing.name}`)
+}
+
+const BUNDLED_OPENROUTER_MODELS: ChatModelOption[] = [
   {
     id: "openai/gpt-5.4-nano",
     name: "GPT-5.4 Nano",
-    providerLabel: "OpenCode · OpenRouter",
-    source: "opencode",
+    providerLabel: "OpenRouter",
+    source: "openrouter",
     icon: OpenAILogo,
   },
   {
     id: "openai/gpt-5.4-mini",
     name: "GPT-5.4 Mini",
-    providerLabel: "OpenCode · OpenRouter",
-    source: "opencode",
+    providerLabel: "OpenRouter",
+    source: "openrouter",
     icon: OpenAILogo,
   },
   {
     id: "google/gemini-3.1-flash-lite-preview",
     name: "Gemini 3.1 Flash Lite",
-    providerLabel: "OpenCode · OpenRouter",
-    source: "opencode",
+    providerLabel: "OpenRouter",
+    source: "openrouter",
     icon: GoogleLogo,
   },
   {
     id: "x-ai/grok-4.6",
     name: "Grok 4.6",
-    providerLabel: "OpenCode · OpenRouter",
-    source: "opencode",
+    providerLabel: "OpenRouter",
+    source: "openrouter",
     icon: XAILogo,
   },
   {
     id: "meta-llama/llama-4-scout",
     name: "Llama 4 Scout 17B",
-    providerLabel: "OpenCode · OpenRouter",
-    source: "opencode",
+    providerLabel: "OpenRouter",
+    source: "openrouter",
     icon: MetaLogo,
   },
   {
     id: "qwen/qwen3-32b",
     name: "Qwen3 32B",
-    providerLabel: "OpenCode · OpenRouter",
-    source: "opencode",
+    providerLabel: "OpenRouter",
+    source: "openrouter",
     icon: CpuIcon,
   },
   {
     id: "nvidia/nemotron-3-ultra-550b-a55b:free",
     name: "Nemotron 3 Ultra (free)",
-    providerLabel: "OpenCode · OpenRouter",
-    source: "opencode",
+    providerLabel: "OpenRouter",
+    source: "openrouter",
     icon: CpuIcon,
   },
 ]
@@ -149,22 +159,127 @@ const OPENROUTER_ICONS: { prefix: string; icon: ChatModelIcon }[] = [
   { prefix: "meta-llama/", icon: MetaLogo },
 ]
 
+const OPENROUTER_COMPANY_LABELS: Record<string, string> = {
+  anthropic: "Anthropic",
+  deepseek: "DeepSeek",
+  google: "Google",
+  meta: "Meta",
+  "meta-llama": "Meta",
+  microsoft: "Microsoft",
+  mistral: "Mistral",
+  mistralai: "Mistral",
+  nvidia: "Nvidia",
+  openai: "OpenAI",
+  openrouter: "OpenRouter",
+  qwen: "Qwen",
+  "x-ai": "xAI",
+}
+
+function humanizeCompanyId(companyId: string) {
+  return companyId
+    .split(/[-_]+/)
+    .filter((part) => part.length > 0)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ")
+}
+
+function stripAuthorPrefix(modelId: string, name: string) {
+  const separator = name.indexOf(":")
+
+  if (separator <= 0) return name
+
+  const prefix = name.slice(0, separator).trim()
+  const remainder = name.slice(separator + 1).trim()
+
+  if (!prefix || !remainder) return name
+
+  const normalizedPrefix = prefix.toLocaleLowerCase().replace(/[^a-z0-9]/g, "")
+  const normalizedAuthor = getOpenRouterCompanyId(modelId).replace(/[^a-z0-9]/g, "")
+
+  if (normalizedPrefix.length < 2 || normalizedAuthor.length < 2) return name
+
+  const isAuthorPrefix =
+    normalizedPrefix.includes(normalizedAuthor) || normalizedAuthor.includes(normalizedPrefix)
+
+  return isAuthorPrefix ? remainder : name
+}
+
+export function getOpenRouterCompanyId(modelId: string) {
+  const separator = modelId.indexOf("/")
+
+  if (separator <= 0) return "other"
+
+  // OpenRouter lists some models under a "~"-prefixed slug of the same company
+  // (e.g. "~openai/gpt-latest" next to "openai/..."). Treat those as one company.
+  return modelId.slice(0, separator).toLocaleLowerCase().replace(/^~+/, "")
+}
+
+export function getOpenRouterCompanyLabel(companyId: string) {
+  if (companyId === "other") return "Other"
+
+  return OPENROUTER_COMPANY_LABELS[companyId] ?? humanizeCompanyId(companyId)
+}
+
+export function getOpenRouterCompanyIcon(companyId: string) {
+  const match = OPENROUTER_ICONS.find(({ prefix }) =>
+    `${companyId}/`.startsWith(prefix.toLocaleLowerCase()),
+  )
+
+  return match?.icon ?? CpuIcon
+}
+
+export function groupOpenRouterModelsByCompany(models: readonly ChatModelOption[]) {
+  // Key sections by display label so distinct slugs of one company share a section
+  // (e.g. "meta" and "meta-llama" both render as "Meta").
+  const sections = new Map<string, { id: string; icon: ChatModelIcon; models: ChatModelOption[] }>()
+
+  for (const model of models) {
+    const companyId = getOpenRouterCompanyId(model.id)
+    const label = getOpenRouterCompanyLabel(companyId)
+    const section = sections.get(label)
+
+    if (section) {
+      section.models.push(model)
+
+      if (section.icon === CpuIcon && model.icon !== CpuIcon) section.icon = model.icon
+    } else {
+      sections.set(label, { id: companyId, icon: model.icon, models: [model] })
+    }
+  }
+
+  const grouped = [...sections].map(([label, section]) => {
+    const sortedModels = [...section.models].toSorted((a, b) => a.name.localeCompare(b.name))
+
+    return { id: section.id, label, icon: section.icon, models: sortedModels }
+  })
+
+  grouped.sort((a, b) => {
+    if (a.label === "Other") return 1
+    if (b.label === "Other") return -1
+
+    return a.label.localeCompare(b.label)
+  })
+
+  return grouped
+}
+
 export const CHAT_MODEL_PROVIDERS: ChatModelProvider[] = [
   {
-    source: "opencode",
-    label: "OpenCode models",
-    icon: OpenCodeLogo,
-    bundledModels: BUNDLED_OPENCODE_MODELS,
+    source: "openrouter",
+    label: "OpenRouter models",
+    icon: OpenRouterLogo,
+    bundledModels: BUNDLED_OPENROUTER_MODELS,
     liveListings: true,
+    excludeListing: isHiddenOpenRouterListing,
     mapListing: (listing) => {
-      const match = OPENROUTER_ICONS.find(({ prefix }) => listing.id.startsWith(prefix))
+      const companyId = getOpenRouterCompanyId(listing.id)
 
       return {
         id: listing.id,
-        name: listing.name,
-        providerLabel: "OpenCode · OpenRouter",
-        source: "opencode",
-        icon: match?.icon ?? CpuIcon,
+        name: stripAuthorPrefix(listing.id, listing.name),
+        providerLabel: "OpenRouter",
+        source: "openrouter",
+        icon: getOpenRouterCompanyIcon(companyId),
       }
     },
   },

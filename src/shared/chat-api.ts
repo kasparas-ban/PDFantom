@@ -4,7 +4,7 @@ export const LIST_PROVIDER_MODELS_CHANNEL = "chat:list-provider-models"
 
 export const GENERIC_CHAT_ERROR = "Unable to generate response. Please try again later."
 
-export type ChatModelSourceId = "opencode" | "chatgpt"
+export type ChatModelSourceId = "openrouter" | "chatgpt"
 
 export type ChatRequest = {
   id: string
