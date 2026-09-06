@@ -27,3 +27,5 @@ Separate logically related code blocks with blank lines to improve readability.
 ### Testing
 
 Keep test-only code out of business logic by using explicit test seams at application boundaries.
+
+Electron Playwright tests require elevated GUI execution when run from Codex. Request elevated execution before running `pnpm test`, `pnpm exec playwright test`, or any `test:e2e*` script that launches Electron.
