@@ -47,7 +47,7 @@ for (const { status, body, message } of [
   })
 }
 
-test("sends the saved key, selected model and conversation to OpenRouter", async ({
+test("sends the saved key, selected model, effort and conversation to OpenRouter", async ({
   application,
 }) => {
   await application.page.evaluate(() => window.pdfantom.saveOpenRouterApiKey("sk-or-test"))
@@ -68,6 +68,8 @@ test("sends the saved key, selected model and conversation to OpenRouter", async
   await reader.toggleChatPanel("Show")
   await reader.chatModelButton.click()
   await reader.chatModelOption("GPT-5.4 Mini").click()
+  await reader.chatEffortButton.click()
+  await reader.chatEffortOption("High").click()
   await reader.writeChatMessage("Hello")
   await reader.chatSendMessageButton.click()
   await expect(reader.chatPanel.getByText("Hello from OpenRouter", { exact: true })).toBeVisible()
@@ -83,6 +85,7 @@ test("sends the saved key, selected model and conversation to OpenRouter", async
     body: {
       model: "openai/gpt-5.4-mini",
       stream: false,
+      reasoning: { effort: "high" },
       messages: [
         { role: "user", content: "Hello" },
         { role: "assistant", content: "Hello from OpenRouter" },

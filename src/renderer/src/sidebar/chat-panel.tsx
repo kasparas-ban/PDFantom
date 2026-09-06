@@ -25,6 +25,7 @@ import {
 } from "lucide-react"
 import { Link } from "react-router"
 
+import { ChatEffortSelector } from "@/components/chat-effort-selector"
 import { ChatModelSelector } from "@/components/chat-model-selector"
 import { PdfantomLogo } from "@/components/pdfantom-logo"
 import { Button, buttonVariants } from "@/components/ui/button"
@@ -148,6 +149,7 @@ function ChatComposer() {
             <PlusIcon />
           </Button>
           <ChatModelSelector />
+          <ChatEffortSelector />
         </div>
 
         <div className="flex shrink-0 items-center gap-2">

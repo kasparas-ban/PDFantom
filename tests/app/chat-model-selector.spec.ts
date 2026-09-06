@@ -29,10 +29,15 @@ test.beforeEach(async ({ application }) => {
         loadDocument: async () => {
           throw new Error("No documents")
         },
-        generateChat: async ({ model }) => ({ text: `Response from ${model}` }),
+        generateChat: async ({ model, effort }) => ({
+          text: `Response from ${model}${effort ? ` at ${effort} effort` : ""}`,
+        }),
         cancelChat: async () => {},
         listProviderModels: async () => ({
-          models: [{ id: "test/live-model", name: "Live test model" }],
+          models: [
+            { id: "test/live-model", name: "Live test model" },
+            { id: "test/effort-model", name: "Effort test model", supportsEffort: true },
+          ],
         }),
         getOpenRouterApiKeyStatus: async () => ({ isConfigured: true }),
         getOpenRouterApiKey: async () => "test-key",
@@ -68,10 +73,9 @@ for (const interaction of ["click", "arrows", "shortcut"] as const) {
 
     await expect(reader.chatModelButton).toContainText("Live test model")
     await reader.chatModelButton.click()
-    await expect(application.page.getByRole("button", { name: "OpenRouter models" })).toHaveAttribute(
-      "aria-pressed",
-      "true",
-    )
+    await expect(
+      application.page.getByRole("button", { name: "OpenRouter models" }),
+    ).toHaveAttribute("aria-pressed", "true")
     await expect(option).toHaveAttribute("aria-checked", "true")
     await reader.chatModelFilterInput.press("Escape")
     await reader.writeChatMessage("Hello")
@@ -116,4 +120,30 @@ test("ChatGPT models stay unavailable through search, legacy groups and favorite
   await reader.chatModelFilterInput.press("Control+1")
   await reader.chatModelFilterInput.press("Escape")
   await expect(reader.chatModelButton).toContainText("Live test model")
+})
+
+test("chooses a reasoning effort only for models that support it", async ({ application }) => {
+  const reader = new DocumentReaderDriver(application.page)
+  await reader.toggleChatPanel("Show")
+  await expect(reader.chatEffortButton).toContainText("Medium")
+
+  await reader.chatModelButton.click()
+  await reader.chatModelFilterInput.fill("Live test model")
+  await reader.chatModelOption("Live test model").click()
+  await expect(reader.chatEffortButton).toBeHidden()
+
+  await reader.chatModelButton.click()
+  await reader.chatModelFilterInput.fill("Effort test model")
+  await reader.chatModelOption("Effort test model").click()
+  await expect(reader.chatEffortButton).toBeVisible()
+
+  await reader.chatEffortButton.click()
+  await reader.chatEffortOption("High").click()
+  await expect(reader.chatEffortButton).toContainText("High")
+
+  await reader.writeChatMessage("Hello")
+  await reader.chatSendMessageButton.click()
+  await expect(
+    reader.chatPanel.getByText("Response from test/effort-model at high effort"),
+  ).toBeVisible()
 })

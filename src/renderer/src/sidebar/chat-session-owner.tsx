@@ -7,6 +7,7 @@ import {
 } from "@assistant-ui/react"
 
 import { usePlatform } from "../app/platform"
+import { supportsEffortChatModel } from "./chat-models"
 import { useChatModelStore } from "./chat-session"
 
 type ChatSessionOwnerProps = {
@@ -27,9 +28,14 @@ export function ChatSessionOwner({ onReady }: ChatSessionOwnerProps) {
       abortSignal.addEventListener("abort", cancel, { once: true })
 
       try {
+        const { model, effort, models } = chatModelStore.getState()
+        const supportsEffort = models.some(
+          (option) => option.id === model && supportsEffortChatModel(option),
+        )
         const result = await platform.generateChat({
           id,
-          model: chatModelStore.getState().model,
+          model,
+          ...(supportsEffort && { effort }),
           messages: messages
             .map((message) => ({
               role: message.role,

@@ -15,6 +15,7 @@ const MODELS_URL = "https://openrouter.ai/api/v1/models?sort=most-popular&output
 const MODELS_CACHE_TTL_MS = 60 * 60 * 1000
 const MODELS_REQUEST_TIMEOUT_MS = 20_000
 const REASONING_PARAMETERS = new Set(["reasoning", "include_reasoning", "reasoning_effort"])
+const EFFORT_PARAMETER = "reasoning_effort"
 
 const priceSchema = z.union([z.string(), z.number()])
 
@@ -48,6 +49,10 @@ function isReasoningOpenRouterListing(
   if (reasoning !== undefined && reasoning !== null) return true
 
   return supportedParameters?.some((parameter) => REASONING_PARAMETERS.has(parameter)) ?? false
+}
+
+function supportsEffortOpenRouterListing(supportedParameters?: string[] | null) {
+  return supportedParameters?.includes(EFFORT_PARAMETER) ?? false
 }
 
 function supportsImagesOpenRouterListing(inputModalities?: string[] | null) {
@@ -98,6 +103,7 @@ export function registerChatModelsBoundary(window: BrowserWindow, rendererUrl: s
             isFree: isFreeOpenRouterListing(id, pricing),
             popularityRank,
             supportsReasoning: isReasoningOpenRouterListing(reasoning, supported_parameters),
+            supportsEffort: supportsEffortOpenRouterListing(supported_parameters),
             supportsImages: supportsImagesOpenRouterListing(architecture?.input_modalities),
             outputModalities: architecture?.output_modalities ?? undefined,
           }),

@@ -1,7 +1,11 @@
 import { persist } from "zustand/middleware"
 import { createStore } from "zustand/vanilla"
 
-import type { ChatModelInfo } from "../../../shared/chat-api"
+import {
+  DEFAULT_CHAT_EFFORT,
+  type ChatEffortLevel,
+  type ChatModelInfo,
+} from "../../../shared/chat-api"
 import {
   CHAT_MODEL_PROVIDERS,
   mergeProviderListings,
@@ -13,9 +17,11 @@ export const DEFAULT_CHAT_MODEL = "openai/gpt-5.4-nano"
 
 export type ChatModelState = {
   model: string
+  effort: ChatEffortLevel
   favoriteModelIds: string[]
   models: readonly ChatModelOption[]
   setModel: (model: string) => void
+  setEffort: (effort: ChatEffortLevel) => void
   toggleFavorite: (modelId: string) => void
   addProviderListings: (source: ChatModelSourceId, listings: ChatModelInfo[]) => void
 }
@@ -28,6 +34,7 @@ export const createChatModelStore = () =>
     persist(
       (set) => ({
         model: DEFAULT_CHAT_MODEL,
+        effort: DEFAULT_CHAT_EFFORT,
         favoriteModelIds: [],
         models: CHAT_MODEL_PROVIDERS.flatMap((provider) => provider.bundledModels),
         setModel: (id) =>
@@ -37,6 +44,7 @@ export const createChatModelStore = () =>
 
             return { model: model.id }
           }),
+        setEffort: (effort) => set({ effort }),
         toggleFavorite: (modelId) =>
           set((state) => ({
             favoriteModelIds: state.favoriteModelIds.includes(modelId)

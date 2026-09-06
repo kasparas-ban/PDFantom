@@ -6,10 +6,17 @@ export const GENERIC_CHAT_ERROR = "Unable to generate response. Please try again
 
 export type ChatModelSourceId = "openrouter" | "chatgpt"
 
+export const CHAT_EFFORT_LEVELS = ["low", "medium", "high"] as const
+
+export type ChatEffortLevel = (typeof CHAT_EFFORT_LEVELS)[number]
+
+export const DEFAULT_CHAT_EFFORT: ChatEffortLevel = "medium"
+
 export type ChatRequest = {
   id: string
   model: string
   messages: { role: "user" | "assistant" | "system"; content: string }[]
+  effort?: ChatEffortLevel
 }
 
 export type ChatResult = { text: string; error?: never } | { error: string; text?: never }
@@ -20,6 +27,7 @@ export type ChatModelInfo = {
   isFree?: boolean
   popularityRank?: number
   supportsReasoning?: boolean
+  supportsEffort?: boolean
   supportsImages?: boolean
   outputModalities?: string[]
 }

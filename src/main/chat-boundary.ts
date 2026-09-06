@@ -3,6 +3,7 @@ import { z } from "zod"
 
 import {
   CANCEL_CHAT_CHANNEL,
+  CHAT_EFFORT_LEVELS,
   GENERATE_CHAT_CHANNEL,
   GENERIC_CHAT_ERROR,
   type ChatResult,
@@ -26,6 +27,7 @@ const requestSchema = z.object({
     )
     .min(1)
     .max(200),
+  effort: z.enum(CHAT_EFFORT_LEVELS).optional(),
 })
 const responseSchema = z.object({
   choices: z.array(z.object({ message: z.object({ content: z.string().min(1) }) })).min(1),
@@ -50,7 +52,7 @@ export function registerChatBoundary(
     const parsed = requestSchema.safeParse(input)
     if (!parsed.success) return { error: GENERIC_CHAT_ERROR }
 
-    const { id, model, messages } = parsed.data
+    const { id, model, messages, effort } = parsed.data
     if (requests.size > 0) return { error: GENERIC_CHAT_ERROR }
 
     const controller = new AbortController()
@@ -63,7 +65,12 @@ export function registerChatBoundary(
       const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
         method: "POST",
         headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ model, messages, stream: false }),
+        body: JSON.stringify({
+          model,
+          messages,
+          stream: false,
+          ...(effort && { reasoning: { effort } }),
+        }),
         signal: AbortSignal.any([controller.signal, AbortSignal.timeout(120_000)]),
         redirect: "error",
       })

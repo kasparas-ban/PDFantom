@@ -41,6 +41,7 @@ export type ChatModelOption = {
   isFree?: boolean
   popularityRank?: number
   supportsReasoning?: boolean
+  supportsEffort?: boolean
   supportsImages?: boolean
   outputModalities?: string[]
   groupId?: ChatModelGroupId
@@ -54,6 +55,10 @@ export function isFreeChatModel(model: { id: string; isFree?: boolean }) {
 
 export function supportsReasoningChatModel(model: { supportsReasoning?: boolean }) {
   return model.supportsReasoning === true
+}
+
+export function supportsEffortChatModel(model: { supportsEffort?: boolean }) {
+  return model.supportsEffort === true
 }
 
 export function supportsImagesChatModel(model: { supportsImages?: boolean }) {
@@ -109,6 +114,7 @@ const BUNDLED_OPENROUTER_MODELS: ChatModelOption[] = [
     source: "openrouter",
     icon: OpenAILogo,
     supportsReasoning: true,
+    supportsEffort: true,
     supportsImages: true,
   },
   {
@@ -118,6 +124,7 @@ const BUNDLED_OPENROUTER_MODELS: ChatModelOption[] = [
     source: "openrouter",
     icon: OpenAILogo,
     supportsReasoning: true,
+    supportsEffort: true,
     supportsImages: true,
   },
   {
@@ -127,6 +134,7 @@ const BUNDLED_OPENROUTER_MODELS: ChatModelOption[] = [
     source: "openrouter",
     icon: GoogleLogo,
     supportsReasoning: true,
+    supportsEffort: true,
     supportsImages: true,
   },
   {
@@ -136,6 +144,7 @@ const BUNDLED_OPENROUTER_MODELS: ChatModelOption[] = [
     source: "openrouter",
     icon: XAILogo,
     supportsReasoning: true,
+    supportsEffort: true,
     supportsImages: true,
   },
   {
@@ -154,6 +163,7 @@ const BUNDLED_OPENROUTER_MODELS: ChatModelOption[] = [
     source: "openrouter",
     icon: CpuIcon,
     supportsReasoning: true,
+    supportsEffort: true,
     supportsImages: false,
   },
   {
@@ -164,6 +174,7 @@ const BUNDLED_OPENROUTER_MODELS: ChatModelOption[] = [
     icon: CpuIcon,
     isFree: true,
     supportsReasoning: true,
+    supportsEffort: true,
     supportsImages: false,
   },
 ]
@@ -373,6 +384,7 @@ export const CHAT_MODEL_PROVIDERS: ChatModelProvider[] = [
         isFree: isFreeChatModel(listing),
         popularityRank: listing.popularityRank,
         supportsReasoning: listing.supportsReasoning,
+        supportsEffort: listing.supportsEffort,
         supportsImages: listing.supportsImages,
         outputModalities: listing.outputModalities,
       }
@@ -409,6 +421,7 @@ export function mergeProviderListings(
       isFree: isFreeChatModel(listing),
       popularityRank: listing.popularityRank,
       supportsReasoning: listing.supportsReasoning ?? model.supportsReasoning,
+      supportsEffort: listing.supportsEffort ?? model.supportsEffort,
       supportsImages: listing.supportsImages ?? model.supportsImages,
       outputModalities: listing.outputModalities ?? model.outputModalities,
     }
