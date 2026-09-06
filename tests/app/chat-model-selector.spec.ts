@@ -134,14 +134,14 @@ test("ChatGPT models stay unavailable through search, legacy groups and favorite
 
   await reader.chatModelFilterInput.fill("Astra")
   await reader.chatModelFilterInput.press("Meta+1")
-  await expect(reader.chatModelButton).toContainText("GPT-5.4 Nano")
+  await expect(reader.chatModelButton).toContainText("Free Models Router")
   await application.page.getByRole("button", { name: "Favorite GPT-6-Astra", exact: true }).click()
   await application.page.getByRole("button", { name: "Favorite models", exact: true }).click()
   await expect(option).toBeDisabled()
   await reader.chatModelFilterInput.fill("")
   await reader.chatModelFilterInput.press("Control+1")
   await reader.chatModelFilterInput.press("Escape")
-  await expect(reader.chatModelButton).toContainText("GPT-5.4 Nano")
+  await expect(reader.chatModelButton).toContainText("Free Models Router")
 
   await reader.chatModelButton.click()
   await reader.chatModelFilterInput.fill("Live test model")

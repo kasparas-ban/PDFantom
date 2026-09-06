@@ -120,6 +120,8 @@ for (const retry of ["send", "regenerate"] as const) {
 
     const reader = new DocumentReaderDriver(application.page)
     await reader.toggleChatPanel("Show")
+    await reader.chatModelButton.click()
+    await reader.chatModelOption("GPT-5.4 Nano").click()
     await reader.writeChatMessage("Hello")
     await reader.chatSendMessageButton.click()
     await expect(reader.chatPanel.getByText("Insufficient credits", { exact: true })).toBeVisible()

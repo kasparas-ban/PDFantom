@@ -42,7 +42,7 @@ test("toggles the Chat panel", async ({ application }) => {
   await expect(reader.openAiProviderSettingsFromChatButton).toBeVisible()
   await expect(reader.chatMessageInput).toBeVisible()
   await expect(reader.chatAddAttachmentButton).toBeDisabled()
-  await expect(reader.chatModelButton).toContainText("GPT-5.4 Nano")
+  await expect(reader.chatModelButton).toContainText("Free Models Router")
   await expect(reader.chatModelButton).toBeEnabled()
   await reader.chatModelButton.click()
   await expect(reader.chatModelFilterInput).toBeFocused()

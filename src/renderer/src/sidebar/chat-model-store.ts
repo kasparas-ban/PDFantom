@@ -13,7 +13,7 @@ import {
   type ChatModelSourceId,
 } from "./chat-models"
 
-export const DEFAULT_CHAT_MODEL = "openai/gpt-5.4-nano"
+export const DEFAULT_CHAT_MODEL = "openrouter/free"
 
 export type ChatModelState = {
   model: string

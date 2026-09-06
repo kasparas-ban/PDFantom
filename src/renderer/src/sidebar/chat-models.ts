@@ -108,6 +108,17 @@ function isExcludedOpenRouterListing(listing: ChatModelInfo) {
 
 const BUNDLED_OPENROUTER_MODELS: ChatModelOption[] = [
   {
+    id: "openrouter/free",
+    name: "Free Models Router",
+    providerLabel: "OpenRouter",
+    source: "openrouter",
+    icon: OpenRouterLogo,
+    isFree: true,
+    supportsReasoning: true,
+    supportsEffort: true,
+    supportsImages: true,
+  },
+  {
     id: "openai/gpt-5.4-nano",
     name: "GPT-5.4 Nano",
     providerLabel: "OpenRouter",
