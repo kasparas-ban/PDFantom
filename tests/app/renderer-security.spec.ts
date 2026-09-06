@@ -57,6 +57,7 @@ test("the renderer exposes only the allowlisted preload API", async ({ applicati
       "getIsFullScreen",
       "getOpenRouterApiKey",
       "getOpenRouterApiKeyStatus",
+      "listProviderModels",
       "loadDocument",
       "onFullScreenChange",
       "openDocument",
@@ -116,6 +117,7 @@ test("document and chat channels deny foreign senders and non-main frames", asyn
           "document:load",
           "chat:generate",
           "chat:cancel",
+          "chat:list-provider-models",
         ].flatMap((channel) =>
           [
             { sender: null, senderFrame: contents.mainFrame },
@@ -132,7 +134,7 @@ test("document and chat channels deny foreign senders and non-main frames", asyn
       )
     },
   )
-  expect(denied).toEqual(Array.from({ length: 12 }, () => true))
+  expect(denied).toEqual(Array.from({ length: 14 }, () => true))
 })
 
 test(

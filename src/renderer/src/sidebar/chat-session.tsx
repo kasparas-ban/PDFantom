@@ -10,8 +10,10 @@ import {
 import type { AssistantClient } from "@assistant-ui/react"
 import { useStore } from "zustand"
 
+import { usePlatform } from "../app/platform"
 import { useAppConfig } from "../store/app-config-provider"
 import { createChatModelStore, type ChatModelStore } from "./chat-model-store"
+import { CHAT_MODEL_PROVIDERS, mergeProviderListings } from "./chat-models"
 
 const ChatClientContext = createContext<AssistantClient | null>(null)
 const ChatModelStoreContext = createContext<ChatModelStore | null>(null)
@@ -24,10 +26,44 @@ export function ChatSessionProvider({ children }: PropsWithChildren) {
   const [isInitialized, setIsInitialized] = useState(isChatPanelOpen)
   const [client, setClient] = useState<AssistantClient | null>(null)
   const [modelStore] = useState(() => createChatModelStore())
+  const platform = usePlatform()
 
   useEffect(() => {
     if (isChatPanelOpen) setIsInitialized(true)
   }, [isChatPanelOpen])
+
+  useEffect(() => {
+    let cancelled = false
+
+    void (async () => {
+      const pending: Promise<void>[] = []
+
+      for (const provider of CHAT_MODEL_PROVIDERS) {
+        if (!provider.liveListings) continue
+
+        pending.push(
+          (async () => {
+            const result = await platform.listProviderModels(provider.source).catch(() => undefined)
+
+            if (cancelled || !result?.models) return
+
+            modelStore
+              .getState()
+              .setProviderModels(
+                provider.source,
+                mergeProviderListings(provider.bundledModels, result.models, provider.mapListing),
+              )
+          })(),
+        )
+      }
+
+      await Promise.all(pending)
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [modelStore, platform])
 
   return (
     <ChatModelStoreContext value={modelStore}>

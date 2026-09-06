@@ -2,8 +2,9 @@ import type { ComponentType } from "react"
 import { CpuIcon } from "lucide-react"
 
 import { GoogleLogo, MetaLogo, OpenAILogo, OpenCodeLogo, XAILogo } from "@/components/model-logos"
+import type { ChatModelInfo, ChatModelSourceId } from "../../../shared/chat-api"
 
-export type ChatModelSourceId = "opencode" | "chatgpt"
+export type { ChatModelSourceId }
 
 export type ChatModelIcon = ComponentType<{ className?: string }>
 
@@ -17,22 +18,23 @@ export type ChatModelOption = {
   groupId?: ChatModelGroupId
 }
 
-export const CHAT_MODEL_SOURCES: {
-  id: ChatModelSourceId
-  label: string
-  icon: ChatModelIcon
-}[] = [
-  { id: "opencode", label: "OpenCode models", icon: OpenCodeLogo },
-  { id: "chatgpt", label: "ChatGPT models", icon: OpenAILogo },
-]
-
 export const CHAT_MODEL_GROUPS = {
   legacy: { label: "Legacy models" },
 } as const
 
 export type ChatModelGroupId = keyof typeof CHAT_MODEL_GROUPS
 
-export const CHAT_MODELS: readonly ChatModelOption[] = [
+export type ChatModelProvider = {
+  source: ChatModelSourceId
+  label: string
+  icon: ChatModelIcon
+  bundledModels: readonly ChatModelOption[]
+} & (
+  | { liveListings: true; mapListing: (listing: ChatModelInfo) => ChatModelOption }
+  | { liveListings?: undefined }
+)
+
+const BUNDLED_OPENCODE_MODELS: ChatModelOption[] = [
   {
     id: "openai/gpt-5.4-nano",
     name: "GPT-5.4 Nano",
@@ -82,6 +84,9 @@ export const CHAT_MODELS: readonly ChatModelOption[] = [
     source: "opencode",
     icon: CpuIcon,
   },
+]
+
+const BUNDLED_CHATGPT_MODELS: ChatModelOption[] = [
   {
     id: "chatgpt/gpt-6-astra",
     name: "GPT-6-Astra",
@@ -136,6 +141,44 @@ export const CHAT_MODELS: readonly ChatModelOption[] = [
   },
 ]
 
+const OPENROUTER_ICONS: { prefix: string; icon: ChatModelIcon }[] = [
+  { prefix: "openai/", icon: OpenAILogo },
+  { prefix: "google/", icon: GoogleLogo },
+  { prefix: "x-ai/", icon: XAILogo },
+  { prefix: "meta-llama/", icon: MetaLogo },
+]
+
+export const CHAT_MODEL_PROVIDERS: ChatModelProvider[] = [
+  {
+    source: "opencode",
+    label: "OpenCode models",
+    icon: OpenCodeLogo,
+    bundledModels: BUNDLED_OPENCODE_MODELS,
+    liveListings: true,
+    mapListing: (listing) => {
+      const match = OPENROUTER_ICONS.find(({ prefix }) => listing.id.startsWith(prefix))
+
+      return {
+        id: listing.id,
+        name: listing.name,
+        providerLabel: "OpenCode · OpenRouter",
+        source: "opencode",
+        icon: match?.icon ?? CpuIcon,
+      }
+    },
+  },
+  {
+    source: "chatgpt",
+    label: "ChatGPT models",
+    icon: OpenAILogo,
+    bundledModels: BUNDLED_CHATGPT_MODELS,
+  },
+]
+
+export const CHAT_MODELS: readonly ChatModelOption[] = CHAT_MODEL_PROVIDERS.flatMap(
+  (provider) => provider.bundledModels,
+)
+
 export function getChatModel(id: string | null | undefined) {
   return CHAT_MODELS.find((model) => model.id === id) ?? CHAT_MODELS[0]
 }
@@ -146,4 +189,22 @@ export function getChatModelSource(id: string | null | undefined): ChatModelSour
 
 export function getChatModelGroupLabel(groupId: ChatModelGroupId) {
   return CHAT_MODEL_GROUPS[groupId].label
+}
+
+export function mergeProviderListings(
+  bundled: readonly ChatModelOption[],
+  listings: ChatModelInfo[],
+  mapListing: (listing: ChatModelInfo) => ChatModelOption,
+): ChatModelOption[] {
+  const knownIds = new Set(bundled.map((model) => model.id))
+  const merged = [...bundled]
+
+  for (const listing of listings) {
+    if (knownIds.has(listing.id)) continue
+
+    knownIds.add(listing.id)
+    merged.push(mapListing(listing))
+  }
+
+  return merged
 }

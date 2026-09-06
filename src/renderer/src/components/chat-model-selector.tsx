@@ -21,7 +21,7 @@ import { cn } from "@/lib/utils"
 import { usePagePortalContainer } from "../app/page-surface"
 import {
   CHAT_MODELS,
-  CHAT_MODEL_SOURCES,
+  CHAT_MODEL_PROVIDERS,
   getChatModel,
   getChatModelGroupLabel,
   getChatModelSource,
@@ -35,15 +35,16 @@ type ModelTab = ChatModelSourceId | "favorites"
 
 const RAIL_TABS = [
   { id: "favorites" as const, label: "Favorite models", Icon: StarIcon },
-  ...CHAT_MODEL_SOURCES.map((source) => ({
-    id: source.id,
-    label: source.label,
-    Icon: source.icon,
+  ...CHAT_MODEL_PROVIDERS.map((provider) => ({
+    id: provider.source,
+    label: provider.label,
+    Icon: provider.icon,
   })),
 ]
 
 function SourceGlyph({ model, className }: { model: ChatModelOption; className?: string }) {
-  const Icon = CHAT_MODEL_SOURCES.find((source) => source.id === model.source)?.icon ?? OpenCodeLogo
+  const Icon =
+    CHAT_MODEL_PROVIDERS.find((provider) => provider.source === model.source)?.icon ?? OpenCodeLogo
 
   return <Icon className={className} />
 }
@@ -76,7 +77,13 @@ function buildModelRows(
 }
 
 export function ChatModelSelector() {
-  const { model: modelId, setModel, favoriteModelIds, toggleFavorite } = useChatModel()
+  const {
+    model: modelId,
+    setModel,
+    favoriteModelIds,
+    toggleFavorite,
+    providerModels,
+  } = useChatModel()
   const portalContainer = usePagePortalContainer()
   const shouldRestoreFocus = useRef(false)
   const searchRef = useRef<HTMLInputElement | null>(null)
@@ -86,7 +93,13 @@ export function ChatModelSelector() {
   const [activeTab, setActiveTab] = useState<ModelTab>(() => getChatModelSource(modelId))
   const [revealedGroups, setRevealedGroups] = useState<ChatModelGroupId[]>([])
 
-  const selectedModel = getChatModel(modelId)
+  const knownModels = new Map<string, ChatModelOption>()
+
+  for (const provider of CHAT_MODEL_PROVIDERS) {
+    for (const model of providerModels[provider.source]) knownModels.set(model.id, model)
+  }
+
+  const selectedModel = knownModels.get(modelId) ?? getChatModel(modelId)
 
   const normalizedQuery = query.trim().toLocaleLowerCase()
   const isFiltering = normalizedQuery.length > 0
@@ -95,17 +108,21 @@ export function ChatModelSelector() {
     model.name.toLocaleLowerCase().includes(normalizedQuery) ||
     model.providerLabel.toLocaleLowerCase().includes(normalizedQuery)
 
-  const primaryModels = (
-    activeTab === "favorites"
-      ? CHAT_MODELS.filter((model) => favoriteModelIds.includes(model.id))
-      : CHAT_MODELS.filter((model) => model.source === activeTab && !model.groupId)
-  ).filter(matchesQuery)
+  const getBaseModels = (): ChatModelOption[] => {
+    if (activeTab === "favorites") {
+      return [...knownModels.values()].filter((model) => favoriteModelIds.includes(model.id))
+    }
+
+    return providerModels[activeTab].filter((model) => !model.groupId)
+  }
+
+  const primaryModels = getBaseModels().filter(matchesQuery)
 
   const groupedModels = new Map<ChatModelGroupId, ChatModelOption[]>()
 
   if (activeTab !== "favorites") {
-    for (const model of CHAT_MODELS) {
-      if (model.source !== activeTab || !model.groupId || !matchesQuery(model)) continue
+    for (const model of providerModels[activeTab]) {
+      if (!model.groupId || !matchesQuery(model)) continue
 
       const group = groupedModels.get(model.groupId)
 
@@ -124,10 +141,8 @@ export function ChatModelSelector() {
     setIsOpen(open)
 
     if (open) {
-      const selected = getChatModel(modelId)
-
-      setActiveTab(selected.source)
-      setRevealedGroups(selected.groupId ? [selected.groupId] : [])
+      setActiveTab(selectedModel.source)
+      setRevealedGroups(selectedModel.groupId ? [selectedModel.groupId] : [])
     } else {
       setQuery("")
       setRevealedGroups([])
