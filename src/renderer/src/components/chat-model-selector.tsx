@@ -1,6 +1,7 @@
 import { useLayoutEffect, useRef, useState, type KeyboardEvent, type MouseEvent } from "react"
 import { ChevronDownIcon, ChevronRightIcon, SearchIcon, StarIcon } from "lucide-react"
 
+import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -17,6 +18,9 @@ import {
   getOpenRouterCompanyId,
   getOpenRouterCompanyLabel,
   groupOpenRouterModelsByCompany,
+  isFreeChatModel,
+  POPULAR_OPENROUTER_COUNT,
+  sortChatModelsByPopularity,
   type ChatModelGroupId,
   type ChatModelIcon,
   type ChatModelOption,
@@ -94,6 +98,12 @@ function buildOpenRouterRows(
   return rows
 }
 
+function buildPopularOpenRouterRows(models: ChatModelOption[]) {
+  return sortChatModelsByPopularity(models)
+    .slice(0, POPULAR_OPENROUTER_COUNT)
+    .map((model): ModelListRow => ({ kind: "model", model }))
+}
+
 export function ChatModelSelector() {
   const { selectedModel, setModel, favoriteModelIds, toggleFavorite, models } = useChatModel()
   const portalContainer = usePagePortalContainer()
@@ -104,6 +114,8 @@ export function ChatModelSelector() {
   const [query, setQuery] = useState("")
   const [activeTab, setActiveTab] = useState<ModelTab>(selectedModel.source)
   const [revealedGroups, setRevealedGroups] = useState<ChatModelGroupId[]>([])
+  const [showPopularOnly, setShowPopularOnly] = useState(false)
+  const [showFreeOnly, setShowFreeOnly] = useState(false)
 
   const normalizedQuery = query.trim().toLocaleLowerCase()
   const isFiltering = normalizedQuery.length > 0
@@ -124,13 +136,18 @@ export function ChatModelSelector() {
     return models.filter((model) => model.source === activeTab && !model.groupId)
   }
 
-  const primaryModels = getBaseModels().filter(matchesQuery)
+  const isOpenRouterTab = activeTab === "openrouter"
+
+  const matchesFilters = (model: ChatModelOption) =>
+    matchesQuery(model) && (!isOpenRouterTab || !showFreeOnly || isFreeChatModel(model))
+
+  const primaryModels = getBaseModels().filter(matchesFilters)
 
   const groupedModels = new Map<ChatModelGroupId, ChatModelOption[]>()
 
   if (activeTab !== "favorites") {
     for (const model of models) {
-      if (model.source !== activeTab || !model.groupId || !matchesQuery(model)) continue
+      if (model.source !== activeTab || !model.groupId || !matchesFilters(model)) continue
 
       const group = groupedModels.get(model.groupId)
 
@@ -143,14 +160,21 @@ export function ChatModelSelector() {
   }
 
   const rows =
-    activeTab === "openrouter"
-      ? buildOpenRouterRows(primaryModels, [...groupedModels], revealedGroups, isFiltering)
-      : buildModelRows(primaryModels, [...groupedModels], revealedGroups, isFiltering)
+    isOpenRouterTab && showPopularOnly
+      ? buildPopularOpenRouterRows(primaryModels)
+      : isOpenRouterTab
+        ? buildOpenRouterRows(primaryModels, [...groupedModels], revealedGroups, isFiltering)
+        : buildModelRows(primaryModels, [...groupedModels], revealedGroups, isFiltering)
   const visibleModels = rows.flatMap((row) =>
     row.kind === "model" ? [row.model] : row.kind === "company" ? row.models : [],
   )
   const selectableModels = visibleModels.filter((model) => !model.unavailableReason)
   const shortcutModels = selectableModels.slice(0, 9)
+
+  const activeFilterQualifiers =
+    isOpenRouterTab && (showPopularOnly || showFreeOnly)
+      ? `${showPopularOnly ? "popular " : ""}${showFreeOnly ? "free " : ""}`
+      : ""
 
   const handleOpenChange = (open: boolean) => {
     setIsOpen(open)
@@ -161,6 +185,8 @@ export function ChatModelSelector() {
     } else {
       setQuery("")
       setRevealedGroups([])
+      setShowPopularOnly(false)
+      setShowFreeOnly(false)
     }
   }
 
@@ -387,6 +413,29 @@ export function ChatModelSelector() {
               />
             </div>
 
+            {isOpenRouterTab && (
+              <div className="flex shrink-0 items-center gap-1.5 px-2 py-1.5">
+                <Button
+                  aria-pressed={showPopularOnly}
+                  onClick={() => setShowPopularOnly((visible) => !visible)}
+                  size="xs"
+                  type="button"
+                  variant={showPopularOnly ? "default" : "outline"}
+                >
+                  Popular
+                </Button>
+                <Button
+                  aria-pressed={showFreeOnly}
+                  onClick={() => setShowFreeOnly((visible) => !visible)}
+                  size="xs"
+                  type="button"
+                  variant={showFreeOnly ? "default" : "outline"}
+                >
+                  Free
+                </Button>
+              </div>
+            )}
+
             <DropdownMenuRadioGroup
               className="flex min-h-0 flex-1 flex-col overflow-y-auto p-1"
               value={selectedModel.id}
@@ -403,7 +452,7 @@ export function ChatModelSelector() {
                 <output className="m-auto block px-2 text-center text-xs text-muted-foreground">
                   {activeTab === "favorites" && !isFiltering
                     ? "No favorites yet. Star models to pin them here."
-                    : "No models found."}
+                    : `No ${activeFilterQualifiers}models found.`}
                 </output>
               )}
             </DropdownMenuRadioGroup>

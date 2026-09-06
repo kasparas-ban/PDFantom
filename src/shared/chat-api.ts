@@ -17,6 +17,12 @@ export type ChatResult = { text: string; error?: never } | { error: string; text
 export type ChatModelInfo = {
   id: string
   name: string
+  isFree?: boolean
+  popularityRank?: number
+}
+
+export function isFreeOpenRouterModelId(id: string) {
+  return id.toLowerCase().endsWith(":free")
 }
 
 export type ChatModelListResult =

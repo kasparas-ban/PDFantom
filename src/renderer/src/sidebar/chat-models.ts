@@ -2,7 +2,11 @@ import type { ComponentType } from "react"
 import { CpuIcon } from "lucide-react"
 
 import { GoogleLogo, MetaLogo, OpenAILogo, OpenRouterLogo, XAILogo } from "@/components/model-logos"
-import type { ChatModelInfo, ChatModelSourceId } from "../../../shared/chat-api"
+import {
+  isFreeOpenRouterModelId,
+  type ChatModelInfo,
+  type ChatModelSourceId,
+} from "../../../shared/chat-api"
 
 export type { ChatModelSourceId }
 
@@ -15,8 +19,26 @@ export type ChatModelOption = {
   source: ChatModelSourceId
   icon: ChatModelIcon
   unavailableReason?: string
-  /** Renders the model inside a named reveal section instead of the main list. */
+  isFree?: boolean
+  popularityRank?: number
   groupId?: ChatModelGroupId
+}
+
+export const POPULAR_OPENROUTER_COUNT = 20
+
+export function isFreeChatModel(model: { id: string; isFree?: boolean }) {
+  return model.isFree ?? isFreeOpenRouterModelId(model.id)
+}
+
+export function sortChatModelsByPopularity(models: readonly ChatModelOption[]) {
+  return [...models].toSorted((a, b) => {
+    const rankA = a.popularityRank ?? Number.POSITIVE_INFINITY
+    const rankB = b.popularityRank ?? Number.POSITIVE_INFINITY
+
+    if (rankA !== rankB) return rankA - rankB
+
+    return a.name.localeCompare(b.name)
+  })
 }
 
 export const CHAT_MODEL_GROUPS = {
@@ -94,6 +116,7 @@ const BUNDLED_OPENROUTER_MODELS: ChatModelOption[] = [
     providerLabel: "OpenRouter",
     source: "openrouter",
     icon: CpuIcon,
+    isFree: true,
   },
 ]
 
@@ -280,6 +303,8 @@ export const CHAT_MODEL_PROVIDERS: ChatModelProvider[] = [
         providerLabel: "OpenRouter",
         source: "openrouter",
         icon: getOpenRouterCompanyIcon(companyId),
+        isFree: isFreeChatModel(listing),
+        popularityRank: listing.popularityRank,
       }
     },
   },
@@ -303,8 +328,15 @@ export function mergeProviderListings(
   listings: ChatModelInfo[],
   mapListing: (listing: ChatModelInfo) => ChatModelOption,
 ): ChatModelOption[] {
+  const listingsById = new Map(listings.map((listing) => [listing.id, listing]))
   const knownIds = new Set(existingModels.map((model) => model.id))
-  const merged = [...existingModels]
+  const merged = existingModels.map((model) => {
+    const listing = listingsById.get(model.id)
+
+    if (!listing) return model
+
+    return { ...model, isFree: isFreeChatModel(listing), popularityRank: listing.popularityRank }
+  })
 
   for (const listing of listings) {
     if (knownIds.has(listing.id)) continue

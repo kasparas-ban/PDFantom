@@ -4,23 +4,43 @@ import { z } from "zod"
 import {
   GENERIC_CHAT_ERROR,
   LIST_PROVIDER_MODELS_CHANNEL,
+  isFreeOpenRouterModelId,
   type ChatModelInfo,
   type ChatModelListResult,
 } from "../shared/chat-api"
 import { isTrustedRenderer } from "./trusted-renderer"
 
-const MODELS_URL = "https://openrouter.ai/api/v1/models"
+const MODELS_URL = "https://openrouter.ai/api/v1/models?sort=most-popular"
 const MODELS_CACHE_TTL_MS = 60 * 60 * 1000
 const MODELS_REQUEST_TIMEOUT_MS = 20_000
+
+const priceSchema = z.union([z.string(), z.number()])
 
 const modelSchema = z.object({
   id: z.string().min(1).max(200),
   name: z.string().min(1).max(200),
+  pricing: z
+    .object({
+      prompt: priceSchema,
+      completion: priceSchema,
+    })
+    .optional(),
 })
 
 const responseSchema = z.object({
   data: z.array(modelSchema).max(10_000),
 })
+
+function isFreeOpenRouterListing(
+  id: string,
+  pricing?: { prompt: string | number; completion: string | number },
+) {
+  if (isFreeOpenRouterModelId(id)) return true
+
+  if (!pricing) return false
+
+  return Number(pricing.prompt) === 0 && Number(pricing.completion) === 0
+}
 
 type ModelsCache = {
   expiresAt: number
@@ -43,7 +63,14 @@ export function registerChatModelsBoundary(window: BrowserWindow, rendererUrl: s
       const body = responseSchema.safeParse(await response.json())
       if (!body.success) return { error: GENERIC_CHAT_ERROR }
 
-      const models = body.data.data.map(({ id, name }) => ({ id, name }))
+      const models: ChatModelInfo[] = body.data.data.map(
+        ({ id, name, pricing }, popularityRank) => ({
+          id,
+          name,
+          isFree: isFreeOpenRouterListing(id, pricing),
+          popularityRank,
+        }),
+      )
       cache = { expiresAt: Date.now() + MODELS_CACHE_TTL_MS, models }
 
       return { models }
