@@ -116,7 +116,7 @@ function ChatThread() {
           />
         </div>
 
-        <ThreadPrimitive.ViewportFooter className="sticky bottom-0 mt-auto bg-sidebar pt-3 pb-4">
+        <ThreadPrimitive.ViewportFooter className="sticky bottom-0 mt-auto bg-sidebar pb-4">
           <ChatComposer />
         </ThreadPrimitive.ViewportFooter>
       </ThreadPrimitive.Viewport>
@@ -136,7 +136,7 @@ function ChatComposer() {
         />
       </ComposerPrimitive.Input>
       <div className="flex min-w-0 items-center justify-between gap-2">
-        <div className="flex min-w-0 items-center gap-0.5 overflow-hidden">
+        <div className="flex min-w-0 items-center gap-0.5">
           <Button
             aria-label="Add attachment"
             className="size-7 rounded-full text-muted-foreground active:scale-[0.97]"
