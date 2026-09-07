@@ -2,19 +2,21 @@ import { ipcMain, type BrowserWindow, type IpcMainEvent, type MessagePortMain } 
 import { z } from "zod"
 
 import {
-  CHAT_EFFORT_LEVELS,
-  CHAT_PROVIDER_IDS,
+  CHAT_MODEL_SOURCE_IDS,
   GENERIC_CHAT_ERROR,
   STREAM_CHAT_CHANNEL,
+  type ChatRequest,
   type ChatStreamEvent,
 } from "../shared/chat-api"
+import type { CodexSession } from "./codex/session"
 import type { OpenRouterApiKeyStore } from "./openrouter-api-key-store"
 import { streamOpenRouterChat } from "./openrouter-chat"
 import { isTrustedRenderer } from "./trusted-renderer"
 
 const requestSchema = z.object({
   id: z.uuid(),
-  provider: z.enum(CHAT_PROVIDER_IDS),
+  conversationId: z.uuid(),
+  source: z.enum(CHAT_MODEL_SOURCE_IDS),
   model: z
     .string()
     .min(1)
@@ -23,21 +25,41 @@ const requestSchema = z.object({
   messages: z
     .array(
       z.object({
+        id: z.string().min(1).max(200),
         role: z.enum(["user", "assistant", "system"]),
         content: z.string().min(1).max(100_000),
       }),
     )
     .min(1)
     .max(200),
-  effort: z.enum(CHAT_EFFORT_LEVELS).optional(),
+  effort: z
+    .string()
+    .regex(/^[a-z]{1,20}$/)
+    .optional(),
 })
 
 export function registerChatBoundary(
   window: BrowserWindow,
   rendererUrl: string,
   apiKeyStore: OpenRouterApiKeyStore,
+  codexSession: CodexSession,
 ) {
   const requests = new Map<string, { controller: AbortController; port: MessagePortMain }>()
+
+  const streamEvents = async function* (request: ChatRequest, signal: AbortSignal) {
+    if (request.source === "chatgpt") {
+      yield* codexSession.streamChat(request, signal)
+      return
+    }
+
+    const apiKey = await apiKeyStore.getApiKey()
+    if (!apiKey) {
+      yield { type: "error", message: "Connect an AI provider" } satisfies ChatStreamEvent
+      return
+    }
+
+    yield* streamOpenRouterChat(request, apiKey, signal)
+  }
 
   const handleStream = (event: IpcMainEvent, input: unknown) => {
     const [port] = event.ports
@@ -68,20 +90,7 @@ export function registerChatBoundary(
 
     void (async () => {
       try {
-        const apiKey = await apiKeyStore.getApiKey()
-        if (!apiKey) {
-          port.postMessage({
-            type: "error",
-            message: "Connect an AI provider",
-          } satisfies ChatStreamEvent)
-          return
-        }
-
-        for await (const streamEvent of streamOpenRouterChat(
-          parsed.data,
-          apiKey,
-          controller.signal,
-        )) {
+        for await (const streamEvent of streamEvents(parsed.data, controller.signal)) {
           port.postMessage(streamEvent)
         }
       } catch {

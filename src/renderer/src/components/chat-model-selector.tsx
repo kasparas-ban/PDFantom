@@ -1,5 +1,5 @@
 import { useLayoutEffect, useRef, useState, type KeyboardEvent, type MouseEvent } from "react"
-import { ChevronDownIcon, ChevronRightIcon, SearchIcon, StarIcon } from "lucide-react"
+import { ChevronDownIcon, SearchIcon, StarIcon } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -13,8 +13,7 @@ import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
 import { usePagePortalContainer } from "../app/page-surface"
 import {
-  CHAT_MODEL_PROVIDERS,
-  getChatModelGroupLabel,
+  CHAT_MODEL_SOURCES,
   getOpenRouterCompanyId,
   getOpenRouterCompanyLabel,
   groupOpenRouterModelsByCompany,
@@ -23,7 +22,6 @@ import {
   sortChatModelsByPopularity,
   supportsImagesChatModel,
   supportsReasoningChatModel,
-  type ChatModelGroupId,
   type ChatModelIcon,
   type ChatModelOption,
   type ChatModelSourceId,
@@ -34,70 +32,27 @@ type ModelTab = ChatModelSourceId | "favorites"
 
 const RAIL_TABS = [
   { id: "favorites" as const, label: "Favorite models", Icon: StarIcon },
-  ...CHAT_MODEL_PROVIDERS.map((provider) => ({
-    id: provider.source,
-    label: provider.label,
-    Icon: provider.icon,
+  ...CHAT_MODEL_SOURCES.map((source) => ({
+    id: source.source,
+    label: source.label,
+    Icon: source.icon,
   })),
 ]
 
 type ModelListRow =
   | { kind: "model"; model: ChatModelOption }
-  | { kind: "group"; id: ChatModelGroupId; label: string; count: number }
   | { kind: "company"; id: string; label: string; icon: ChatModelIcon; models: ChatModelOption[] }
 
-function appendGroupedRows(
-  rows: ModelListRow[],
-  grouped: [ChatModelGroupId, ChatModelOption[]][],
-  revealed: ChatModelGroupId[],
-  isFiltering: boolean,
-) {
-  for (const [id, models] of grouped) {
-    if (!revealed.includes(id) && !isFiltering) {
-      rows.push({ kind: "group", id, label: getChatModelGroupLabel(id), count: models.length })
-      continue
-    }
-
-    for (const model of models) rows.push({ kind: "model", model })
-  }
-}
-
-function buildModelRows(
-  primary: ChatModelOption[],
-  grouped: [ChatModelGroupId, ChatModelOption[]][],
-  revealed: ChatModelGroupId[],
-  isFiltering: boolean,
-) {
-  const rows: ModelListRow[] = []
-
-  for (const model of primary) rows.push({ kind: "model", model })
-
-  appendGroupedRows(rows, grouped, revealed, isFiltering)
-
-  return rows
-}
-
-function buildOpenRouterRows(
-  primary: ChatModelOption[],
-  grouped: [ChatModelGroupId, ChatModelOption[]][],
-  revealed: ChatModelGroupId[],
-  isFiltering: boolean,
-) {
-  const rows: ModelListRow[] = []
-
-  for (const section of groupOpenRouterModelsByCompany(primary)) {
-    rows.push({
+function buildOpenRouterRows(models: ChatModelOption[]) {
+  return groupOpenRouterModelsByCompany(models).map(
+    (section): ModelListRow => ({
       kind: "company",
       id: section.id,
       label: section.label,
       icon: section.icon,
       models: section.models,
-    })
-  }
-
-  appendGroupedRows(rows, grouped, revealed, isFiltering)
-
-  return rows
+    }),
+  )
 }
 
 function buildPopularOpenRouterRows(models: ChatModelOption[]) {
@@ -107,7 +62,8 @@ function buildPopularOpenRouterRows(models: ChatModelOption[]) {
 }
 
 export function ChatModelSelector() {
-  const { selectedModel, setModel, favoriteModelIds, toggleFavorite, models } = useChatModel()
+  const { selectedModel, setModel, favoriteModelIds, toggleFavorite, models, unavailableSources } =
+    useChatModel()
   const portalContainer = usePagePortalContainer()
   const shouldRestoreFocus = useRef(false)
   const searchRef = useRef<HTMLInputElement | null>(null)
@@ -115,7 +71,6 @@ export function ChatModelSelector() {
   const [isOpen, setIsOpen] = useState(false)
   const [query, setQuery] = useState("")
   const [activeTab, setActiveTab] = useState<ModelTab>(selectedModel.source)
-  const [revealedGroups, setRevealedGroups] = useState<ChatModelGroupId[]>([])
   const [showPopularOnly, setShowPopularOnly] = useState(false)
   const [showFreeOnly, setShowFreeOnly] = useState(false)
   const [showReasoningOnly, setShowReasoningOnly] = useState(false)
@@ -137,7 +92,7 @@ export function ChatModelSelector() {
       return models.filter((model) => favoriteModelIds.includes(model.id))
     }
 
-    return models.filter((model) => model.source === activeTab && !model.groupId)
+    return models.filter((model) => model.source === activeTab)
   }
 
   const isOpenRouterTab = activeTab === "openrouter"
@@ -150,31 +105,13 @@ export function ChatModelSelector() {
 
   const primaryModels = getBaseModels().filter(matchesFilters)
 
-  const groupedModels = new Map<ChatModelGroupId, ChatModelOption[]>()
-
-  if (activeTab !== "favorites") {
-    for (const model of models) {
-      if (model.source !== activeTab || !model.groupId || !matchesFilters(model)) continue
-
-      const group = groupedModels.get(model.groupId)
-
-      if (group) {
-        group.push(model)
-      } else {
-        groupedModels.set(model.groupId, [model])
-      }
-    }
-  }
-
   const rows =
     isOpenRouterTab && showPopularOnly
       ? buildPopularOpenRouterRows(primaryModels)
       : isOpenRouterTab
-        ? buildOpenRouterRows(primaryModels, [...groupedModels], revealedGroups, isFiltering)
-        : buildModelRows(primaryModels, [...groupedModels], revealedGroups, isFiltering)
-  const visibleModels = rows.flatMap((row) =>
-    row.kind === "model" ? [row.model] : row.kind === "company" ? row.models : [],
-  )
+        ? buildOpenRouterRows(primaryModels)
+        : primaryModels.map((model): ModelListRow => ({ kind: "model", model }))
+  const visibleModels = rows.flatMap((row) => (row.kind === "model" ? [row.model] : row.models))
   const selectableModels = visibleModels.filter((model) => !model.unavailableReason)
   const shortcutModels = selectableModels.slice(0, 9)
 
@@ -188,10 +125,8 @@ export function ChatModelSelector() {
 
     if (open) {
       setActiveTab(selectedModel.source)
-      setRevealedGroups(selectedModel.groupId ? [selectedModel.groupId] : [])
     } else {
       setQuery("")
-      setRevealedGroups([])
       setShowPopularOnly(false)
       setShowFreeOnly(false)
       setShowReasoningOnly(false)
@@ -208,11 +143,6 @@ export function ChatModelSelector() {
     event.preventDefault()
     toggleFavorite(model.id)
   }
-
-  const revealGroup = (groupId: ChatModelGroupId) =>
-    setRevealedGroups((revealed) =>
-      revealed.includes(groupId) ? revealed : [...revealed, groupId],
-    )
 
   const handleFilterKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
     if (event.key === "Escape") return
@@ -299,23 +229,6 @@ export function ChatModelSelector() {
       </div>
     )
   }
-
-  const renderGroupRow = (group: { id: ChatModelGroupId; label: string; count: number }) => (
-    <button
-      className="flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-sm transition-colors outline-none hover:bg-accent focus-visible:ring-3 focus-visible:ring-ring/50"
-      key={group.id}
-      onClick={() => revealGroup(group.id)}
-      type="button"
-    >
-      <span className="flex min-w-0 flex-1 flex-col">
-        <span className="truncate font-medium">{group.label}</span>
-        <span className="truncate text-xs text-muted-foreground">
-          {group.count} {group.count === 1 ? "model" : "models"}
-        </span>
-      </span>
-      <ChevronRightIcon className="size-4 shrink-0 text-muted-foreground" />
-    </button>
-  )
 
   const renderCompanySection = (section: {
     id: string
@@ -468,18 +381,16 @@ export function ChatModelSelector() {
               value={selectedModel.id}
               onValueChange={handleModelChange}
             >
-              {rows.map((row) => {
-                if (row.kind === "model") return renderModelRow(row.model)
-                if (row.kind === "company") return renderCompanySection(row)
-
-                return renderGroupRow(row)
-              })}
+              {rows.map((row) =>
+                row.kind === "model" ? renderModelRow(row.model) : renderCompanySection(row),
+              )}
 
               {visibleModels.length === 0 && (
                 <output className="m-auto block px-2 text-center text-xs text-muted-foreground">
                   {activeTab === "favorites" && !isFiltering
                     ? "No favorites yet. Star models to pin them here."
-                    : `No ${activeFilterQualifiers}models found.`}
+                    : (activeTab !== "favorites" && unavailableSources[activeTab]) ||
+                      `No ${activeFilterQualifiers}models found.`}
                 </output>
               )}
             </DropdownMenuRadioGroup>

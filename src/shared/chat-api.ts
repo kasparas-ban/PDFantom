@@ -1,26 +1,29 @@
 export const STREAM_CHAT_CHANNEL = "chat:stream"
-export const LIST_PROVIDER_MODELS_CHANNEL = "chat:list-provider-models"
+export const LIST_MODELS_CHANNEL = "chat:list-models"
 
 export const GENERIC_CHAT_ERROR = "Unable to generate response. Please try again later."
 
-export type ChatModelSourceId = "openrouter" | "chatgpt"
+export const CHAT_MODEL_SOURCE_IDS = ["openrouter", "chatgpt"] as const
 
-export const CHAT_PROVIDER_IDS = ["openrouter"] as const
+export type ChatModelSourceId = (typeof CHAT_MODEL_SOURCE_IDS)[number]
 
-export type ChatProviderId = (typeof CHAT_PROVIDER_IDS)[number]
+export const OPENROUTER_EFFORT_LEVELS = ["low", "medium", "high"] as const
 
-export const CHAT_EFFORT_LEVELS = ["low", "medium", "high"] as const
+export const DEFAULT_CHAT_EFFORT = "medium"
 
-export type ChatEffortLevel = (typeof CHAT_EFFORT_LEVELS)[number]
-
-export const DEFAULT_CHAT_EFFORT: ChatEffortLevel = "medium"
+export type ChatMessage = {
+  id: string
+  role: "user" | "assistant" | "system"
+  content: string
+}
 
 export type ChatRequest = {
   id: string
-  provider: ChatProviderId
+  conversationId: string
+  source: ChatModelSourceId
   model: string
-  messages: { role: "user" | "assistant" | "system"; content: string }[]
-  effort?: ChatEffortLevel
+  messages: ChatMessage[]
+  effort?: string
 }
 
 export type ChatUsage = {
@@ -30,7 +33,7 @@ export type ChatUsage = {
 }
 
 export type ChatResponseMetadata = {
-  provider: ChatProviderId
+  source: ChatModelSourceId
   model: string
   usage?: ChatUsage
 }
@@ -46,7 +49,7 @@ export type ChatModelInfo = {
   isFree?: boolean
   popularityRank?: number
   supportsReasoning?: boolean
-  supportsEffort?: boolean
+  effortLevels?: readonly string[]
   supportsImages?: boolean
   outputModalities?: string[]
 }
@@ -56,16 +59,14 @@ export function isFreeOpenRouterModelId(id: string) {
 }
 
 export function isTextOnlyOutputModel(outputModalities?: string[] | null) {
-  return (
-    outputModalities?.length === 1 && outputModalities[0].toLocaleLowerCase() === "text"
-  )
+  return outputModalities?.length === 1 && outputModalities[0].toLocaleLowerCase() === "text"
 }
 
 export type ChatModelListResult =
-  | { models: ChatModelInfo[]; error?: never }
+  | { models: ChatModelInfo[]; unavailableReason?: string; error?: never }
   | { error: string; models?: never }
 
 export type ChatApi = {
   streamChat(request: ChatRequest, onEvent: (event: ChatStreamEvent) => void): () => void
-  listProviderModels(source: ChatModelSourceId): Promise<ChatModelListResult>
+  listModels(source: ChatModelSourceId): Promise<ChatModelListResult>
 }

@@ -4,6 +4,7 @@ import { z } from "zod"
 
 import {
   GENERIC_CHAT_ERROR,
+  OPENROUTER_EFFORT_LEVELS,
   type ChatRequest,
   type ChatStreamEvent,
   type ChatUsage,
@@ -21,11 +22,9 @@ export async function* streamOpenRouterChat(
 ) {
   try {
     const openRouter = createOpenRouter({ apiKey, compatibility: "strict" })
+    const effort = request.effort && z.enum(OPENROUTER_EFFORT_LEVELS).parse(request.effort)
     const result = streamText({
-      model: openRouter.chat(
-        request.model,
-        request.effort ? { reasoning: { effort: request.effort } } : undefined,
-      ),
+      model: openRouter.chat(request.model, effort ? { reasoning: { effort } } : undefined),
       messages: request.messages,
       abortSignal,
       timeout: 120_000,
@@ -53,7 +52,7 @@ export async function* streamOpenRouterChat(
           yield {
             type: "done",
             metadata: {
-              provider: "openrouter",
+              source: "openrouter",
               model: request.model,
               ...(usage && { usage }),
             },

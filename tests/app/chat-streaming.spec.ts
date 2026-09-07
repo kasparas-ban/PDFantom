@@ -124,9 +124,10 @@ test("reports model provenance and normalized usage when streaming finishes", as
         window.pdfantom.streamChat(
           {
             id: crypto.randomUUID(),
-            provider: "openrouter",
+            conversationId: crypto.randomUUID(),
+            source: "openrouter",
             model: "openai/gpt-5.4-mini",
-            messages: [{ role: "user", content: "Hello" }],
+            messages: [{ id: "m1", role: "user", content: "Hello" }],
           },
           (event) => {
             received.push(event)
@@ -143,7 +144,7 @@ test("reports model provenance and normalized usage when streaming finishes", as
     {
       type: "done",
       metadata: {
-        provider: "openrouter",
+        source: "openrouter",
         model: "openai/gpt-5.4-mini",
         usage: { inputTokens: 12, outputTokens: 4, totalTokens: 16 },
       },
@@ -173,9 +174,10 @@ test("closes the chat transport after a terminal event", async ({ application })
         window.pdfantom.streamChat(
           {
             id: crypto.randomUUID(),
-            provider: "openrouter",
+            conversationId: crypto.randomUUID(),
+            source: "openrouter",
             model: "openai/gpt-5.4-mini",
-            messages: [{ role: "user", content: "Hello" }],
+            messages: [{ id: "m1", role: "user", content: "Hello" }],
           },
           (event) => {
             if (event.type === "done") resolve()

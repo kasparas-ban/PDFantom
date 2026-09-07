@@ -12,7 +12,7 @@ test("preserves provider provenance and terminal metadata in the final update", 
     {
       type: "done",
       metadata: {
-        provider: "openrouter",
+        source: "openrouter",
         model: "openai/gpt-5.4-nano",
         usage: { inputTokens: 3, outputTokens: 2, totalTokens: 5 },
       },
@@ -24,20 +24,21 @@ test("preserves provider provenance and terminal metadata in the final update", 
 
     return vi.fn()
   }
-  const adapter = createChatModelAdapter({ streamChat }, () => ({
-    model: "openai/gpt-5.4-nano",
-    effort: "medium",
-    source: "openrouter",
-    supportsEffort: true,
-  }))
+  const adapter = createChatModelAdapter(
+    { streamChat },
+    () => ({ model: "openai/gpt-5.4-nano", effort: "medium", source: "openrouter" }),
+    "conversation-1",
+  )
   const updates = []
 
   for await (const update of adapter.run(createRunOptions())) updates.push(update)
 
   expect(receivedRequest).toMatchObject({
-    provider: "openrouter",
+    conversationId: "conversation-1",
+    source: "openrouter",
     model: "openai/gpt-5.4-nano",
-    messages: [{ role: "user", content: "Hello" }],
+    effort: "medium",
+    messages: [{ id: "user-message", role: "user", content: "Hello" }],
   })
   expect(updates).toEqual([
     { content: [{ type: "text", text: "Hel" }] },
@@ -47,7 +48,7 @@ test("preserves provider provenance and terminal metadata in the final update", 
       metadata: {
         custom: {
           generation: {
-            provider: "openrouter",
+            source: "openrouter",
             model: "openai/gpt-5.4-nano",
             usage: { inputTokens: 3, outputTokens: 2, totalTokens: 5 },
           },
@@ -57,21 +58,6 @@ test("preserves provider provenance and terminal metadata in the final update", 
   ])
 })
 
-test("rejects a model source that has no streaming provider adapter", async () => {
-  const streamChat = vi.fn()
-  const adapter = createChatModelAdapter({ streamChat }, () => ({
-    model: "chatgpt/gpt-6-astra",
-    effort: "medium",
-    source: "chatgpt",
-    supportsEffort: false,
-  }))
-
-  await expect(adapter.run(createRunOptions()).next()).rejects.toThrow(
-    "Unable to generate response. Please try again later.",
-  )
-  expect(streamChat).not.toHaveBeenCalled()
-})
-
 test("normalizes synchronous transport setup failures", async () => {
   const adapter = createChatModelAdapter(
     {
@@ -79,12 +65,8 @@ test("normalizes synchronous transport setup failures", async () => {
         throw new Error("Electron transport failed at /Users/student/private.sock")
       },
     },
-    () => ({
-      model: "openai/gpt-5.4-nano",
-      effort: "medium",
-      source: "openrouter",
-      supportsEffort: true,
-    }),
+    () => ({ model: "openai/gpt-5.4-nano", effort: "medium", source: "openrouter" }),
+    "conversation-1",
   )
 
   await expect(adapter.run(createRunOptions()).next()).rejects.toThrow(

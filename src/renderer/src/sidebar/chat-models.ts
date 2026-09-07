@@ -23,6 +23,7 @@ import {
 import {
   isFreeOpenRouterModelId,
   isTextOnlyOutputModel,
+  OPENROUTER_EFFORT_LEVELS,
   type ChatModelInfo,
   type ChatModelSourceId,
 } from "../../../shared/chat-api"
@@ -41,10 +42,9 @@ export type ChatModelOption = {
   isFree?: boolean
   popularityRank?: number
   supportsReasoning?: boolean
-  supportsEffort?: boolean
+  effortLevels?: readonly string[]
   supportsImages?: boolean
   outputModalities?: string[]
-  groupId?: ChatModelGroupId
 }
 
 export const POPULAR_OPENROUTER_COUNT = 20
@@ -57,8 +57,8 @@ export function supportsReasoningChatModel(model: { supportsReasoning?: boolean 
   return model.supportsReasoning === true
 }
 
-export function supportsEffortChatModel(model: { supportsEffort?: boolean }) {
-  return model.supportsEffort === true
+export function supportsEffortChatModel(model: { effortLevels?: readonly string[] }) {
+  return (model.effortLevels?.length ?? 0) > 0
 }
 
 export function supportsImagesChatModel(model: { supportsImages?: boolean }) {
@@ -76,25 +76,14 @@ export function sortChatModelsByPopularity(models: readonly ChatModelOption[]) {
   })
 }
 
-export const CHAT_MODEL_GROUPS = {
-  legacy: { label: "Legacy models" },
-} as const
-
-export type ChatModelGroupId = keyof typeof CHAT_MODEL_GROUPS
-
-export type ChatModelProvider = {
+export type ChatModelSource = {
   source: ChatModelSourceId
   label: string
   icon: ChatModelIcon
   bundledModels: readonly ChatModelOption[]
-} & (
-  | {
-      liveListings: true
-      mapListing: (listing: ChatModelInfo) => ChatModelOption
-      excludeListing: (listing: ChatModelInfo) => boolean
-    }
-  | { liveListings?: undefined }
-)
+  mapListing: (listing: ChatModelInfo) => ChatModelOption
+  excludeListing?: (listing: ChatModelInfo) => boolean
+}
 
 const HIDDEN_OPENROUTER_LISTING_PATTERN = /latest|batch/i
 
@@ -115,7 +104,7 @@ const BUNDLED_OPENROUTER_MODELS: ChatModelOption[] = [
     icon: OpenRouterLogo,
     isFree: true,
     supportsReasoning: true,
-    supportsEffort: true,
+    effortLevels: OPENROUTER_EFFORT_LEVELS,
     supportsImages: true,
   },
   {
@@ -125,7 +114,7 @@ const BUNDLED_OPENROUTER_MODELS: ChatModelOption[] = [
     source: "openrouter",
     icon: OpenAILogo,
     supportsReasoning: true,
-    supportsEffort: true,
+    effortLevels: OPENROUTER_EFFORT_LEVELS,
     supportsImages: true,
   },
   {
@@ -135,7 +124,7 @@ const BUNDLED_OPENROUTER_MODELS: ChatModelOption[] = [
     source: "openrouter",
     icon: OpenAILogo,
     supportsReasoning: true,
-    supportsEffort: true,
+    effortLevels: OPENROUTER_EFFORT_LEVELS,
     supportsImages: true,
   },
   {
@@ -145,7 +134,7 @@ const BUNDLED_OPENROUTER_MODELS: ChatModelOption[] = [
     source: "openrouter",
     icon: GoogleLogo,
     supportsReasoning: true,
-    supportsEffort: true,
+    effortLevels: OPENROUTER_EFFORT_LEVELS,
     supportsImages: true,
   },
   {
@@ -155,7 +144,7 @@ const BUNDLED_OPENROUTER_MODELS: ChatModelOption[] = [
     source: "openrouter",
     icon: XAILogo,
     supportsReasoning: true,
-    supportsEffort: true,
+    effortLevels: OPENROUTER_EFFORT_LEVELS,
     supportsImages: true,
   },
   {
@@ -174,7 +163,7 @@ const BUNDLED_OPENROUTER_MODELS: ChatModelOption[] = [
     source: "openrouter",
     icon: CpuIcon,
     supportsReasoning: true,
-    supportsEffort: true,
+    effortLevels: OPENROUTER_EFFORT_LEVELS,
     supportsImages: false,
   },
   {
@@ -185,63 +174,8 @@ const BUNDLED_OPENROUTER_MODELS: ChatModelOption[] = [
     icon: CpuIcon,
     isFree: true,
     supportsReasoning: true,
-    supportsEffort: true,
+    effortLevels: OPENROUTER_EFFORT_LEVELS,
     supportsImages: false,
-  },
-]
-
-const BUNDLED_CHATGPT_MODELS: ChatModelOption[] = [
-  {
-    id: "chatgpt/gpt-6-astra",
-    name: "GPT-6-Astra",
-    providerLabel: "Codex",
-    source: "chatgpt",
-    icon: OpenAILogo,
-  },
-  {
-    id: "chatgpt/gpt-5.6-sol",
-    name: "GPT-5.6-Sol",
-    providerLabel: "Codex",
-    source: "chatgpt",
-    icon: OpenAILogo,
-  },
-  {
-    id: "chatgpt/gpt-5.6-terra",
-    name: "GPT-5.6-Terra",
-    providerLabel: "Codex",
-    source: "chatgpt",
-    icon: OpenAILogo,
-  },
-  {
-    id: "chatgpt/gpt-5.6-luna",
-    name: "GPT-5.6-Luna",
-    providerLabel: "Codex",
-    source: "chatgpt",
-    icon: OpenAILogo,
-  },
-  {
-    id: "chatgpt/gpt-5.5",
-    name: "GPT-5.5",
-    providerLabel: "Codex",
-    source: "chatgpt",
-    icon: OpenAILogo,
-    groupId: "legacy",
-  },
-  {
-    id: "chatgpt/gpt-5.4-mini",
-    name: "GPT-5.4-Mini",
-    providerLabel: "Codex",
-    source: "chatgpt",
-    icon: OpenAILogo,
-    groupId: "legacy",
-  },
-  {
-    id: "chatgpt/gpt-5.4",
-    name: "GPT-5.4",
-    providerLabel: "Codex",
-    source: "chatgpt",
-    icon: OpenAILogo,
-    groupId: "legacy",
   },
 ]
 
@@ -375,13 +309,12 @@ export function groupOpenRouterModelsByCompany(models: readonly ChatModelOption[
   return grouped
 }
 
-export const CHAT_MODEL_PROVIDERS: ChatModelProvider[] = [
+export const CHAT_MODEL_SOURCES: ChatModelSource[] = [
   {
     source: "openrouter",
     label: "OpenRouter models",
     icon: OpenRouterLogo,
     bundledModels: BUNDLED_OPENROUTER_MODELS,
-    liveListings: true,
     excludeListing: isExcludedOpenRouterListing,
     mapListing: (listing) => {
       const companyId = getOpenRouterCompanyId(listing.id)
@@ -395,7 +328,7 @@ export const CHAT_MODEL_PROVIDERS: ChatModelProvider[] = [
         isFree: isFreeChatModel(listing),
         popularityRank: listing.popularityRank,
         supportsReasoning: listing.supportsReasoning,
-        supportsEffort: listing.supportsEffort,
+        effortLevels: listing.effortLevels,
         supportsImages: listing.supportsImages,
         outputModalities: listing.outputModalities,
       }
@@ -405,17 +338,22 @@ export const CHAT_MODEL_PROVIDERS: ChatModelProvider[] = [
     source: "chatgpt",
     label: "ChatGPT models",
     icon: OpenAILogo,
-    bundledModels: BUNDLED_CHATGPT_MODELS.map((model) =>
-      Object.assign({}, model, { unavailableReason: "ChatGPT support is not available yet" }),
-    ),
+    bundledModels: [],
+    mapListing: (listing) => ({
+      id: listing.id,
+      name: listing.name,
+      providerLabel: "ChatGPT",
+      source: "chatgpt",
+      icon: OpenAILogo,
+      supportsReasoning: listing.supportsReasoning,
+      effortLevels: listing.effortLevels,
+      supportsImages: listing.supportsImages,
+      outputModalities: listing.outputModalities,
+    }),
   },
 ]
 
-export function getChatModelGroupLabel(groupId: ChatModelGroupId) {
-  return CHAT_MODEL_GROUPS[groupId].label
-}
-
-export function mergeProviderListings(
+export function mergeSourceListings(
   existingModels: readonly ChatModelOption[],
   listings: ChatModelInfo[],
   mapListing: (listing: ChatModelInfo) => ChatModelOption,
@@ -432,7 +370,7 @@ export function mergeProviderListings(
       isFree: isFreeChatModel(listing),
       popularityRank: listing.popularityRank,
       supportsReasoning: listing.supportsReasoning ?? model.supportsReasoning,
-      supportsEffort: listing.supportsEffort ?? model.supportsEffort,
+      effortLevels: listing.effortLevels ?? model.effortLevels,
       supportsImages: listing.supportsImages ?? model.supportsImages,
       outputModalities: listing.outputModalities ?? model.outputModalities,
     }

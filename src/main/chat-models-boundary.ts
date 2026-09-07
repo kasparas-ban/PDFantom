@@ -2,13 +2,16 @@ import { ipcMain, type BrowserWindow } from "electron"
 import { z } from "zod"
 
 import {
+  CHAT_MODEL_SOURCE_IDS,
   GENERIC_CHAT_ERROR,
-  LIST_PROVIDER_MODELS_CHANNEL,
+  LIST_MODELS_CHANNEL,
+  OPENROUTER_EFFORT_LEVELS,
   isFreeOpenRouterModelId,
   isTextOnlyOutputModel,
   type ChatModelInfo,
   type ChatModelListResult,
 } from "../shared/chat-api"
+import type { CodexSession } from "./codex/session"
 import { isTrustedRenderer } from "./trusted-renderer"
 
 const MODELS_URL = "https://openrouter.ai/api/v1/models?sort=most-popular&output_modalities=text"
@@ -42,10 +45,7 @@ const responseSchema = z.object({
   data: z.array(modelSchema).max(10_000),
 })
 
-function isReasoningOpenRouterListing(
-  reasoning: unknown,
-  supportedParameters?: string[] | null,
-) {
+function isReasoningOpenRouterListing(reasoning: unknown, supportedParameters?: string[] | null) {
   if (reasoning !== undefined && reasoning !== null) return true
 
   return supportedParameters?.some((parameter) => REASONING_PARAMETERS.has(parameter)) ?? false
@@ -75,7 +75,11 @@ type ModelsCache = {
   models: ChatModelInfo[]
 }
 
-export function registerChatModelsBoundary(window: BrowserWindow, rendererUrl: string) {
+export function registerChatModelsBoundary(
+  window: BrowserWindow,
+  rendererUrl: string,
+  codexSession: CodexSession,
+) {
   let cache: ModelsCache | null = null
   let inFlight: Promise<ChatModelListResult> | null = null
 
@@ -103,7 +107,9 @@ export function registerChatModelsBoundary(window: BrowserWindow, rendererUrl: s
             isFree: isFreeOpenRouterListing(id, pricing),
             popularityRank,
             supportsReasoning: isReasoningOpenRouterListing(reasoning, supported_parameters),
-            supportsEffort: supportsEffortOpenRouterListing(supported_parameters),
+            effortLevels: supportsEffortOpenRouterListing(supported_parameters)
+              ? OPENROUTER_EFFORT_LEVELS
+              : undefined,
             supportsImages: supportsImagesOpenRouterListing(architecture?.input_modalities),
             outputModalities: architecture?.output_modalities ?? undefined,
           }),
@@ -129,17 +135,16 @@ export function registerChatModelsBoundary(window: BrowserWindow, rendererUrl: s
   }
 
   ipcMain.handle(
-    LIST_PROVIDER_MODELS_CHANNEL,
+    LIST_MODELS_CHANNEL,
     async (event, source: unknown): Promise<ChatModelListResult> => {
       if (!isTrustedRenderer(event, window, rendererUrl)) {
         throw new Error("Chat model list access was denied for an untrusted sender.")
       }
 
-      // Only OpenRouter currently has a live listing. Every other source resolves to
-      // its bundled catalog on the renderer side.
-      if (source !== "openrouter") return { models: [] }
+      const sourceId = z.enum(CHAT_MODEL_SOURCE_IDS).safeParse(source)
+      if (!sourceId.success) return { error: GENERIC_CHAT_ERROR }
 
-      return loadModels()
+      return sourceId.data === "chatgpt" ? codexSession.listModels() : loadModels()
     },
   )
 }

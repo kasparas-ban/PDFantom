@@ -10,7 +10,17 @@ export default defineConfig({
     },
     outDir: ".vite/build",
     rollupOptions: {
-      external: ["electron", "node:crypto", "node:fs", "node:fs/promises", "node:path", "node:url"],
+      external: [
+        "electron",
+        "node:child_process",
+        "node:crypto",
+        "node:fs",
+        "node:fs/promises",
+        "node:os",
+        "node:path",
+        "node:readline",
+        "node:url",
+      ],
     },
   },
 })

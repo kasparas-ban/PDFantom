@@ -35,8 +35,16 @@ import { GENERIC_CHAT_ERROR } from "../../../shared/chat-api"
 import { usePlatform } from "../app/platform"
 import { ChatMarkdown } from "./chat-markdown"
 import { ChatPanelShell } from "./chat-panel-shell"
+import { useChatModel } from "./chat-session"
 
 const ApiKeyMissingContext = createContext(false)
+
+function useIsProviderMissing() {
+  const isApiKeyMissing = useContext(ApiKeyMissingContext)
+  const { selectedModel } = useChatModel()
+
+  return isApiKeyMissing && selectedModel.source === "openrouter"
+}
 
 export function ChatPanel({ client }: { client: AssistantClient }) {
   const config = AuiConfig({})
@@ -79,35 +87,11 @@ function ChatPresentation() {
 }
 
 function ChatThread() {
-  const isApiKeyMissing = useContext(ApiKeyMissingContext)
-
   return (
     <ThreadPrimitive.Root className="flex min-h-0 flex-1 flex-col">
       <ThreadPrimitive.Viewport className="relative flex min-h-0 flex-1 flex-col overflow-y-auto scroll-smooth px-4 pt-5">
         <AuiIf condition={(state) => state.thread.isEmpty}>
-          <div className="flex flex-1 flex-col items-center justify-center gap-3 px-3 text-center">
-            <PdfantomLogo aria-hidden="true" className="size-24 opacity-70" />
-            {isApiKeyMissing ? (
-              <div className="flex max-w-56 flex-col items-center gap-2">
-                <p className="text-sm font-medium text-foreground">Connect an AI provider</p>
-                <Link
-                  to="/settings/provider"
-                  className={buttonVariants({
-                    className: "mt-1 cursor-pointer",
-                    variant: "outline",
-                    size: "sm",
-                  })}
-                >
-                  <KeyRoundIcon />
-                  Choose provider
-                </Link>
-              </div>
-            ) : (
-              <p className="text-base font-medium text-gray-600">
-                What would you like to know about this document?
-              </p>
-            )}
-          </div>
+          <ChatEmptyState />
         </AuiIf>
 
         <div className="flex flex-col gap-4 pb-8 empty:hidden">
@@ -124,6 +108,36 @@ function ChatThread() {
         </ThreadPrimitive.ViewportFooter>
       </ThreadPrimitive.Viewport>
     </ThreadPrimitive.Root>
+  )
+}
+
+function ChatEmptyState() {
+  const isProviderMissing = useIsProviderMissing()
+
+  return (
+    <div className="flex flex-1 flex-col items-center justify-center gap-3 px-3 text-center">
+      <PdfantomLogo aria-hidden="true" className="size-24 opacity-70" />
+      {isProviderMissing ? (
+        <div className="flex max-w-56 flex-col items-center gap-2">
+          <p className="text-sm font-medium text-foreground">Connect an AI provider</p>
+          <Link
+            to="/settings/provider"
+            className={buttonVariants({
+              className: "mt-1 cursor-pointer",
+              variant: "outline",
+              size: "sm",
+            })}
+          >
+            <KeyRoundIcon />
+            Choose provider
+          </Link>
+        </div>
+      ) : (
+        <p className="text-base font-medium text-gray-600">
+          What would you like to know about this document?
+        </p>
+      )}
+    </div>
   )
 }
 
@@ -243,11 +257,11 @@ function ChatError() {
 
     return messageError
   })
-  const isApiKeyMissing = useContext(ApiKeyMissingContext)
+  const isProviderMissing = useIsProviderMissing()
 
   return (
     <ErrorPrimitive.Root className="mt-2 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
-      {isApiKeyMissing ? (
+      {isProviderMissing ? (
         <>
           <span>Connect an AI provider</span>
           <Link

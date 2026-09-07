@@ -5,12 +5,14 @@ import { app, BrowserWindow, safeStorage } from "electron"
 import { resolveApplicationLaunchConfiguration } from "../shared/application-launch"
 import { registerChatBoundary } from "./chat-boundary"
 import { registerChatModelsBoundary } from "./chat-models-boundary"
+import { CodexSession } from "./codex/session"
 import { registerDocumentBoundary } from "./document-boundary"
 import { DocumentLibrary } from "./document-library"
 import { DocumentRepository } from "./document-repository"
 import { OpenRouterApiKeyStore } from "./openrouter-api-key-store"
 import { rendererEntryUrl } from "./renderer-entry"
 import { registerSettingsBoundary } from "./settings-boundary"
+import { SettingsStore } from "./settings-store"
 import { registerWindowBoundary } from "./window-boundary"
 
 const launchConfiguration = resolveApplicationLaunchConfiguration({
@@ -65,17 +67,22 @@ void app.whenReady().then(() => {
     path.join(app.getPath("userData"), "secrets", "openrouter-api-key"),
     safeStorage,
   )
+  const settingsStore = new SettingsStore(path.join(app.getPath("userData"), "settings.json"))
+  const codexSession = new CodexSession(settingsStore)
   const window = createWindow()
 
-  registerChatBoundary(window, rendererUrl, apiKeyStore)
-  registerChatModelsBoundary(window, rendererUrl)
+  registerChatBoundary(window, rendererUrl, apiKeyStore, codexSession)
+  registerChatModelsBoundary(window, rendererUrl, codexSession)
   registerDocumentBoundary(window, rendererUrl, library)
-  registerSettingsBoundary(window, rendererUrl, apiKeyStore)
+  registerSettingsBoundary(window, rendererUrl, apiKeyStore, settingsStore, codexSession)
   registerWindowBoundary(window, rendererUrl)
   window.webContents.session.setPermissionRequestHandler((_webContents, _permission, callback) =>
     callback(false),
   )
-  app.once("before-quit", () => repository.close())
+  app.once("before-quit", () => {
+    codexSession.dispose()
+    repository.close()
+  })
 
   void window.loadURL(rendererUrl)
 })

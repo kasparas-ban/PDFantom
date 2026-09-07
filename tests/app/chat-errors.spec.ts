@@ -158,7 +158,8 @@ test("rejects malformed chat requests without contacting OpenRouter", async ({ a
         window.pdfantom.streamChat(
           {
             id: "invalid",
-            provider: "openrouter",
+            conversationId: "invalid",
+            source: "openrouter",
             model: "",
             messages: [],
           },
@@ -178,9 +179,10 @@ test("rejects malformed chat requests without contacting OpenRouter", async ({ a
         window.pdfantom.streamChat(
           {
             id: crypto.randomUUID(),
-            provider: "openrouter",
+            conversationId: crypto.randomUUID(),
+            source: "openrouter",
             model: "openai/gpt-5.4-nano",
-            messages: [{ role: "user", content: "Hello" }],
+            messages: [{ id: "m1", role: "user", content: "Hello" }],
           },
           (event) => {
             resolve(event)

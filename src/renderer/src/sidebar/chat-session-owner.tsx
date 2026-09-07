@@ -1,4 +1,4 @@
-import { useLayoutEffect, useMemo } from "react"
+import { useLayoutEffect, useMemo, useState } from "react"
 import {
   AssistantRuntimeProvider,
   useAui,
@@ -8,6 +8,7 @@ import {
 
 import { usePlatform } from "../app/platform"
 import { createChatModelAdapter } from "./chat-model-adapter"
+import { supportsEffortChatModel } from "./chat-models"
 import { useChatModelStore } from "./chat-session"
 
 type ChatSessionOwnerProps = {
@@ -17,21 +18,25 @@ type ChatSessionOwnerProps = {
 export function ChatSessionOwner({ onReady }: ChatSessionOwnerProps) {
   const platform = usePlatform()
   const chatModelStore = useChatModelStore()
+  const [conversationId] = useState(() => crypto.randomUUID())
   const adapter = useMemo(
     () =>
-      createChatModelAdapter(platform, () => {
-        const { model, effort, models } = chatModelStore.getState()
-        const selectedModel = models.find((option) => option.id === model)
-        if (!selectedModel) throw new Error("The selected chat model must belong to the catalog")
+      createChatModelAdapter(
+        platform,
+        () => {
+          const { model, effort, models } = chatModelStore.getState()
+          const selectedModel = models.find((option) => option.id === model)
+          if (!selectedModel) throw new Error("The selected chat model must belong to the catalog")
 
-        return {
-          model,
-          effort,
-          source: selectedModel.source,
-          supportsEffort: selectedModel.supportsEffort === true,
-        }
-      }),
-    [chatModelStore, platform],
+          return {
+            model,
+            source: selectedModel.source,
+            ...(supportsEffortChatModel(selectedModel) && { effort }),
+          }
+        },
+        conversationId,
+      ),
+    [chatModelStore, conversationId, platform],
   )
   const runtime = useLocalRuntime(adapter)
 

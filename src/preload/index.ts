@@ -1,7 +1,7 @@
 import { contextBridge, ipcRenderer } from "electron"
 
 import {
-  LIST_PROVIDER_MODELS_CHANNEL,
+  LIST_MODELS_CHANNEL,
   STREAM_CHAT_CHANNEL,
   type ChatModelSourceId,
   type ChatStreamEvent,
@@ -14,8 +14,10 @@ import {
 } from "../shared/document-api"
 import { RENDERER_API_GLOBAL, type RendererApi } from "../shared/renderer-api"
 import {
+  GET_CODEX_SETTINGS_CHANNEL,
   GET_OPENROUTER_API_KEY_CHANNEL,
   GET_OPENROUTER_API_KEY_STATUS_CHANNEL,
+  SAVE_CODEX_EXECUTABLE_PATH_CHANNEL,
   SAVE_OPENROUTER_API_KEY_CHANNEL,
 } from "../shared/settings-api"
 import { FULL_SCREEN_CHANGED_CHANNEL, GET_FULL_SCREEN_CHANNEL } from "../shared/window-api"
@@ -53,12 +55,12 @@ const rendererApi: RendererApi = {
     ipcRenderer.invoke(ACTIVATE_DOCUMENT_CHANNEL, documentId, fingerprint),
   loadDocument: (documentId, fingerprint, bytesNeeded) =>
     ipcRenderer.invoke(LOAD_DOCUMENT_CHANNEL, documentId, fingerprint, bytesNeeded),
+  getCodexSettings: () => ipcRenderer.invoke(GET_CODEX_SETTINGS_CHANNEL),
   getDocumentLibrary: () => ipcRenderer.invoke(GET_DOCUMENT_LIBRARY_CHANNEL),
   getIsFullScreen: () => ipcRenderer.invoke(GET_FULL_SCREEN_CHANNEL),
   getOpenRouterApiKey: () => ipcRenderer.invoke(GET_OPENROUTER_API_KEY_CHANNEL),
   getOpenRouterApiKeyStatus: () => ipcRenderer.invoke(GET_OPENROUTER_API_KEY_STATUS_CHANNEL),
-  listProviderModels: (source: ChatModelSourceId) =>
-    ipcRenderer.invoke(LIST_PROVIDER_MODELS_CHANNEL, source),
+  listModels: (source: ChatModelSourceId) => ipcRenderer.invoke(LIST_MODELS_CHANNEL, source),
   onFullScreenChange: (listener) => {
     const handler = (_event: Electron.IpcRendererEvent, isFullScreen: boolean) => {
       listener(isFullScreen)
@@ -69,6 +71,8 @@ const rendererApi: RendererApi = {
     return () => ipcRenderer.removeListener(FULL_SCREEN_CHANGED_CHANNEL, handler)
   },
   openDocument: () => ipcRenderer.invoke(OPEN_DOCUMENT_CHANNEL),
+  saveCodexExecutablePath: (executablePath) =>
+    ipcRenderer.invoke(SAVE_CODEX_EXECUTABLE_PATH_CHANNEL, executablePath),
   saveOpenRouterApiKey: (apiKey) => ipcRenderer.invoke(SAVE_OPENROUTER_API_KEY_CHANNEL, apiKey),
 }
 

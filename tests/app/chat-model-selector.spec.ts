@@ -37,35 +37,51 @@ test.beforeEach(async ({ application }) => {
             })
             onEvent({
               type: "done",
-              metadata: { provider: "openrouter", model },
+              metadata: { source: "openrouter", model },
             })
           })
 
           return () => {}
         },
-        listProviderModels: async () => ({
-          models: [
-            {
-              id: "test/live-model",
-              name: "Live test model",
-              outputModalities: ["text"],
-            },
-            {
-              id: "test/effort-model",
-              name: "Effort test model",
-              supportsEffort: true,
-              outputModalities: ["text"],
-            },
-            {
-              id: "test/music-model",
-              name: "Music test model",
-              outputModalities: ["text", "audio"],
-            },
-          ],
-        }),
+        listModels: async (source) =>
+          source === "chatgpt"
+            ? {
+                models: [
+                  { id: "chatgpt/gpt-test", name: "GPT-Test", outputModalities: ["text"] },
+                  { id: "chatgpt/gpt-legacy", name: "GPT-Legacy", outputModalities: ["text"] },
+                ],
+                unavailableReason: "Run `codex login` to use ChatGPT models.",
+              }
+            : {
+                models: [
+                  {
+                    id: "test/live-model",
+                    name: "Live test model",
+                    outputModalities: ["text"],
+                  },
+                  {
+                    id: "test/effort-model",
+                    name: "Effort test model",
+                    effortLevels: ["low", "medium", "high"],
+                    outputModalities: ["text"],
+                  },
+                  {
+                    id: "test/music-model",
+                    name: "Music test model",
+                    outputModalities: ["text", "audio"],
+                  },
+                ],
+              },
         getOpenRouterApiKeyStatus: async () => ({ isConfigured: true }),
         getOpenRouterApiKey: async () => "test-key",
         saveOpenRouterApiKey: async () => {},
+        getCodexSettings: async () => ({
+          executablePathOverride: null,
+          session: { available: false, reason: "Run `codex login` to use ChatGPT models." },
+        }),
+        saveCodexExecutablePath: async () => {
+          throw new Error("Codex settings are read-only in this test")
+        },
         getIsFullScreen: async () => false,
         onFullScreenChange: () => () => {},
       },
@@ -97,10 +113,12 @@ for (const interaction of ["click", "arrows", "shortcut"] as const) {
 
     await expect(reader.chatModelButton).toContainText("Live test model")
     await reader.chatModelButton.click()
-    await expect(
-      application.page.getByRole("button", { name: "OpenRouter models" }),
-    ).toHaveAttribute("aria-pressed", "true")
+    await expect(reader.chatModelSourceTab("OpenRouter models")).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    )
     await expect(option).toHaveAttribute("aria-checked", "true")
+    await expect(reader.chatModelFilterInput).toBeFocused()
     await reader.chatModelFilterInput.press("Escape")
     await reader.writeChatMessage("Hello")
     await reader.chatSendMessageButton.click()
@@ -119,23 +137,22 @@ test("hides models that produce text alongside another output modality", async (
   await expect(reader.chatModelOption("Music test model")).toHaveCount(0)
 })
 
-test("ChatGPT models stay unavailable through search, legacy groups and favorites", async ({
+test("ChatGPT models stay unavailable through search and favorites without a Codex Session", async ({
   application,
 }) => {
   const reader = new DocumentReaderDriver(application.page)
   await reader.toggleChatPanel("Show")
   await reader.chatModelButton.click()
-  await application.page.getByRole("button", { name: "ChatGPT models", exact: true }).click()
-  const option = application.page.getByRole("menuitemradio", { name: "GPT-6-Astra" })
+  await reader.chatModelSourceTab("ChatGPT models").click()
+  const option = application.page.getByRole("menuitemradio", { name: "GPT-Test" })
   await expect(option).toBeDisabled()
-  await expect(option).toContainText("ChatGPT support is not available yet")
-  await application.page.getByRole("button", { name: "Legacy models" }).click()
-  await expect(application.page.getByRole("menuitemradio", { name: "GPT-5.5" })).toBeDisabled()
+  await expect(option).toContainText("Run `codex login` to use ChatGPT models.")
+  await expect(application.page.getByRole("menuitemradio", { name: "GPT-Legacy" })).toBeDisabled()
 
-  await reader.chatModelFilterInput.fill("Astra")
+  await reader.chatModelFilterInput.fill("GPT-Test")
   await reader.chatModelFilterInput.press("Meta+1")
   await expect(reader.chatModelButton).toContainText("Free Models Router")
-  await application.page.getByRole("button", { name: "Favorite GPT-6-Astra", exact: true }).click()
+  await application.page.getByRole("button", { name: "Favorite GPT-Test", exact: true }).click()
   await application.page.getByRole("button", { name: "Favorite models", exact: true }).click()
   await expect(option).toBeDisabled()
   await reader.chatModelFilterInput.fill("")

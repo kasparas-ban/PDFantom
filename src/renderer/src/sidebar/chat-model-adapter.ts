@@ -3,7 +3,6 @@ import type { ChatModelAdapter, ChatModelRunResult } from "@assistant-ui/react"
 import {
   GENERIC_CHAT_ERROR,
   type ChatApi,
-  type ChatEffortLevel,
   type ChatModelSourceId,
   type ChatRequest,
   type ChatStreamEvent,
@@ -11,9 +10,8 @@ import {
 
 export type ChatModelSelection = {
   model: string
-  effort: ChatEffortLevel
+  effort?: string
   source: ChatModelSourceId
-  supportsEffort: boolean
 }
 
 const noop = () => {}
@@ -21,21 +19,22 @@ const noop = () => {}
 export function createChatModelAdapter(
   platform: Pick<ChatApi, "streamChat">,
   getSelection: () => ChatModelSelection,
+  conversationId: string,
 ) {
   return {
     async *run({ messages, abortSignal }) {
       abortSignal.throwIfAborted()
 
       const selection = getSelection()
-      if (selection.source !== "openrouter") throw new Error(GENERIC_CHAT_ERROR)
-
       const request: ChatRequest = {
         id: crypto.randomUUID(),
-        provider: selection.source,
+        conversationId,
+        source: selection.source,
         model: selection.model,
-        ...(selection.supportsEffort && { effort: selection.effort }),
+        ...(selection.effort && { effort: selection.effort }),
         messages: messages
           .map((message) => ({
+            id: message.id,
             role: message.role,
             content: message.content
               .filter((part) => part.type === "text")

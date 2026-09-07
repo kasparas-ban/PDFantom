@@ -51,14 +51,16 @@ test("the renderer exposes only the allowlisted preload API", async ({ applicati
   expect(boundary).toEqual({
     apiProperties: [
       "activateDocument",
+      "getCodexSettings",
       "getDocumentLibrary",
       "getIsFullScreen",
       "getOpenRouterApiKey",
       "getOpenRouterApiKeyStatus",
-      "listProviderModels",
+      "listModels",
       "loadDocument",
       "onFullScreenChange",
       "openDocument",
+      "saveCodexExecutablePath",
       "saveOpenRouterApiKey",
       "streamChat",
     ],
@@ -114,7 +116,7 @@ test("document and chat channels deny foreign senders and non-main frames", asyn
           "document:get-library",
           "document:activate",
           "document:load",
-          "chat:list-provider-models",
+          "chat:list-models",
         ].flatMap((channel) =>
           [
             { sender: null, senderFrame: contents.mainFrame },

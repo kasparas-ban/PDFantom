@@ -13,7 +13,7 @@ import { useStore } from "zustand"
 import { usePlatform } from "../app/platform"
 import { useAppConfig } from "../store/app-config-provider"
 import { createChatModelStore, type ChatModelStore } from "./chat-model-store"
-import { CHAT_MODEL_PROVIDERS } from "./chat-models"
+import { CHAT_MODEL_SOURCES } from "./chat-models"
 
 const ChatClientContext = createContext<AssistantClient | null>(null)
 const ChatModelStoreContext = createContext<ChatModelStore | null>(null)
@@ -25,40 +25,18 @@ export function ChatSessionProvider({ children }: PropsWithChildren) {
   const isChatPanelOpen = useAppConfig((state) => state.isChatPanelOpen)
   const [isInitialized, setIsInitialized] = useState(isChatPanelOpen)
   const [client, setClient] = useState<AssistantClient | null>(null)
-  const [modelStore] = useState(() => createChatModelStore())
   const platform = usePlatform()
+  const [modelStore] = useState(() => createChatModelStore(platform))
 
   useEffect(() => {
     if (isChatPanelOpen) setIsInitialized(true)
   }, [isChatPanelOpen])
 
   useEffect(() => {
-    let cancelled = false
+    const { loadSourceListings } = modelStore.getState()
 
-    void (async () => {
-      const pending: Promise<void>[] = []
-
-      for (const provider of CHAT_MODEL_PROVIDERS) {
-        if (!provider.liveListings) continue
-
-        pending.push(
-          (async () => {
-            const result = await platform.listProviderModels(provider.source).catch(() => undefined)
-
-            if (cancelled || !result?.models) return
-
-            modelStore.getState().addProviderListings(provider.source, result.models)
-          })(),
-        )
-      }
-
-      await Promise.all(pending)
-    })()
-
-    return () => {
-      cancelled = true
-    }
-  }, [modelStore, platform])
+    for (const { source } of CHAT_MODEL_SOURCES) void loadSourceListings(source)
+  }, [modelStore])
 
   return (
     <ChatModelStoreContext value={modelStore}>

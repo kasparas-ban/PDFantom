@@ -39,12 +39,16 @@ export class DocumentReaderDriver {
     return this.page.getByRole("menuitemradio", { name, exact: true })
   }
 
+  chatModelSourceTab(name: string) {
+    return this.page.getByRole("button", { name, exact: true })
+  }
+
   get chatEffortButton() {
     return this.chatPanel.getByRole("button", { name: "Choose effort" })
   }
 
   chatEffortOption(name: string) {
-    return this.page.getByRole("menuitemradio", { name, exact: false })
+    return this.page.getByRole("menuitemradio", { name, exact: true })
   }
 
   get chatVoiceInputButton() {

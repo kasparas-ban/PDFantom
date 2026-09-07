@@ -1,4 +1,4 @@
-import { mkdtemp, rm } from "node:fs/promises"
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
 
@@ -10,16 +10,23 @@ import type { ApplicationWindowMode } from "./application-window-mode"
 type LaunchTestApplicationOptions = {
   readonly workspacePrefix: string
   readonly windowMode?: ApplicationWindowMode
+  readonly codexExecutable?: (workspace: string) => Promise<string>
 }
 
 export async function launchTestApplication({
   workspacePrefix,
   windowMode = "background",
+  codexExecutable = async (workspace) => path.join(workspace, "missing-codex"),
 }: LaunchTestApplicationOptions) {
   const workspace = await mkdtemp(path.join(os.tmpdir(), `${workspacePrefix}-`))
 
   try {
     const profilePath = path.join(workspace, "profile")
+    await mkdir(profilePath, { recursive: true })
+    await writeFile(
+      path.join(profilePath, "settings.json"),
+      JSON.stringify({ codexExecutablePath: await codexExecutable(workspace) }),
+    )
     const { application, page, launchStartedAt } = await launchApplication(profilePath, windowMode)
     let currentApplication = application
 
@@ -27,6 +34,7 @@ export async function launchTestApplication({
       electronApplication: application,
       launchStartedAt,
       windowMode,
+      workspace,
       page,
       hasVisibleWindow: () => hasVisibleWindow(currentApplication),
       selectOpenPath: (selectedPath: string) => mockOpenDialog(currentApplication, selectedPath),

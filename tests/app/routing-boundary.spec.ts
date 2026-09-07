@@ -39,16 +39,23 @@ test("shared memory routes defer the reader on direct entry and preserve one own
             onEvent({ type: "delta", text: "Test response" })
             onEvent({
               type: "done",
-              metadata: { provider: "openrouter", model: request.model },
+              metadata: { source: "openrouter", model: request.model },
             })
           })
 
           return () => {}
         },
-        listProviderModels: async () => ({ models: [] }),
+        listModels: async () => ({ models: [] }),
         getOpenRouterApiKeyStatus: async () => ({ isConfigured: false }),
         getOpenRouterApiKey: async () => null,
         saveOpenRouterApiKey: async () => {},
+        getCodexSettings: async () => ({
+          executablePathOverride: null,
+          session: { available: false, reason: "Codex is not installed in this test" },
+        }),
+        saveCodexExecutablePath: async () => {
+          throw new Error("Codex settings are read-only in this test")
+        },
         getIsFullScreen: async () => false,
         onFullScreenChange: () => {
           listeners++
