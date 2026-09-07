@@ -94,7 +94,7 @@ function ChatThread() {
           <ChatEmptyState />
         </AuiIf>
 
-        <div className="flex flex-col gap-4 pb-8 empty:hidden">
+        <div className="mx-auto flex w-full max-w-182.5 flex-col gap-4 pb-8 empty:hidden">
           <ThreadPrimitive.Messages
             components={{
               AssistantMessage,
@@ -104,7 +104,9 @@ function ChatThread() {
         </div>
 
         <ThreadPrimitive.ViewportFooter className="sticky bottom-0 mt-auto rounded-t-xl bg-sidebar pb-4">
-          <ChatComposer />
+          <div className="mx-auto w-full max-w-182.5">
+            <ChatComposer />
+          </div>
         </ThreadPrimitive.ViewportFooter>
       </ThreadPrimitive.Viewport>
     </ThreadPrimitive.Root>
