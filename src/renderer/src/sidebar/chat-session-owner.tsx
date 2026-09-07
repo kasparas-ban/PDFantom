@@ -1,18 +1,13 @@
 import { useLayoutEffect, useMemo, useState } from "react"
-import {
-  AssistantRuntimeProvider,
-  useAui,
-  useLocalRuntime,
-  type AssistantClient,
-} from "@assistant-ui/react"
+import { AssistantRuntimeProvider, useAui, useLocalRuntime } from "@assistant-ui/react"
 
 import { usePlatform } from "../app/platform"
 import { createChatModelAdapter } from "./chat-model-adapter"
 import { supportsEffortChatModel } from "./chat-models"
-import { useChatModelStore } from "./chat-session"
+import { useChatModelStore, type ChatSession } from "./chat-session"
 
 type ChatSessionOwnerProps = {
-  readonly onReady: (client: AssistantClient) => void
+  readonly onReady: (session: ChatSession) => void
 }
 
 export function ChatSessionOwner({ onReady }: ChatSessionOwnerProps) {
@@ -38,21 +33,24 @@ export function ChatSessionOwner({ onReady }: ChatSessionOwnerProps) {
       ),
     [chatModelStore, conversationId, platform],
   )
-  const runtime = useLocalRuntime(adapter)
+  const runtime = useLocalRuntime(adapter, { unstable_enableMessageQueue: true })
 
   return (
     <AssistantRuntimeProvider runtime={runtime}>
-      <ChatSessionReady onReady={onReady} />
+      <ChatSessionReady interruptRun={adapter.interrupt} onReady={onReady} />
     </AssistantRuntimeProvider>
   )
 }
 
-function ChatSessionReady({ onReady }: ChatSessionOwnerProps) {
+function ChatSessionReady({
+  interruptRun,
+  onReady,
+}: ChatSessionOwnerProps & Pick<ChatSession, "interruptRun">) {
   const client = useAui()
 
   useLayoutEffect(() => {
-    onReady(client)
-  }, [client, onReady])
+    onReady({ client, interruptRun })
+  }, [client, interruptRun, onReady])
 
   return null
 }

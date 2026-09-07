@@ -1,4 +1,4 @@
-import type { ChatModelAdapter, ChatModelRunResult } from "@assistant-ui/react"
+import type { ChatModelRunOptions, ChatModelRunResult } from "@assistant-ui/react"
 
 import {
   GENERIC_CHAT_ERROR,
@@ -21,9 +21,15 @@ export function createChatModelAdapter(
   getSelection: () => ChatModelSelection,
   conversationId: string,
 ) {
+  let interruptController = new AbortController()
+
   return {
-    async *run({ messages, abortSignal }) {
+    interrupt: () => {
+      interruptController.abort(new DOMException("The chat response was interrupted", "AbortError"))
+    },
+    async *run({ messages, abortSignal }: ChatModelRunOptions) {
       abortSignal.throwIfAborted()
+      interruptController = new AbortController()
 
       const selection = getSelection()
       const request: ChatRequest = {
@@ -44,9 +50,13 @@ export function createChatModelAdapter(
           .filter((message) => message.content.length > 0),
       }
 
-      yield* streamChatResponse(platform, request, abortSignal)
+      yield* streamChatResponse(
+        platform,
+        request,
+        AbortSignal.any([abortSignal, interruptController.signal]),
+      )
     },
-  } satisfies ChatModelAdapter
+  }
 }
 
 export async function* streamChatResponse(

@@ -74,6 +74,34 @@ test("normalizes synchronous transport setup failures", async () => {
   )
 })
 
+test("interrupt stops only the in-flight response with a cancellation", async () => {
+  const stopTransport = vi.fn()
+  const adapter = createChatModelAdapter(
+    {
+      streamChat: (_request, onEvent) => {
+        queueMicrotask(() => onEvent({ type: "delta", text: "Partial" }))
+
+        return stopTransport
+      },
+    },
+    () => ({ model: "openai/gpt-5.4-nano", source: "openrouter" }),
+    "conversation-1",
+  )
+
+  adapter.interrupt()
+
+  const run = adapter.run(createRunOptions())
+  await expect(run.next()).resolves.toEqual({
+    done: false,
+    value: { content: [{ type: "text", text: "Partial" }] },
+  })
+
+  adapter.interrupt()
+
+  await expect(run.next()).rejects.toMatchObject({ name: "AbortError" })
+  expect(stopTransport).toHaveBeenCalled()
+})
+
 function createRunOptions(): ChatModelRunOptions {
   const controller = new AbortController()
 

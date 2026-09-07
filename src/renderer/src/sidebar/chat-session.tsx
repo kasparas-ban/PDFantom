@@ -15,7 +15,12 @@ import { useAppConfig } from "../store/app-config-provider"
 import { createChatModelStore, type ChatModelStore } from "./chat-model-store"
 import { CHAT_MODEL_SOURCES } from "./chat-models"
 
-const ChatClientContext = createContext<AssistantClient | null>(null)
+export type ChatSession = {
+  readonly client: AssistantClient
+  readonly interruptRun: () => void
+}
+
+const ChatSessionContext = createContext<ChatSession | null>(null)
 const ChatModelStoreContext = createContext<ChatModelStore | null>(null)
 const ChatSessionOwner = lazy(() =>
   import("./chat-session-owner").then((module) => ({ default: module.ChatSessionOwner })),
@@ -24,7 +29,7 @@ const ChatSessionOwner = lazy(() =>
 export function ChatSessionProvider({ children }: PropsWithChildren) {
   const isChatPanelOpen = useAppConfig((state) => state.isChatPanelOpen)
   const [isInitialized, setIsInitialized] = useState(isChatPanelOpen)
-  const [client, setClient] = useState<AssistantClient | null>(null)
+  const [session, setSession] = useState<ChatSession | null>(null)
   const platform = usePlatform()
   const [modelStore] = useState(() => createChatModelStore(platform))
 
@@ -42,15 +47,15 @@ export function ChatSessionProvider({ children }: PropsWithChildren) {
     <ChatModelStoreContext value={modelStore}>
       {isInitialized && (
         <Suspense fallback={null}>
-          <ChatSessionOwner onReady={setClient} />
+          <ChatSessionOwner onReady={setSession} />
         </Suspense>
       )}
-      <ChatClientContext value={client}>{children}</ChatClientContext>
+      <ChatSessionContext value={session}>{children}</ChatSessionContext>
     </ChatModelStoreContext>
   )
 }
 
-export const useChatSession = () => useContext(ChatClientContext)
+export const useChatSession = () => useContext(ChatSessionContext)
 
 export function useChatModelStore() {
   const store = useContext(ChatModelStoreContext)

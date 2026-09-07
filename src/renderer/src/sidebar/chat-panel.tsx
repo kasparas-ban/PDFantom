@@ -7,7 +7,9 @@ import {
   ComposerPrimitive,
   ErrorPrimitive,
   MessagePrimitive,
+  QueueItemPrimitive,
   ThreadPrimitive,
+  useAui,
   useAuiState,
   useMessageTiming,
   type AssistantClient,
@@ -17,12 +19,15 @@ import {
   ArrowUpIcon,
   CheckIcon,
   CopyIcon,
+  CornerDownRightIcon,
+  CornerUpRightIcon,
   KeyRoundIcon,
   MicIcon,
   MoreHorizontalIcon,
   PlusIcon,
   RefreshCwIcon,
   SquareIcon,
+  Trash2Icon,
 } from "lucide-react"
 import { Link } from "react-router"
 
@@ -35,7 +40,7 @@ import { GENERIC_CHAT_ERROR } from "../../../shared/chat-api"
 import { usePlatform } from "../app/platform"
 import { ChatMarkdown } from "./chat-markdown"
 import { ChatPanelShell } from "./chat-panel-shell"
-import { useChatModel } from "./chat-session"
+import { useChatModel, useChatSession } from "./chat-session"
 
 const ApiKeyMissingContext = createContext(false)
 
@@ -144,8 +149,21 @@ function ChatEmptyState() {
 }
 
 function ChatComposer() {
+  const aui = useAui()
+  const canSend = useAuiState((state) => state.composer.canSend)
+  const isRunning = useAuiState((state) => state.thread.isRunning)
+  const send = () => aui.composer.send({ steer: false })
+
   return (
-    <ComposerPrimitive.Root className="flex w-full flex-col gap-2 rounded-xl border border-sidebar-border/80 bg-background/90 p-2 shadow-[0_4px_16px_-8px_rgba(0,0,0,0.16),0_1px_2px_rgba(0,0,0,0.06)] transition-[border-color,box-shadow] focus-within:border-sidebar-ring focus-within:shadow-[0_6px_24px_-8px_rgba(0,0,0,0.2),0_1px_2px_rgba(0,0,0,0.08)]">
+    <div className="flex w-full flex-col">
+      <ChatQueue />
+      <ComposerPrimitive.Root
+        className="relative flex w-full flex-col gap-2 rounded-xl border border-sidebar-border/80 bg-background/90 p-2 shadow-[0_4px_16px_-8px_rgba(0,0,0,0.16),0_1px_2px_rgba(0,0,0,0.06)] transition-[border-color,box-shadow] focus-within:border-sidebar-ring focus-within:shadow-[0_6px_24px_-8px_rgba(0,0,0,0.2),0_1px_2px_rgba(0,0,0,0.08)]"
+        onSubmit={(event) => {
+          event.preventDefault()
+          if (canSend) send()
+        }}
+      >
       <ComposerPrimitive.Input asChild>
         <Textarea
           aria-label="Message"
@@ -181,17 +199,18 @@ function ChatComposer() {
           >
             <MicIcon />
           </Button>
-          <AuiIf condition={(state) => !state.thread.isRunning}>
-            <ComposerPrimitive.Send asChild>
-              <Button
-                aria-label="Send message"
-                className="size-7 rounded-full active:scale-[0.97]"
-                size="icon-sm"
-                type="button"
-              >
-                <ArrowUpIcon />
-              </Button>
-            </ComposerPrimitive.Send>
+          <AuiIf condition={(state) => !state.thread.isRunning || !state.composer.isEmpty}>
+            <Button
+              aria-label={isRunning ? "Queue message" : "Send message"}
+              className="size-7 rounded-full active:scale-[0.97]"
+              disabled={!canSend}
+              onClick={send}
+              size="icon-sm"
+              type="button"
+              variant={isRunning ? "outline" : "default"}
+            >
+              <ArrowUpIcon />
+            </Button>
           </AuiIf>
           <AuiIf condition={(state) => state.thread.isRunning}>
             <ComposerPrimitive.Cancel asChild>
@@ -207,7 +226,60 @@ function ChatComposer() {
           </AuiIf>
         </div>
       </div>
-    </ComposerPrimitive.Root>
+      </ComposerPrimitive.Root>
+    </div>
+  )
+}
+
+function ChatQueue() {
+  return (
+    <AuiIf condition={(state) => state.composer.queue.length > 0}>
+      <ul
+        aria-label="Queued messages"
+        className="mx-2.5 -mb-2.5 flex flex-col rounded-t-xl border border-b-0 border-sidebar-border/60 bg-sidebar-accent/70 px-1.5 pt-1 pb-3.5"
+      >
+        <ComposerPrimitive.Queue>{() => <QueuedMessage />}</ComposerPrimitive.Queue>
+      </ul>
+    </AuiIf>
+  )
+}
+
+function QueuedMessage() {
+  const aui = useAui()
+  const session = useChatSession()
+
+  return (
+    <li className="flex h-8 items-center gap-2 pl-1.5 text-sm">
+      <CornerDownRightIcon aria-hidden="true" className="size-3.5 shrink-0 text-muted-foreground" />
+      <QueueItemPrimitive.Text
+        className="min-w-0 flex-1 truncate text-foreground"
+        data-slot="queued-message-text"
+      />
+      <Button
+        className="h-6 gap-1 px-1.5 text-muted-foreground hover:text-foreground"
+        onClick={() => {
+          aui.queueItem.move({ lane: "steer", insertAfter: null })
+          session?.interruptRun()
+        }}
+        size="xs"
+        type="button"
+        variant="ghost"
+      >
+        <CornerUpRightIcon />
+        Interrupt
+      </Button>
+      <QueueItemPrimitive.Remove asChild>
+        <Button
+          aria-label="Remove queued message"
+          className="text-muted-foreground hover:text-foreground"
+          size="icon-xs"
+          type="button"
+          variant="ghost"
+        >
+          <Trash2Icon />
+        </Button>
+      </QueueItemPrimitive.Remove>
+    </li>
   )
 }
 

@@ -59,6 +59,26 @@ export class DocumentReaderDriver {
     return this.chatPanel.getByRole("button", { name: "Send message" })
   }
 
+  get chatQueueMessageButton() {
+    return this.chatPanel.getByRole("button", { name: "Queue message" })
+  }
+
+  get chatStopResponseButton() {
+    return this.chatPanel.getByRole("button", { name: "Stop response" })
+  }
+
+  get chatQueuedMessages() {
+    return this.chatPanel.getByRole("list", { name: "Queued messages" }).getByRole("listitem")
+  }
+
+  get chatQueuedMessageTexts() {
+    return this.chatQueuedMessages.locator("[data-slot='queued-message-text']")
+  }
+
+  chatQueuedMessage(text: string) {
+    return this.chatQueuedMessages.filter({ hasText: text })
+  }
+
   get openAiProviderSettingsFromChatButton() {
     return this.chatPanel.getByRole("link", { name: "Choose provider" })
   }
