@@ -37,7 +37,7 @@ export function ChatMarkdown({ text }: { text: string }) {
 const MARKDOWN_COMPONENTS: Components = {
   h1: ({ node, ...props }) => <h2 className="mt-5 mb-2 text-base font-semibold" {...props} />,
   h2: ({ node, ...props }) => (
-    <h3 className="mt-5 mb-2 text-[0.9375rem] font-semibold" {...props} />
+    <h3 className="mt-5 mb-2 text-[15px] font-semibold" {...props} />
   ),
   h3: ({ node, ...props }) => <h4 className="mt-4 mb-1.5 text-sm font-semibold" {...props} />,
   h4: ({ node, ...props }) => <h5 className="mt-4 mb-1.5 text-sm font-semibold" {...props} />,
@@ -98,7 +98,7 @@ const MARKDOWN_COMPONENTS: Components = {
 
   code: ({ node, className, ...props }) => (
     <code
-      className="rounded-sm bg-sidebar-accent px-1 py-0.5 font-mono text-[0.85em] wrap-anywhere"
+      className="rounded-sm bg-sidebar-accent px-1 py-0.5 font-mono text-xs wrap-anywhere"
       {...props}
     />
   ),
@@ -123,7 +123,7 @@ function CodeBlock({ code, language }: { code: string; language?: string }) {
   return (
     <div className="my-3 overflow-hidden rounded-lg border border-sidebar-border bg-background">
       <div className="flex items-center justify-between gap-2 border-b border-sidebar-border bg-sidebar-accent/50 py-0.5 pr-0.5 pl-2.5">
-        <span className="truncate font-mono text-[0.6875rem] text-muted-foreground">
+        <span className="truncate font-mono text-xs text-muted-foreground">
           {language ?? "code"}
         </span>
         <Button

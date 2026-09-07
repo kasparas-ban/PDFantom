@@ -9,7 +9,7 @@ export function AboutSettings() {
           <div className="flex items-center gap-4 p-5">
             <PdfantomLogo aria-hidden="true" className="size-14" />
             <div>
-              <h2 className="font-medium">PDFantom</h2>
+              <h2 className="text-base font-medium">PDFantom</h2>
               <p className="mt-1 text-sm text-muted-foreground">
                 A secure, local-first PDF reader for macOS.
               </p>

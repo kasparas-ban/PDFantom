@@ -15,7 +15,7 @@ export function SettingsPageLayout({
       <h1
         ref={heading}
         tabIndex={-1}
-        className="mb-12 text-3xl font-semibold tracking-tight outline-none"
+        className="mb-12 text-2xl font-semibold tracking-tight outline-none"
       >
         {title}
       </h1>

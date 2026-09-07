@@ -27,7 +27,7 @@ export function DocumentsPanel({ onActivateDocument, onOpenDocument }: Documents
       <div className="flex min-h-0 flex-1 flex-col px-2 pb-2">
         <div className="mb-3 flex items-center gap-2 px-1">
           <img alt="" className="size-8 rounded-md" src={pdfantomLogo} />
-          <h1 className="font-semibold">PDFantom</h1>
+          <h1 className="text-base font-semibold">PDFantom</h1>
         </div>
 
         <nav aria-label="Primary" className="space-y-0.5 font-semibold text-gray-600">
@@ -45,7 +45,7 @@ export function DocumentsPanel({ onActivateDocument, onOpenDocument }: Documents
 
         <div className="mt-6 min-h-0 flex-1">
           <div className="mb-1.5 flex items-center justify-between px-2">
-            <p className="text-md font-semibold text-gray-400">Documents</p>
+            <p className="text-base font-semibold text-gray-400">Documents</p>
           </div>
           {documents.length > 0 ? (
             <nav aria-label="Documents" className="space-y-0.5">

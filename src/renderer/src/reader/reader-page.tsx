@@ -174,7 +174,7 @@ function PDFCanvas({
                 className="mx-auto mb-6 size-14 rounded-2xl opacity-65 grayscale"
                 src={pdfantomLogo}
               />
-              <h2 className="text-[1.75rem] font-medium tracking-[-0.035em]">
+              <h2 className="text-2xl font-medium tracking-[-0.035em]">
                 Open a PDF in PDFantom
               </h2>
               <p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-muted-foreground">
@@ -217,7 +217,7 @@ function UnavailableDocument({
           <div className="mx-auto mb-6 flex size-14 items-center justify-center rounded-2xl bg-muted text-muted-foreground">
             <FileWarning aria-hidden="true" className="size-7" />
           </div>
-          <h2 className="text-[1.75rem] font-medium tracking-[-0.035em]">
+          <h2 className="text-2xl font-medium tracking-[-0.035em]">
             {activeDocument.document.name} is unavailable
           </h2>
           <p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-muted-foreground">

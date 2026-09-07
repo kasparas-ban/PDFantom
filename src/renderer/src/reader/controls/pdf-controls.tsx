@@ -26,7 +26,7 @@ export function PDFControls() {
       >
         <div className="window-no-drag flex w-full min-w-0 items-center gap-2 overflow-hidden pl-1">
           {!isDocumentsPanelOpen && <div className="mr-1.5 h-5 w-px shrink-0 bg-gray-300" />}
-          <h2 className="max-w-full min-w-0 flex-1 truncate text-[0.82rem] font-medium">
+          <h2 className="max-w-full min-w-0 flex-1 truncate text-sm font-medium">
             {activeDocument.document.name}
           </h2>
         </div>

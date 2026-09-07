@@ -44,11 +44,11 @@ export function PageControls() {
       >
         <ChevronLeft />
       </Button>
-      <div className="flex items-center gap-1 px-1.5 text-[0.72rem] text-muted-foreground tabular-nums">
+      <div className="flex items-center gap-1 px-1.5 text-xs text-muted-foreground tabular-nums">
         <Input
           aria-label="Page number"
           autoComplete="off"
-          className="h-5 w-8 [appearance:textfield] rounded-sm border-border/80 bg-background px-1 text-center text-[0.72rem] text-foreground shadow-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+          className="h-5 w-8 [appearance:textfield] rounded-sm border-border/80 bg-background px-1 text-center text-xs text-foreground shadow-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
           disabled={pageCount === 0}
           max={pageCount || undefined}
           min={1}
