@@ -141,6 +141,10 @@ export class CodexSession {
     }
   }
 
+  forgetThread(conversationId: string) {
+    this.threads.delete(conversationId)
+  }
+
   dispose() {
     void this.running?.then(({ server }) => server.stop()).catch(() => {})
     this.running = null

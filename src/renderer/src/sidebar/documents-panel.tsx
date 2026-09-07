@@ -1,9 +1,38 @@
-import { Book, FilePlus2 } from "lucide-react"
+import { useMemo, useState } from "react"
+import {
+  FilePlus2,
+  FolderClosed,
+  FolderOpen,
+  Loader2Icon,
+  MoreHorizontalIcon,
+  SquarePenIcon,
+  Trash2Icon,
+} from "lucide-react"
 
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
+import { useAppConfig } from "@/store/app-config-provider"
 import { useReaderSession } from "@/store/reader-session-provider"
 import pdfantomLogo from "../../../../assets/pdfantom-logo.svg?no-inline"
+import type { ChatThreadSummary } from "../../../shared/chat-thread-api"
+import type { DocumentSummary } from "../../../shared/document-api"
+import { usePlatform } from "../app/platform"
+import { useChatThreads, useChatThreadStore } from "./chat-session"
+import { threadsOfDocument, visibleThreadsOfDocument } from "./chat-thread-store"
 
 type DocumentsPanelProps = {
   readonly onActivateDocument: (documentId: string) => void
@@ -11,10 +40,36 @@ type DocumentsPanelProps = {
 }
 
 export function DocumentsPanel({ onActivateDocument, onOpenDocument }: DocumentsPanelProps) {
-  const activeDocument = useReaderSession((state) => state.activeDocument)
+  const platform = usePlatform()
   const documents = useReaderSession((state) => state.documents)
-  const selectedDocument = useReaderSession((state) => state.selectedDocument)
   const isDocumentLibraryHydrated = useReaderSession((state) => state.isDocumentLibraryHydrated)
+  const threadStore = useChatThreadStore()
+  const openChatPanel = useAppConfig((state) => state.openChatPanel)
+  const [pendingDelete, setPendingDelete] = useState<ChatThreadSummary | null>(null)
+
+  const openThread = (thread: ChatThreadSummary) => {
+    // Set the thread first: the Document change would otherwise pick the most recent one.
+    threadStore.getState().openThread(thread)
+    onActivateDocument(thread.documentId)
+    openChatPanel()
+  }
+
+  const startThread = (documentId: string) => {
+    threadStore.getState().startDraft(documentId)
+    onActivateDocument(documentId)
+    openChatPanel()
+  }
+
+  const deleteThread = async (thread: ChatThreadSummary) => {
+    setPendingDelete(null)
+
+    try {
+      await platform.deleteChatThread(thread.id)
+      threadStore.getState().removeThread(thread.id)
+    } catch {
+      /* The row stays; the User can retry. */
+    }
+  }
 
   return (
     <aside
@@ -43,35 +98,24 @@ export function DocumentsPanel({ onActivateDocument, onOpenDocument }: Documents
           </Button>
         </nav>
 
-        <div className="mt-6 min-h-0 flex-1">
+        <div className="mt-6 min-h-0 flex-1 overflow-y-auto">
           <div className="mb-1.5 flex items-center justify-between px-2">
             <p className="text-base font-semibold text-gray-400">Documents</p>
           </div>
           {documents.length > 0 ? (
-            <nav aria-label="Documents" className="space-y-0.5">
-              {documents.map((document) => {
-                const isActive =
-                  activeDocument.status !== "none" && activeDocument.document.id === document.id
-
-                return (
-                  <Button
-                    aria-busy={(selectedDocument?.id === document.id && !isActive) || undefined}
-                    aria-current={isActive ? "page" : undefined}
-                    className={cn(
-                      "w-full cursor-pointer justify-start gap-2 px-2 font-normal hover:bg-sidebar-accent",
-                      isActive && "bg-sidebar-accent text-sidebar-accent-foreground",
-                    )}
+            <nav aria-label="Documents">
+              <ul className="space-y-0.5">
+                {documents.map((document) => (
+                  <DocumentRow
+                    document={document}
                     key={document.id}
-                    onClick={() => onActivateDocument(document.id)}
-                    title={document.name}
-                    type="button"
-                    variant="ghost"
-                  >
-                    <Book className="size-4 shrink-0 text-muted-foreground" />
-                    <span className="min-w-0 flex-1 truncate text-left">{document.name}</span>
-                  </Button>
-                )
-              })}
+                    onActivate={() => onActivateDocument(document.id)}
+                    onDeleteThread={setPendingDelete}
+                    onOpenThread={openThread}
+                    onStartThread={() => startThread(document.id)}
+                  />
+                ))}
+              </ul>
             </nav>
           ) : (
             <div className="px-2 py-2 text-xs leading-relaxed text-muted-foreground">
@@ -80,6 +124,198 @@ export function DocumentsPanel({ onActivateDocument, onOpenDocument }: Documents
           )}
         </div>
       </div>
+
+      <AlertDialog
+        onOpenChange={(open) => {
+          if (!open) setPendingDelete(null)
+        }}
+        open={pendingDelete !== null}
+      >
+        <AlertDialogContent>
+          <AlertDialogTitle>Delete this chat thread?</AlertDialogTitle>
+          <AlertDialogDescription>
+            “{pendingDelete?.title}” and all of its messages will be removed. This cannot be
+            undone.
+          </AlertDialogDescription>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <Button
+              onClick={() => {
+                if (pendingDelete) void deleteThread(pendingDelete)
+              }}
+              type="button"
+              variant="destructive"
+            >
+              Delete
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </aside>
+  )
+}
+
+type DocumentRowProps = {
+  readonly document: DocumentSummary
+  readonly onActivate: () => void
+  readonly onDeleteThread: (thread: ChatThreadSummary) => void
+  readonly onOpenThread: (thread: ChatThreadSummary) => void
+  readonly onStartThread: () => void
+}
+
+function DocumentRow({
+  document,
+  onActivate,
+  onDeleteThread,
+  onOpenThread,
+  onStartThread,
+}: DocumentRowProps) {
+  const activeDocument = useReaderSession((state) => state.activeDocument)
+  const selectedDocument = useReaderSession((state) => state.selectedDocument)
+  const isCollapsed = useAppConfig((state) => state.collapsedDocumentIds.includes(document.id))
+  const toggleDocumentChatThreads = useAppConfig((state) => state.toggleDocumentChatThreads)
+  const isRevealed = useChatThreads((state) => state.revealedDocumentIds.includes(document.id))
+  const toggleRevealed = useChatThreads((state) => state.toggleRevealed)
+  const activeThreadId = useChatThreads((state) => state.active?.threadId ?? null)
+  const threads = useChatThreads((state) => state.threads)
+  const { visible, hidden } = useMemo(
+    () => visibleThreadsOfDocument(threads, document.id, activeThreadId, isRevealed),
+    [activeThreadId, document.id, isRevealed, threads],
+  )
+  const threadCount = threadsOfDocument(threads, document.id).length
+  const isActive = activeDocument.status !== "none" && activeDocument.document.id === document.id
+  const isExpanded = !isCollapsed && threadCount > 0
+
+  return (
+    <li>
+      <div
+        className={cn(
+          "group/document flex h-8 items-center gap-0.5 rounded-lg pr-1 hover:bg-sidebar-accent",
+          isActive && "bg-sidebar-accent text-sidebar-accent-foreground",
+        )}
+      >
+        <Button
+          aria-controls={threadCount > 0 ? `chat-threads-${document.id}` : undefined}
+          aria-expanded={isExpanded}
+          aria-label={`${isCollapsed ? "Expand" : "Collapse"} chat threads for ${document.name}`}
+          className="size-8 shrink-0 rounded-lg text-muted-foreground hover:bg-transparent aria-expanded:bg-transparent"
+          disabled={threadCount === 0}
+          onClick={() => toggleDocumentChatThreads(document.id)}
+          size="icon-sm"
+          type="button"
+          variant="ghost"
+        >
+          {isExpanded ? <FolderOpen className="size-4" /> : <FolderClosed className="size-4" />}
+        </Button>
+        <button
+          aria-busy={(selectedDocument?.id === document.id && !isActive) || undefined}
+          aria-current={isActive ? "page" : undefined}
+          className="h-full min-w-0 flex-1 cursor-pointer truncate rounded-md text-left text-sm outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+          data-slot="document-entry"
+          onClick={onActivate}
+          title={document.name}
+          type="button"
+        >
+          {document.name}
+        </button>
+        <Button
+          aria-label={`New chat thread in ${document.name}`}
+          className="size-6 shrink-0 text-muted-foreground opacity-0 group-hover/document:opacity-100 focus-visible:opacity-100"
+          onClick={onStartThread}
+          size="icon-xs"
+          title="New chat thread"
+          type="button"
+          variant="ghost"
+        >
+          <SquarePenIcon />
+        </Button>
+      </div>
+
+      {isExpanded && (
+        <ul
+          aria-label={`Chat threads for ${document.name}`}
+          className="mt-0.5 space-y-0.5"
+          id={`chat-threads-${document.id}`}
+        >
+          {visible.map((thread) => (
+            <ChatThreadRow
+              isActive={thread.id === activeThreadId}
+              key={thread.id}
+              onDelete={() => onDeleteThread(thread)}
+              onOpen={() => onOpenThread(thread)}
+              thread={thread}
+            />
+          ))}
+          {(hidden > 0 || isRevealed) && (
+            <li>
+              <button
+                className="h-7 w-full cursor-pointer rounded-lg pl-8 text-left text-sm text-muted-foreground hover:text-foreground"
+                onClick={() => toggleRevealed(document.id)}
+                type="button"
+              >
+                {isRevealed ? "Show less" : "Show more"}
+              </button>
+            </li>
+          )}
+        </ul>
+      )}
+    </li>
+  )
+}
+
+type ChatThreadRowProps = {
+  readonly isActive: boolean
+  readonly onDelete: () => void
+  readonly onOpen: () => void
+  readonly thread: ChatThreadSummary
+}
+
+function ChatThreadRow({ isActive, onDelete, onOpen, thread }: ChatThreadRowProps) {
+  const isStreaming = useChatThreads((state) => state.streamingThreadIds.includes(thread.id))
+
+  return (
+    <li
+      className={cn(
+        "group/thread flex h-7 items-center gap-0.5 rounded-lg pr-1 hover:bg-sidebar-accent",
+        isActive && "bg-sidebar-accent text-sidebar-accent-foreground",
+      )}
+    >
+      <button
+        aria-current={isActive ? "true" : undefined}
+        className="h-full min-w-0 flex-1 cursor-pointer truncate rounded-md pl-8 text-left text-sm outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+        data-slot="chat-thread-entry"
+        onClick={onOpen}
+        title={thread.title}
+        type="button"
+      >
+        {thread.title}
+      </button>
+      {isStreaming && (
+        <output aria-label="Responding" className="flex shrink-0 items-center">
+          <Loader2Icon aria-hidden="true" className="size-3.5 animate-spin text-primary" />
+        </output>
+      )}
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          render={
+            <Button
+              aria-label={`Chat thread actions for ${thread.title}`}
+              className="size-6 shrink-0 text-muted-foreground opacity-0 group-hover/thread:opacity-100 focus-visible:opacity-100 aria-expanded:opacity-100"
+              size="icon-xs"
+              type="button"
+              variant="ghost"
+            />
+          }
+        >
+          <MoreHorizontalIcon />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="min-w-36">
+          <DropdownMenuItem onClick={onDelete} variant="destructive">
+            <Trash2Icon />
+            Delete
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </li>
   )
 }

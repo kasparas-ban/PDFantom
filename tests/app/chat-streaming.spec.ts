@@ -1,5 +1,9 @@
+import path from "node:path"
+
 import { DocumentReaderDriver } from "./drivers/document-reader-driver"
 import { expect, test } from "./test"
+
+const documentFixture = path.resolve("tests/fixtures/pdfs/document-mock.pdf")
 
 test("sends the saved key, selected model, effort and conversation to OpenRouter", async ({
   application,
@@ -22,6 +26,7 @@ test("sends the saved key, selected model, effort and conversation to OpenRouter
   })
 
   const reader = new DocumentReaderDriver(application.page)
+  await reader.openFixtureDocument(application, documentFixture)
   await reader.toggleChatPanel("Show")
   await reader.chatModelButton.click()
   await reader.chatModelOption("GPT-5.4 Mini").click()
@@ -29,10 +34,10 @@ test("sends the saved key, selected model, effort and conversation to OpenRouter
   await reader.chatEffortOption("High").click()
   await reader.writeChatMessage("Hello")
   await reader.chatSendMessageButton.click()
-  await expect(reader.chatPanel.getByText("Hello from OpenRouter", { exact: true })).toBeVisible()
+  await expect(reader.chatThread.getByText("Hello from OpenRouter", { exact: true })).toBeVisible()
   await reader.writeChatMessage("Continue")
   await reader.chatSendMessageButton.click()
-  await expect(reader.chatPanel.getByText("Hello from OpenRouter", { exact: true })).toHaveCount(2)
+  await expect(reader.chatThread.getByText("Hello from OpenRouter", { exact: true })).toHaveCount(2)
 
   expect(
     await application.electronApplication.evaluate(() => Reflect.get(globalThis, "chatRequest")),
@@ -71,6 +76,7 @@ test("streams the Assistant Message before the provider finishes", async ({ appl
   })
 
   const reader = new DocumentReaderDriver(application.page)
+  await reader.openFixtureDocument(application, documentFixture)
   await reader.toggleChatPanel("Show")
   await reader.writeChatMessage("Hello")
   await reader.chatSendMessageButton.click()
@@ -87,7 +93,7 @@ test("streams the Assistant Message before the provider finishes", async ({ appl
     const encoder = Reflect.get(globalThis, "chatStreamEncoder")
     controller.enqueue(encoder.encode('data: {"choices":[{"delta":{"content":"Hel"}}]}\n\n'))
   })
-  await expect(reader.chatPanel.getByText("Hel", { exact: true })).toBeVisible()
+  await expect(reader.chatThread.getByText("Hel", { exact: true })).toBeVisible()
 
   await application.electronApplication.evaluate(() => {
     const controller = Reflect.get(globalThis, "chatStreamController")
@@ -96,7 +102,7 @@ test("streams the Assistant Message before the provider finishes", async ({ appl
     controller.enqueue(encoder.encode("data: [DONE]\n\n"))
     controller.close()
   })
-  await expect(reader.chatPanel.getByText("Hello", { exact: true })).toBeVisible()
+  await expect(reader.chatThread.getByText("Hello", { exact: true })).toBeVisible()
   await expect(reader.chatPanel.getByRole("button", { name: "Stop response" })).toBeHidden()
 })
 
@@ -223,6 +229,7 @@ test("Stop cancels OpenRouter and retains the partial Assistant Message", async 
   })
 
   const reader = new DocumentReaderDriver(application.page)
+  await reader.openFixtureDocument(application, documentFixture)
   await reader.toggleChatPanel("Show")
   await reader.writeChatMessage("Hello")
   await reader.chatSendMessageButton.click()
@@ -240,7 +247,7 @@ test("Stop cancels OpenRouter and retains the partial Assistant Message", async 
       encoder.encode('data: {"choices":[{"delta":{"content":"Partial answer"}}]}\n\n'),
     )
   })
-  await expect(reader.chatPanel.getByText("Partial answer", { exact: true })).toBeVisible()
+  await expect(reader.chatThread.getByText("Partial answer", { exact: true })).toBeVisible()
 
   await reader.chatPanel.getByRole("button", { name: "Stop response" }).click()
   await expect
@@ -248,14 +255,14 @@ test("Stop cancels OpenRouter and retains the partial Assistant Message", async 
       application.electronApplication.evaluate(() => Reflect.get(globalThis, "chatAborted")),
     )
     .toBe(true)
-  await expect(reader.chatPanel.getByText("Partial answer", { exact: true })).toBeVisible()
-  await expect(reader.chatPanel.getByText("Partial answer", { exact: true })).toHaveAttribute(
+  await expect(reader.chatThread.getByText("Partial answer", { exact: true })).toBeVisible()
+  await expect(reader.chatThread.getByText("Partial answer", { exact: true })).toHaveAttribute(
     "data-status",
     "incomplete",
   )
   await expect(reader.chatPanel.getByRole("button", { name: "Regenerate response" })).toBeEnabled()
   await expect(
-    reader.chatPanel.getByText("Unable to generate response. Please try again later."),
+    reader.chatThread.getByText("Unable to generate response. Please try again later."),
   ).toBeHidden()
 })
 
@@ -277,6 +284,7 @@ test("counts up the elapsed time while waiting for the first token", async ({ ap
   })
 
   const reader = new DocumentReaderDriver(application.page)
+  await reader.openFixtureDocument(application, documentFixture)
   await reader.toggleChatPanel("Show")
   await reader.writeChatMessage("Ping")
   await reader.chatSendMessageButton.click()
@@ -290,6 +298,6 @@ test("counts up the elapsed time while waiting for the first token", async ({ ap
     controller.enqueue(encoder.encode("data: [DONE]\n\n"))
     controller.close()
   })
-  await expect(reader.chatPanel.getByText("Pong", { exact: true })).toBeVisible()
+  await expect(reader.chatThread.getByText("Pong", { exact: true })).toBeVisible()
   await expect(reader.chatThinkingIndicator).toBeHidden()
 })

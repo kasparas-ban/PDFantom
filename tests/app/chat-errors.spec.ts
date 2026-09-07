@@ -1,5 +1,9 @@
+import path from "node:path"
+
 import { DocumentReaderDriver } from "./drivers/document-reader-driver"
 import { expect, test } from "./test"
+
+const documentFixture = path.resolve("tests/fixtures/pdfs/document-mock.pdf")
 
 for (const { status, body, message } of [
   {
@@ -38,11 +42,12 @@ for (const { status, body, message } of [
     )
 
     const reader = new DocumentReaderDriver(application.page)
+    await reader.openFixtureDocument(application, documentFixture)
     await reader.toggleChatPanel("Show")
     await reader.writeChatMessage("Summarize this document")
     await reader.chatSendMessageButton.click()
 
-    await expect(reader.chatPanel.getByText(message, { exact: true })).toBeVisible()
+    await expect(reader.chatThread.getByText(message, { exact: true })).toBeVisible()
     await expect(reader.chatSendMessageButton).toBeDisabled()
   })
 }
@@ -65,12 +70,13 @@ test("retains a partial Assistant Message when the provider stream fails", async
   })
 
   const reader = new DocumentReaderDriver(application.page)
+  await reader.openFixtureDocument(application, documentFixture)
   await reader.toggleChatPanel("Show")
   await reader.writeChatMessage("Hello")
   await reader.chatSendMessageButton.click()
 
-  await expect(reader.chatPanel.getByText("Partial answer", { exact: true })).toBeVisible()
-  await expect(reader.chatPanel.getByText("Provider disconnected", { exact: true })).toBeVisible()
+  await expect(reader.chatThread.getByText("Partial answer", { exact: true })).toBeVisible()
+  await expect(reader.chatThread.getByText("Provider disconnected", { exact: true })).toBeVisible()
 })
 
 test("does not expose unexpected transport errors", async ({ application }) => {
@@ -82,16 +88,17 @@ test("does not expose unexpected transport errors", async ({ application }) => {
   })
 
   const reader = new DocumentReaderDriver(application.page)
+  await reader.openFixtureDocument(application, documentFixture)
   await reader.toggleChatPanel("Show")
   await reader.writeChatMessage("Hello")
   await reader.chatSendMessageButton.click()
 
   await expect(
-    reader.chatPanel.getByText("Unable to generate response. Please try again later.", {
+    reader.chatThread.getByText("Unable to generate response. Please try again later.", {
       exact: true,
     }),
   ).toBeVisible()
-  await expect(reader.chatPanel.getByText(/private\.sock/)).toBeHidden()
+  await expect(reader.chatThread.getByText(/private\.sock/)).toBeHidden()
 })
 
 for (const retry of ["send", "regenerate"] as const) {
@@ -119,12 +126,13 @@ for (const retry of ["send", "regenerate"] as const) {
     })
 
     const reader = new DocumentReaderDriver(application.page)
+    await reader.openFixtureDocument(application, documentFixture)
     await reader.toggleChatPanel("Show")
     await reader.chatModelButton.click()
     await reader.chatModelOption("GPT-5.4 Nano").click()
     await reader.writeChatMessage("Hello")
     await reader.chatSendMessageButton.click()
-    await expect(reader.chatPanel.getByText("Insufficient credits", { exact: true })).toBeVisible()
+    await expect(reader.chatThread.getByText("Insufficient credits", { exact: true })).toBeVisible()
     await reader.chatModelButton.click()
     await reader.chatModelOption("Nemotron 3 Ultra (free)").click()
 
@@ -140,8 +148,8 @@ for (const retry of ["send", "regenerate"] as const) {
         application.electronApplication.evaluate(() => Reflect.get(globalThis, "chatModels")),
       )
       .toEqual(["openai/gpt-5.4-nano", "nvidia/nemotron-3-ultra-550b-a55b:free"])
-    await expect(reader.chatPanel.getByText("Hello from Nemotron", { exact: true })).toBeVisible()
-    await expect(reader.chatPanel.getByText("Hello", { exact: true })).toBeVisible()
+    await expect(reader.chatThread.getByText("Hello from Nemotron", { exact: true })).toBeVisible()
+    await expect(reader.chatThread.getByText("Hello", { exact: true })).toBeVisible()
   })
 }
 

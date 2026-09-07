@@ -44,7 +44,10 @@ export function registerChatBoundary(
   apiKeyStore: OpenRouterApiKeyStore,
   codexSession: CodexSession,
 ) {
-  const requests = new Map<string, { controller: AbortController; port: MessagePortMain }>()
+  const requests = new Map<
+    string,
+    { controller: AbortController; conversationId: string; port: MessagePortMain }
+  >()
 
   const streamEvents = async function* (request: ChatRequest, signal: AbortSignal) {
     if (request.source === "chatgpt") {
@@ -78,14 +81,14 @@ export function registerChatBoundary(
       return
     }
 
-    const { id } = parsed.data
-    if (requests.size > 0) {
+    const { id, conversationId } = parsed.data
+    if ([...requests.values()].some((request) => request.conversationId === conversationId)) {
       port.postMessage({ type: "error", message: GENERIC_CHAT_ERROR } satisfies ChatStreamEvent)
       return
     }
 
     const controller = new AbortController()
-    requests.set(id, { controller, port })
+    requests.set(id, { controller, conversationId, port })
     port.once("close", () => controller.abort())
 
     void (async () => {
@@ -118,4 +121,19 @@ export function registerChatBoundary(
 
     requests.clear()
   })
+
+  return {
+    /** Stops any response still streaming for a Chat Thread, e.g. before deleting it. */
+    abortConversation(conversationId: string) {
+      for (const [id, request] of requests) {
+        if (request.conversationId !== conversationId) continue
+
+        request.controller.abort()
+        request.port.close()
+        requests.delete(id)
+      }
+
+      codexSession.forgetThread(conversationId)
+    },
+  }
 }

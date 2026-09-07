@@ -38,7 +38,7 @@ function extendsThread(state: CodexThreadState, messages: readonly ChatMessage[]
 }
 
 const TRANSCRIPT_ROLE_LABELS: Record<ChatMessage["role"], string> = {
-  user: "Student",
+  user: "User",
   assistant: "Assistant",
   system: "Instructions",
 }
@@ -54,7 +54,7 @@ export function flattenTranscript(messages: readonly ChatMessage[]) {
     .map((message) => `${TRANSCRIPT_ROLE_LABELS[message.role]}:\n${message.content}`)
     .join("\n\n")
 
-  return `The conversation so far, oldest first:\n\n${transcript}\n\nThe Student's new message:\n${newest.content}`
+  return `The conversation so far, oldest first:\n\n${transcript}\n\nThe User's new message:\n${newest.content}`
 }
 
 const codexTurnErrorSchema = z.object({

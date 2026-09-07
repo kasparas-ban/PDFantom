@@ -11,12 +11,14 @@ const ChatPanel = lazy(() =>
 
 type ResizableChatPanelProps = {
   readonly maximumWidth: number
+  readonly onOpenDocument: () => void
   readonly onWidthChange: (width: number) => void
   readonly width: number
 }
 
 export function ResizableChatPanel({
   maximumWidth,
+  onOpenDocument,
   onWidthChange,
   width,
 }: ResizableChatPanelProps) {
@@ -33,7 +35,7 @@ export function ResizableChatPanel({
     >
       {session ? (
         <Suspense fallback={<ChatPanelShell />}>
-          <ChatPanel client={session.client} />
+          <ChatPanel client={session.client} onOpenDocument={onOpenDocument} />
         </Suspense>
       ) : (
         <ChatPanelShell />

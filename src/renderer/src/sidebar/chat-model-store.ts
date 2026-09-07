@@ -30,6 +30,11 @@ export type ChatModelState = {
   unavailableSources: Partial<Record<ChatModelSourceId, string>>
   setModel: (model: string) => void
   setEffort: (effort: string) => void
+  /**
+   * Shows a Chat Thread's remembered selection without making it the preference for
+   * new threads. Falls back to the preference when the Model is gone or unavailable.
+   */
+  restoreSelection: (selection: ChatModelPreference | null) => void
   toggleFavorite: (modelId: string) => void
   loadSourceListings: (source: ChatModelSourceId) => Promise<void>
 }
@@ -57,6 +62,17 @@ export const createChatModelStore = (platform: Pick<ChatApi, "listModels">) =>
             return preferSelection(state, { model: model.id })
           }),
         setEffort: (effort) => set((state) => preferSelection(state, { effort })),
+        restoreSelection: (selection) =>
+          set((state) => {
+            const remembered = selection && state.models.find((m) => m.id === selection.model)
+
+            return resolveSelection(
+              state.models,
+              remembered && !remembered.unavailableReason && selection
+                ? selection
+                : state.preference,
+            )
+          }),
         toggleFavorite: (modelId) =>
           set((state) => ({
             favoriteModelIds: state.favoriteModelIds.includes(modelId)

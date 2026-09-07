@@ -53,7 +53,7 @@ test("a Thread that failed to reply is not continued past the gap", () => {
   )
 })
 
-test("only a Student message can start a turn", () => {
+test("only a User message can start a turn", () => {
   expect(() => planCodexTurn(undefined, [assistant("a1", "Hello")])).toThrow()
   expect(() => planCodexTurn(undefined, [])).toThrow()
 })
@@ -63,11 +63,11 @@ test("flattening keeps every role boundary as labelled text", () => {
     [
       "The conversation so far, oldest first:",
       "",
-      "Student:\nWhat is osmosis?",
+      "User:\nWhat is osmosis?",
       "",
       "Assistant:\nWater moving across a membrane.",
       "",
-      "The Student's new message:\nWhy?",
+      "The User's new message:\nWhy?",
     ].join("\n"),
   )
 })

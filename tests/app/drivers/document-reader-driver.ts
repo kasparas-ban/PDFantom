@@ -15,6 +15,11 @@ export class DocumentReaderDriver {
     return this.page.getByRole("complementary", { name: "Chat panel" })
   }
 
+  /** The messages, empty state and composer; excludes the header naming the thread. */
+  get chatThread() {
+    return this.chatPanel.locator("[data-slot='chat-thread']")
+  }
+
   get chatMessageInput() {
     return this.chatPanel.getByRole("textbox", { name: "Message" })
   }
@@ -272,7 +277,52 @@ export class DocumentReaderDriver {
   }
 
   documentEntries() {
-    return this.documentsPanel.getByRole("navigation", { name: "Documents" }).getByRole("button")
+    return this.documentsPanel
+      .getByRole("navigation", { name: "Documents" })
+      .locator("[data-slot='document-entry']")
+  }
+
+  chatThreadList(documentName: string) {
+    return this.documentsPanel.getByRole("list", { name: `Chat threads for ${documentName}` })
+  }
+
+  chatThreadEntries(documentName: string) {
+    return this.chatThreadList(documentName).locator("[data-slot='chat-thread-entry']")
+  }
+
+  chatThreadEntry(title: string) {
+    return this.documentsPanel.locator("[data-slot='chat-thread-entry']", { hasText: title })
+  }
+
+  newChatThreadButton(documentName: string) {
+    return this.documentsPanel.getByRole("button", { name: `New chat thread in ${documentName}` })
+  }
+
+  toggleChatThreadsButton(documentName: string) {
+    return this.documentsPanel.getByRole("button", {
+      name: new RegExp(`^(Expand|Collapse) chat threads for ${documentName.replaceAll(".", "\\.")}$`),
+    })
+  }
+
+  chatThreadActionsButton(title: string) {
+    return this.documentsPanel.getByRole("button", { name: `Chat thread actions for ${title}` })
+  }
+
+  get chatPanelTitle() {
+    return this.chatPanel.getByRole("heading", { level: 2 })
+  }
+
+  get newChatThreadFromPanelButton() {
+    return this.chatPanel.getByRole("button", { name: "New chat thread" })
+  }
+
+  async openFixtureDocument(
+    application: { selectOpenPath: (path: string) => Promise<void> },
+    fixturePath: string,
+  ) {
+    await application.selectOpenPath(fixturePath)
+    await this.openSelectedDocument()
+    await this.documentEntries().first().waitFor()
   }
 
   pageCountLabel(pageCount: number) {

@@ -21,12 +21,14 @@ import {
   CopyIcon,
   CornerDownRightIcon,
   CornerUpRightIcon,
+  FilePlus2,
   KeyRoundIcon,
   MicIcon,
   MoreHorizontalIcon,
   PlusIcon,
   RefreshCwIcon,
   SquareIcon,
+  SquarePenIcon,
   Trash2Icon,
 } from "lucide-react"
 import { Link } from "react-router"
@@ -38,11 +40,18 @@ import { Button, buttonVariants } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { GENERIC_CHAT_ERROR } from "../../../shared/chat-api"
 import { usePlatform } from "../app/platform"
+import { useAppConfig } from "../store/app-config-provider"
 import { ChatMarkdown } from "./chat-markdown"
 import { ChatPanelShell } from "./chat-panel-shell"
-import { useChatModel, useChatSession } from "./chat-session"
+import { useChatModel, useChatSession, useChatThreads, useChatThreadStore } from "./chat-session"
 
 const ApiKeyMissingContext = createContext(false)
+const OpenDocumentContext = createContext<() => void>(() => {})
+
+/** Every Chat Thread belongs to a Document; without one the Draft is detached. */
+function useIsDetached() {
+  return useChatThreads((state) => state.active?.documentId === null)
+}
 
 function useIsProviderMissing() {
   const isApiKeyMissing = useContext(ApiKeyMissingContext)
@@ -51,12 +60,19 @@ function useIsProviderMissing() {
   return isApiKeyMissing && selectedModel.source === "openrouter"
 }
 
-export function ChatPanel({ client }: { client: AssistantClient }) {
+type ChatPanelProps = {
+  readonly client: AssistantClient
+  readonly onOpenDocument: () => void
+}
+
+export function ChatPanel({ client, onOpenDocument }: ChatPanelProps) {
   const config = AuiConfig({})
 
   return (
     <AuiProvider extends={client} config={config}>
-      <ChatPresentation />
+      <OpenDocumentContext value={onOpenDocument}>
+        <ChatPresentation />
+      </OpenDocumentContext>
     </AuiProvider>
   )
 }
@@ -82,7 +98,7 @@ function ChatPresentation() {
 
   return (
     <ChatPanelShell>
-      <div aria-hidden="true" className="window-drag-region h-12 shrink-0" />
+      <ChatPanelHeader />
 
       <ApiKeyMissingContext value={isApiKeyMissing}>
         <ChatThread />
@@ -91,11 +107,46 @@ function ChatPresentation() {
   )
 }
 
+/** Names the visible Chat Thread; the sidebar may be hidden while several exist. */
+function ChatPanelHeader() {
+  const threadStore = useChatThreadStore()
+  const openChatPanel = useAppConfig((state) => state.openChatPanel)
+  const documentId = useChatThreads((state) => state.active?.documentId ?? null)
+  const title = useChatThreads(
+    (state) => state.threads.find((thread) => thread.id === state.active?.threadId)?.title,
+  )
+
+  return (
+    <div className="window-drag-region flex h-12 shrink-0 items-center gap-1 pr-20 pl-4">
+      <h2 className="min-w-0 flex-1 truncate text-sm font-medium" title={title ?? "New chat"}>
+        {title ?? "New chat"}
+      </h2>
+      <Button
+        aria-label="New chat thread"
+        className="window-no-drag size-7 rounded-full text-muted-foreground"
+        disabled={documentId === null}
+        onClick={() => {
+          if (documentId === null) return
+
+          threadStore.getState().startDraft(documentId)
+          openChatPanel()
+        }}
+        size="icon-sm"
+        title="New chat thread (⌘N)"
+        type="button"
+        variant="ghost"
+      >
+        <SquarePenIcon />
+      </Button>
+    </div>
+  )
+}
+
 function ChatThread() {
   return (
-    <ThreadPrimitive.Root className="flex min-h-0 flex-1 flex-col">
+    <ThreadPrimitive.Root className="flex min-h-0 flex-1 flex-col" data-slot="chat-thread">
       <ThreadPrimitive.Viewport className="relative flex min-h-0 flex-1 flex-col overflow-y-auto scroll-smooth px-4 pt-5">
-        <AuiIf condition={(state) => state.thread.isEmpty}>
+        <AuiIf condition={(state) => state.thread.isEmpty && !state.thread.isLoading}>
           <ChatEmptyState />
         </AuiIf>
 
@@ -120,11 +171,27 @@ function ChatThread() {
 
 function ChatEmptyState() {
   const isProviderMissing = useIsProviderMissing()
+  const isDetached = useIsDetached()
+  const openDocument = useContext(OpenDocumentContext)
 
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-3 px-3 text-center">
       <PdfantomLogo aria-hidden="true" className="size-24 opacity-70" />
-      {isProviderMissing ? (
+      {isDetached ? (
+        <div className="flex max-w-56 flex-col items-center gap-2">
+          <p className="text-base font-medium text-gray-600">Open a PDF to start a chat</p>
+          <Button
+            className="mt-1"
+            onClick={openDocument}
+            size="sm"
+            type="button"
+            variant="outline"
+          >
+            <FilePlus2 />
+            Open PDF
+          </Button>
+        </div>
+      ) : isProviderMissing ? (
         <div className="flex max-w-56 flex-col items-center gap-2">
           <p className="text-sm font-medium text-foreground">Connect an AI provider</p>
           <Link
@@ -150,7 +217,8 @@ function ChatEmptyState() {
 
 function ChatComposer() {
   const aui = useAui()
-  const canSend = useAuiState((state) => state.composer.canSend)
+  const isDetached = useIsDetached()
+  const canSend = useAuiState((state) => state.composer.canSend) && !isDetached
   const isRunning = useAuiState((state) => state.thread.isRunning)
   const send = () => aui.composer.send({ steer: false })
 
@@ -168,7 +236,10 @@ function ChatComposer() {
         <Textarea
           aria-label="Message"
           className="max-h-40 min-h-16 resize-none border-0 bg-transparent px-2.5 py-1.5 text-sm shadow-none placeholder:text-muted-foreground/80 focus-visible:ring-0 dark:bg-transparent"
-          placeholder="Send a message… (@ to mention, / for commands)"
+          disabled={isDetached}
+          placeholder={
+            isDetached ? "Open a PDF to start a chat" : "Send a message… (@ to mention, / for commands)"
+          }
           rows={1}
         />
       </ComposerPrimitive.Input>

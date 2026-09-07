@@ -7,6 +7,14 @@ import {
   type ChatStreamEvent,
 } from "../shared/chat-api"
 import {
+  APPEND_CHAT_MESSAGE_CHANNEL,
+  CREATE_CHAT_THREAD_CHANNEL,
+  DELETE_CHAT_THREAD_CHANNEL,
+  LIST_CHAT_THREADS_CHANNEL,
+  LOAD_CHAT_THREAD_CHANNEL,
+  MARK_CHAT_THREAD_VIEWED_CHANNEL,
+} from "../shared/chat-thread-api"
+import {
   ACTIVATE_DOCUMENT_CHANNEL,
   GET_DOCUMENT_LIBRARY_CHANNEL,
   LOAD_DOCUMENT_CHANNEL,
@@ -51,6 +59,13 @@ const rendererApi: RendererApi = {
 
     return stop
   },
+  listChatThreads: () => ipcRenderer.invoke(LIST_CHAT_THREADS_CHANNEL),
+  loadChatThread: (threadId) => ipcRenderer.invoke(LOAD_CHAT_THREAD_CHANNEL, threadId),
+  createChatThread: (input) => ipcRenderer.invoke(CREATE_CHAT_THREAD_CHANNEL, input),
+  appendChatMessage: (input) => ipcRenderer.invoke(APPEND_CHAT_MESSAGE_CHANNEL, input),
+  deleteChatThread: (threadId) => ipcRenderer.invoke(DELETE_CHAT_THREAD_CHANNEL, threadId),
+  markChatThreadViewed: (threadId) =>
+    ipcRenderer.invoke(MARK_CHAT_THREAD_VIEWED_CHANNEL, threadId),
   activateDocument: (documentId, fingerprint) =>
     ipcRenderer.invoke(ACTIVATE_DOCUMENT_CHANNEL, documentId, fingerprint),
   loadDocument: (documentId, fingerprint, bytesNeeded) =>

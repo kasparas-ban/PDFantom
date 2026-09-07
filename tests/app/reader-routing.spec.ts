@@ -5,6 +5,8 @@ import type { Page } from "@playwright/test"
 import { DocumentReaderDriver } from "./drivers/document-reader-driver"
 import { expect, test } from "./test"
 
+const documentFixture = path.resolve("tests/fixtures/pdfs/document-mock.pdf")
+
 // Sampling begins before navigation, with animations enabled. Check every painted
 // descendant, including portals and deliberately visible children of the hidden page.
 async function sampleDeparture(page: Page) {
@@ -79,6 +81,7 @@ test("provider links and Settings isolate the reader from the first destination 
 }) => {
   const { page } = application
   const reader = new DocumentReaderDriver(page)
+  await reader.openFixtureDocument(application, documentFixture)
   await reader.toggleChatPanel("Show")
   await expect(reader.openAiProviderSettingsFromChatButton).toBeVisible()
   await sampleDeparture(page)
@@ -190,6 +193,7 @@ for (const destination of ["Settings", "hidden panel"] as const) {
   }) => {
     const { page } = application
     const reader = new DocumentReaderDriver(page)
+    await reader.openFixtureDocument(application, documentFixture)
     await reader.toggleChatPanel("Show")
     await reader.chatModelButton.click()
     await reader.chatModelOption("GPT-5.4 Mini").click()
@@ -238,8 +242,8 @@ for (const destination of ["Settings", "hidden panel"] as const) {
     } else {
       await reader.toggleChatPanel("Show")
     }
-    await expect(reader.chatPanel.getByText("Started while hidden")).toBeVisible()
-    await expect(reader.chatPanel.getByText("Mock a response")).toBeVisible()
+    await expect(reader.chatThread.getByText("Started while hidden")).toBeVisible()
+    await expect(reader.chatThread.getByText("Mock a response")).toBeVisible()
     await expect(reader.chatModelButton).toContainText("GPT-5.4 Mini")
     await expect(page.getByRole("button", { name: "Stop response" })).toHaveCount(0)
   })
