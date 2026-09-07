@@ -36,6 +36,7 @@ import { ChatModelSelector } from "@/components/chat-model-selector"
 import { PdfantomLogo } from "@/components/pdfantom-logo"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { GENERIC_CHAT_ERROR } from "../../../shared/chat-api"
 import { usePlatform } from "../app/platform"
 import { ChatMarkdown } from "./chat-markdown"
@@ -164,68 +165,68 @@ function ChatComposer() {
           if (canSend) send()
         }}
       >
-      <ComposerPrimitive.Input asChild>
-        <Textarea
-          aria-label="Message"
-          className="max-h-40 min-h-16 resize-none border-0 bg-transparent px-2.5 py-1.5 text-sm shadow-none placeholder:text-muted-foreground/80 focus-visible:ring-0 dark:bg-transparent"
-          placeholder="Send a message… (@ to mention, / for commands)"
-          rows={1}
-        />
-      </ComposerPrimitive.Input>
-      <div className="flex min-w-0 items-center justify-between gap-2">
-        <div className="flex min-w-0 items-center gap-0.5">
-          <Button
-            aria-label="Add attachment"
-            className="size-7 rounded-full text-muted-foreground active:scale-[0.97]"
-            disabled
-            size="icon-sm"
-            type="button"
-            variant="ghost"
-          >
-            <PlusIcon />
-          </Button>
-          <ChatModelSelector />
-          <ChatEffortSelector />
-        </div>
-
-        <div className="flex shrink-0 items-center gap-2">
-          <Button
-            aria-label="Voice input"
-            className="size-7 rounded-full text-muted-foreground active:scale-[0.97]"
-            disabled
-            size="icon-sm"
-            type="button"
-            variant="ghost"
-          >
-            <MicIcon />
-          </Button>
-          <AuiIf condition={(state) => !state.thread.isRunning || !state.composer.isEmpty}>
+        <ComposerPrimitive.Input asChild>
+          <Textarea
+            aria-label="Message"
+            className="max-h-40 min-h-16 resize-none border-0 bg-transparent px-2.5 py-1.5 text-sm shadow-none placeholder:text-muted-foreground/80 focus-visible:ring-0 dark:bg-transparent"
+            placeholder="Send a message… (@ to mention, / for commands)"
+            rows={1}
+          />
+        </ComposerPrimitive.Input>
+        <div className="flex min-w-0 items-center justify-between gap-2">
+          <div className="flex min-w-0 items-center gap-0.5">
             <Button
-              aria-label={isRunning ? "Queue message" : "Send message"}
-              className="size-7 rounded-full active:scale-[0.97]"
-              disabled={!canSend}
-              onClick={send}
+              aria-label="Add attachment"
+              className="size-7 rounded-full text-muted-foreground active:scale-[0.97]"
+              disabled
               size="icon-sm"
               type="button"
-              variant={isRunning ? "outline" : "default"}
+              variant="ghost"
             >
-              <ArrowUpIcon />
+              <PlusIcon />
             </Button>
-          </AuiIf>
-          <AuiIf condition={(state) => state.thread.isRunning}>
-            <ComposerPrimitive.Cancel asChild>
+            <ChatModelSelector />
+            <ChatEffortSelector />
+          </div>
+
+          <div className="flex shrink-0 items-center gap-2">
+            <Button
+              aria-label="Voice input"
+              className="size-7 rounded-full text-muted-foreground active:scale-[0.97]"
+              disabled
+              size="icon-sm"
+              type="button"
+              variant="ghost"
+            >
+              <MicIcon />
+            </Button>
+            <AuiIf condition={(state) => !state.thread.isRunning || !state.composer.isEmpty}>
               <Button
-                aria-label="Stop response"
+                aria-label={isRunning ? "Queue message" : "Send message"}
                 className="size-7 rounded-full active:scale-[0.97]"
+                disabled={!canSend}
+                onClick={send}
                 size="icon-sm"
                 type="button"
+                variant={isRunning ? "outline" : "default"}
               >
-                <SquareIcon className="size-3 fill-current" />
+                <ArrowUpIcon />
               </Button>
-            </ComposerPrimitive.Cancel>
-          </AuiIf>
+            </AuiIf>
+            <AuiIf condition={(state) => state.thread.isRunning}>
+              <ComposerPrimitive.Cancel asChild>
+                <Button
+                  aria-label="Stop response"
+                  className="size-7 rounded-full active:scale-[0.97]"
+                  size="icon-sm"
+                  type="button"
+                >
+                  <SquareIcon className="size-3 fill-current" />
+                </Button>
+              </ComposerPrimitive.Cancel>
+            </AuiIf>
+          </div>
         </div>
-      </div>
       </ComposerPrimitive.Root>
     </div>
   )
@@ -285,17 +286,78 @@ function QueuedMessage() {
 
 function UserMessage() {
   return (
-    <MessagePrimitive.Root className="flex justify-end">
+    <MessagePrimitive.Root className="group/message flex flex-col items-end">
       <div className="max-w-[85%] rounded-xl bg-sidebar-accent px-3.5 py-2.5 text-[15px]/5 wrap-break-word text-foreground">
         <MessagePrimitive.Parts />
       </div>
+      <UserActionBar />
     </MessagePrimitive.Root>
+  )
+}
+
+function UserActionBar() {
+  return (
+    <ActionBarPrimitive.Root
+      className="mt-1 flex h-6 items-center gap-0.5 text-muted-foreground opacity-0 transition-opacity group-hover/message:opacity-100 has-focus-visible:opacity-100"
+      data-slot="user-message-actions"
+    >
+      <MessageSentTime />
+      <CopyMessageButton />
+    </ActionBarPrimitive.Root>
+  )
+}
+
+const COPY_CONFIRMATION_MS = 600_000
+
+function CopyMessageButton() {
+  const aui = useAui()
+  const isCopied = useAuiState((state) => state.message.isCopied)
+  const isHovering = useAuiState((state) => state.message.isHovering)
+  const [isTooltipOpen, setIsTooltipOpen] = useState(false)
+
+  return (
+    <Tooltip
+      delay={1000}
+      disableHoverablePopup
+      onOpenChange={setIsTooltipOpen}
+      onOpenChangeComplete={(open) => {
+        if (!open) aui.message.setIsCopied(false)
+      }}
+      open={isTooltipOpen || (isCopied && isHovering)}
+    >
+      <ActionBarPrimitive.Copy asChild copiedDuration={COPY_CONFIRMATION_MS}>
+        <TooltipTrigger
+          render={
+            <Button
+              aria-label="Copy message"
+              className="size-6 rounded-full active:scale-[0.97]"
+              size="icon-xs"
+              type="button"
+              variant="ghost"
+            />
+          }
+        >
+          {isCopied ? <CheckIcon /> : <CopyIcon />}
+        </TooltipTrigger>
+      </ActionBarPrimitive.Copy>
+      <TooltipContent>{isCopied ? "Copied" : "Copy message"}</TooltipContent>
+    </Tooltip>
+  )
+}
+
+function MessageSentTime() {
+  const sentAt = useAuiState((state) => state.message.createdAt)
+
+  return (
+    <time className="px-1 text-xs tabular-nums" dateTime={sentAt.toISOString()}>
+      {sentAt.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}
+    </time>
   )
 }
 
 function AssistantMessage() {
   return (
-    <MessagePrimitive.Root className="group/message text-base leading-[1.625] wrap-break-word">
+    <MessagePrimitive.Root className="group/message text-[15px] leading-[1.625] wrap-break-word">
       <div className="py-1">
         <MessagePrimitive.Parts components={{ Text: AssistantMarkdown }} />
         <AuiIf
