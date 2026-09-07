@@ -1,6 +1,7 @@
 import path from "node:path"
 import { pathToFileURL } from "node:url"
 
+import type { Page } from "@playwright/test"
 import { build } from "vite"
 
 import { DocumentReaderDriver } from "./drivers/document-reader-driver"
@@ -14,7 +15,11 @@ test.beforeAll(async () => {
 })
 
 test.beforeEach(async ({ application }) => {
-  await application.page.evaluate(async (url) => {
+  await mountModelCatalog(application.page)
+})
+
+function mountModelCatalog(page: Page) {
+  return page.evaluate(async (url) => {
     const { mountRoutes }: Boundary = await import(url)
     document.getElementById("root")!.style.display = "none"
     const host = document.createElement("div")
@@ -88,7 +93,7 @@ test.beforeEach(async ({ application }) => {
       ["/"],
     )
   }, moduleUrl)
-})
+}
 
 for (const interaction of ["click", "arrows", "shortcut"] as const) {
   test(`selects and sends a live-only model using ${interaction}`, async ({ application }) => {
@@ -198,4 +203,22 @@ test("chooses a reasoning effort only for models that support it", async ({ appl
   await expect(
     reader.chatPanel.getByText("Response from test/effort-model at high effort"),
   ).toBeVisible()
+})
+
+test("selects the last chosen Model and effort on the next launch", async ({ application }) => {
+  const reader = new DocumentReaderDriver(application.page)
+  await reader.toggleChatPanel("Show")
+  await reader.chatModelButton.click()
+  await reader.chatModelFilterInput.fill("Effort test model")
+  await reader.chatModelOption("Effort test model").click()
+  await reader.chatEffortButton.click()
+  await reader.chatEffortOption("High").click()
+  await expect(reader.chatEffortButton).toContainText("High")
+
+  const restarted = await application.relaunch()
+  await mountModelCatalog(restarted.page)
+
+  const restored = new DocumentReaderDriver(restarted.page)
+  await expect(restored.chatModelButton).toContainText("Effort test model")
+  await expect(restored.chatEffortButton).toContainText("High")
 })

@@ -11,9 +11,20 @@ import {
 
 export const DEFAULT_CHAT_MODEL = "openrouter/free"
 
+export type ChatModelPreference = {
+  model: string
+  effort: string
+}
+
+const DEFAULT_CHAT_MODEL_PREFERENCE: ChatModelPreference = {
+  model: DEFAULT_CHAT_MODEL,
+  effort: DEFAULT_CHAT_EFFORT,
+}
+
 export type ChatModelState = {
   model: string
   effort: string
+  preference: ChatModelPreference
   favoriteModelIds: string[]
   models: readonly ChatModelOption[]
   unavailableSources: Partial<Record<ChatModelSourceId, string>>
@@ -22,6 +33,8 @@ export type ChatModelState = {
   toggleFavorite: (modelId: string) => void
   loadSourceListings: (source: ChatModelSourceId) => Promise<void>
 }
+
+type PersistedChatModelState = Pick<ChatModelState, "favoriteModelIds" | "preference">
 
 const isStringArray = (value: unknown): value is string[] =>
   Array.isArray(value) && value.every((entry) => typeof entry === "string")
@@ -32,6 +45,7 @@ export const createChatModelStore = (platform: Pick<ChatApi, "listModels">) =>
       (set) => ({
         model: DEFAULT_CHAT_MODEL,
         effort: DEFAULT_CHAT_EFFORT,
+        preference: DEFAULT_CHAT_MODEL_PREFERENCE,
         favoriteModelIds: [],
         models: CHAT_MODEL_SOURCES.flatMap((source) => source.bundledModels),
         unavailableSources: {},
@@ -40,9 +54,9 @@ export const createChatModelStore = (platform: Pick<ChatApi, "listModels">) =>
             const model = state.models.find((option) => option.id === id)
             if (!model || model.unavailableReason) return state
 
-            return { model: model.id, effort: resolveEffort(model, state.effort) }
+            return preferSelection(state, { model: model.id })
           }),
-        setEffort: (effort) => set({ effort }),
+        setEffort: (effort) => set((state) => preferSelection(state, { effort })),
         toggleFavorite: (modelId) =>
           set((state) => ({
             favoriteModelIds: state.favoriteModelIds.includes(modelId)
@@ -68,11 +82,6 @@ export const createChatModelStore = (platform: Pick<ChatApi, "listModels">) =>
                 ? Object.assign({}, model, { unavailableReason: result.unavailableReason })
                 : model,
             )
-            const selected = models.find((model) => model.id === state.model)
-            const nextModel =
-              selected && !selected.unavailableReason
-                ? selected
-                : models.find((model) => model.id === DEFAULT_CHAT_MODEL)
 
             return {
               models,
@@ -80,26 +89,28 @@ export const createChatModelStore = (platform: Pick<ChatApi, "listModels">) =>
                 ...state.unavailableSources,
                 [sourceId]: result.unavailableReason,
               },
-              model: nextModel?.id ?? DEFAULT_CHAT_MODEL,
-              effort: resolveEffort(nextModel, state.effort),
+              ...resolveSelection(models, state.preference),
             }
           })
         },
       }),
       {
         name: "pdfantom-chat-models",
-        partialize: ({ favoriteModelIds }) => ({ favoriteModelIds }),
+        partialize: ({ favoriteModelIds, preference }) => ({ favoriteModelIds, preference }),
         merge: (persisted, current) => {
-          const persistedFavorites =
+          const stored =
             typeof persisted === "object" && persisted !== null
-              ? (persisted as Partial<Pick<ChatModelState, "favoriteModelIds">>).favoriteModelIds
-              : undefined
+              ? (persisted as Partial<PersistedChatModelState>)
+              : {}
+          const preference = readPreference(stored.preference) ?? current.preference
 
           return {
             ...current,
-            favoriteModelIds: isStringArray(persistedFavorites)
-              ? persistedFavorites
+            favoriteModelIds: isStringArray(stored.favoriteModelIds)
+              ? stored.favoriteModelIds
               : current.favoriteModelIds,
+            preference,
+            ...resolveSelection(current.models, preference),
           }
         },
       },
@@ -107,6 +118,37 @@ export const createChatModelStore = (platform: Pick<ChatApi, "listModels">) =>
   )
 
 export type ChatModelStore = ReturnType<typeof createChatModelStore>
+
+function readPreference(value: unknown) {
+  if (typeof value !== "object" || value === null) return undefined
+
+  const { model, effort } = value as Partial<ChatModelPreference>
+  if (typeof model !== "string" || typeof effort !== "string") return undefined
+
+  return { model, effort } satisfies ChatModelPreference
+}
+
+function preferSelection(
+  state: Pick<ChatModelState, "models" | "preference">,
+  changes: Partial<ChatModelPreference>,
+) {
+  const preference = { ...state.preference, ...changes }
+
+  return { preference, ...resolveSelection(state.models, preference) }
+}
+
+function resolveSelection(models: readonly ChatModelOption[], preference: ChatModelPreference) {
+  const preferred = models.find((model) => model.id === preference.model)
+  const selected =
+    preferred && !preferred.unavailableReason
+      ? preferred
+      : models.find((model) => model.id === DEFAULT_CHAT_MODEL)
+
+  return {
+    model: selected?.id ?? DEFAULT_CHAT_MODEL,
+    effort: resolveEffort(selected, preference.effort),
+  }
+}
 
 function resolveEffort(model: Pick<ChatModelOption, "effortLevels"> | undefined, effort: string) {
   const levels = model?.effortLevels
