@@ -6,11 +6,11 @@ import remarkGfm from "remark-gfm"
 import remarkMath from "remark-math"
 
 import { Button } from "@/components/ui/button"
-import { normalizeMathDelimiters } from "./chat-markdown-math"
+import { normalizeMathDelimiters, remarkDisplayMath } from "./chat-markdown-math"
 
 import "katex/dist/katex.min.css"
 
-const REMARK_PLUGINS = [remarkGfm, remarkMath]
+const REMARK_PLUGINS = [remarkGfm, remarkMath, remarkDisplayMath]
 const REHYPE_PLUGINS = [rehypeKatex]
 
 type HastNode = {
