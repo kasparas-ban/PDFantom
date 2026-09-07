@@ -192,6 +192,9 @@ All three slices landed together. Where the build differs from the plan above:
 - **Thread summaries arrive through `listChatThreads`**, one call at startup, rather
   than riding the Document library snapshot. Mutations return the updated summary
   and the renderer upserts it.
+- **A streaming thread is remembered as its full target**, not by id, so a Draft
+  whose first send is still in flight keeps its Document and identity when the User
+  moves on. Each runtime owner freezes the target it was born with.
 - **Tests scope message assertions to the thread region** (`reader.chatThread`)
   because the panel header now repeats the first message as the title.
 

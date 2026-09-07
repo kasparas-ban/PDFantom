@@ -40,7 +40,6 @@ import { Button, buttonVariants } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { GENERIC_CHAT_ERROR } from "../../../shared/chat-api"
 import { usePlatform } from "../app/platform"
-import { useAppConfig } from "../store/app-config-provider"
 import { ChatMarkdown } from "./chat-markdown"
 import { ChatPanelShell } from "./chat-panel-shell"
 import { useChatModel, useChatSession, useChatThreads, useChatThreadStore } from "./chat-session"
@@ -110,7 +109,6 @@ function ChatPresentation() {
 /** Names the visible Chat Thread; the sidebar may be hidden while several exist. */
 function ChatPanelHeader() {
   const threadStore = useChatThreadStore()
-  const openChatPanel = useAppConfig((state) => state.openChatPanel)
   const documentId = useChatThreads((state) => state.active?.documentId ?? null)
   const title = useChatThreads(
     (state) => state.threads.find((thread) => thread.id === state.active?.threadId)?.title,
@@ -126,10 +124,7 @@ function ChatPanelHeader() {
         className="window-no-drag size-7 rounded-full text-muted-foreground"
         disabled={documentId === null}
         onClick={() => {
-          if (documentId === null) return
-
-          threadStore.getState().startDraft(documentId)
-          openChatPanel()
+          if (documentId !== null) threadStore.getState().startDraft(documentId)
         }}
         size="icon-sm"
         title="New chat thread (⌘N)"

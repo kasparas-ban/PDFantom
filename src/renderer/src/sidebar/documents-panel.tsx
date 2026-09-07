@@ -32,7 +32,7 @@ import type { ChatThreadSummary } from "../../../shared/chat-thread-api"
 import type { DocumentSummary } from "../../../shared/document-api"
 import { usePlatform } from "../app/platform"
 import { useChatThreads, useChatThreadStore } from "./chat-session"
-import { threadsOfDocument, visibleThreadsOfDocument } from "./chat-thread-store"
+import { isStreaming, threadsOfDocument, visibleThreadsOfDocument } from "./chat-thread-store"
 
 type DocumentsPanelProps = {
   readonly onActivateDocument: (documentId: string) => void
@@ -271,7 +271,7 @@ type ChatThreadRowProps = {
 }
 
 function ChatThreadRow({ isActive, onDelete, onOpen, thread }: ChatThreadRowProps) {
-  const isStreaming = useChatThreads((state) => state.streamingThreadIds.includes(thread.id))
+  const isResponding = useChatThreads((state) => isStreaming(state, thread.id))
 
   return (
     <li
@@ -290,7 +290,7 @@ function ChatThreadRow({ isActive, onDelete, onOpen, thread }: ChatThreadRowProp
       >
         {thread.title}
       </button>
-      {isStreaming && (
+      {isResponding && (
         <output aria-label="Responding" className="flex shrink-0 items-center">
           <Loader2Icon aria-hidden="true" className="size-3.5 animate-spin text-primary" />
         </output>

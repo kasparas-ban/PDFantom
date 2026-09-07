@@ -70,25 +70,40 @@ test("removing the visible Chat Thread leaves a Draft on the same Document", () 
   const store = createStore()
   store.getState().hydrate([thread("only", "doc", "2026-09-03T10:00:00.000Z")])
   store.getState().showDocument("doc")
-  store.getState().setStreaming("only", true)
+  store.getState().setStreaming(store.getState().active!, true)
 
   store.getState().removeThread("only")
 
   expect(store.getState().threads).toEqual([])
-  expect(store.getState().streamingThreadIds).toEqual([])
+  expect(store.getState().streaming).toEqual([])
   expect(store.getState().active).toEqual({ documentId: "doc", threadId: "draft-1", isDraft: true })
 })
 
-test("clearing the active target yields one detached Draft", () => {
+test("detaching yields one detached Draft", () => {
   const store = createStore()
   store.getState().hydrate([])
 
-  store.getState().clearActive()
+  store.getState().detach()
   const detached = store.getState().active
-  store.getState().clearActive()
+  store.getState().detach()
 
   expect(detached).toEqual({ documentId: null, threadId: "draft-1", isDraft: true })
   expect(store.getState().active).toBe(detached)
+})
+
+test("streaming keeps the whole target, so a Draft in flight is never rebuilt from the list", () => {
+  const store = createStore()
+  store.getState().hydrate([])
+  store.getState().startDraft("doc")
+  const draft = store.getState().active!
+
+  store.getState().setStreaming(draft, true)
+  store.getState().setStreaming(draft, true)
+  store.getState().showDocument("other")
+
+  expect(store.getState().streaming).toEqual([draft])
+  store.getState().setStreaming(draft, false)
+  expect(store.getState().streaming).toEqual([])
 })
 
 test("visible rows show the five most recent and always include the active thread", () => {

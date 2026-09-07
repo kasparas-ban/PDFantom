@@ -1,4 +1,4 @@
-import { Activity, useEffect, useLayoutEffect, useState, type RefCallback } from "react"
+import { Activity, useLayoutEffect, useState, type RefCallback } from "react"
 import { FilePlus2, FileWarning } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -11,11 +11,11 @@ import { PageSurface } from "../app/page-surface"
 import { PDFControls } from "./controls/pdf-controls"
 import type { ReaderWorkspace } from "./reader-workspace"
 import { resolveReaderWorkspaceLayout } from "./reader-workspace-layout"
-import { useChatThreadStore } from "../sidebar/chat-session"
 import { ResizableChatPanel } from "../sidebar/resizable-chat-panel"
 import { ResizableDocumentsPanel } from "../sidebar/resizable-documents-panel"
+import { useNewChatThreadShortcut } from "../sidebar/use-new-chat-thread-shortcut"
 import { useAppConfig } from "../store/app-config-provider"
-import { useReaderSession, useReaderSessionStore } from "../store/reader-session-provider"
+import { useReaderSession } from "../store/reader-session-provider"
 
 export function ReaderPage({
   host,
@@ -99,38 +99,6 @@ export function ReaderPage({
       <ChatPanelControl />
     </PageSurface>
   )
-}
-
-/** ⌘N starts a Draft on the selected Document, the keyboard route to the hover button. */
-function useNewChatThreadShortcut() {
-  const sessionStore = useReaderSessionStore()
-  const threadStore = useChatThreadStore()
-  const openChatPanel = useAppConfig((state) => state.openChatPanel)
-
-  useEffect(() => {
-    const startThread = (event: globalThis.KeyboardEvent) => {
-      if (
-        event.defaultPrevented ||
-        !event.metaKey ||
-        event.altKey ||
-        event.ctrlKey ||
-        event.shiftKey ||
-        event.key.toLowerCase() !== "n"
-      ) {
-        return
-      }
-
-      const document = sessionStore.getState().selectedDocument
-      if (!document) return
-
-      threadStore.getState().startDraft(document.id)
-      openChatPanel()
-      event.preventDefault()
-    }
-
-    window.addEventListener("keydown", startThread)
-    return () => window.removeEventListener("keydown", startThread)
-  }, [openChatPanel, sessionStore, threadStore])
 }
 
 function ReaderLifecycle({

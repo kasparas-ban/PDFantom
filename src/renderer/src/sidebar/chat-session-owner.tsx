@@ -1,10 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useState } from "react"
-import {
-  AssistantRuntimeProvider,
-  useAui,
-  useLocalRuntime,
-  type ChatModelRunOptions,
-} from "@assistant-ui/react"
+import { AssistantRuntimeProvider, useAui, useLocalRuntime } from "@assistant-ui/react"
 
 import type { ChatThreadSelection } from "../../../shared/chat-thread-api"
 import { usePlatform } from "../app/platform"
@@ -12,33 +7,28 @@ import { createChatHistoryAdapter } from "./chat-history-adapter"
 import { createChatModelAdapter } from "./chat-model-adapter"
 import { supportsEffortChatModel } from "./chat-models"
 import { useChatModelStore, useChatThreadStore, type ChatSession } from "./chat-session"
+import type { ChatThreadTarget } from "./chat-thread-store"
 
 type ChatSessionOwnerProps = {
-  readonly threadId: string
-  readonly documentId: string | null
-  readonly isDraft: boolean
+  readonly target: ChatThreadTarget
   readonly onReady: (threadId: string, session: ChatSession) => void
   readonly onDispose: (threadId: string) => void
 }
 
 /**
  * One assistant-ui runtime for one Chat Thread. Mounted while the thread is visible or
- * still streaming; unmounting aborts nothing that has already been persisted.
+ * still streaming. An owner is born from a target and outlives its later changes: a
+ * Draft that becomes a Chat Thread keeps the same owner, and the adapter tracks the
+ * transition itself.
  */
-export function ChatSessionOwner({
-  threadId,
-  documentId,
-  isDraft,
-  onReady,
-  onDispose,
-}: ChatSessionOwnerProps) {
+export function ChatSessionOwner({ target: initialTarget, onReady, onDispose }: ChatSessionOwnerProps) {
   const platform = usePlatform()
   const chatModelStore = useChatModelStore()
   const threadStore = useChatThreadStore()
-  // A Draft turns into a Chat Thread on its first send; the adapter tracks that itself.
-  const [startedAsDraft] = useState(isDraft)
+  const [target] = useState(initialTarget)
+  const { threadId } = target
 
-  const adapter = useMemo(() => {
+  const { chatModel, history, interrupt } = useMemo(() => {
     // The visible thread follows the picker. A thread streaming in the background keeps
     // the Model it last sent with, so switching threads never changes a queued run.
     const getSelection = (): ChatThreadSelection => {
@@ -57,33 +47,34 @@ export function ChatSessionOwner({
       }
     }
 
-    const chatModel = createChatModelAdapter(platform, getSelection, threadId)
-    const history = createChatHistoryAdapter({
-      platform,
-      threadId,
-      documentId,
-      isDraft: startedAsDraft,
-      getSelection,
-      onThreadChanged: (thread) => threadStore.getState().upsertThread(thread),
-    })
+    const adapter = createChatModelAdapter(platform, getSelection, threadId)
 
     return {
-      history,
-      interrupt: chatModel.interrupt,
-      async *run(options: ChatModelRunOptions) {
-        threadStore.getState().setStreaming(threadId, true)
+      chatModel: {
+        async *run(options: Parameters<typeof adapter.run>[0]) {
+          threadStore.getState().setStreaming(target, true)
 
-        try {
-          yield* chatModel.run(options)
-        } finally {
-          threadStore.getState().setStreaming(threadId, false)
-        }
+          try {
+            yield* adapter.run(options)
+          } finally {
+            threadStore.getState().setStreaming(target, false)
+          }
+        },
       },
+      history: createChatHistoryAdapter({
+        platform,
+        threadId,
+        documentId: target.documentId,
+        isDraft: target.isDraft,
+        getSelection,
+        onThreadChanged: (thread) => threadStore.getState().upsertThread(thread),
+      }),
+      interrupt: adapter.interrupt,
     }
-  }, [chatModelStore, documentId, platform, startedAsDraft, threadId, threadStore])
+  }, [chatModelStore, platform, target, threadId, threadStore])
 
-  const runtime = useLocalRuntime(adapter, {
-    adapters: { history: adapter.history },
+  const runtime = useLocalRuntime(chatModel, {
+    adapters: { history },
     unstable_enableMessageQueue: true,
   })
 
@@ -91,7 +82,7 @@ export function ChatSessionOwner({
 
   return (
     <AssistantRuntimeProvider runtime={runtime}>
-      <ChatSessionReady interruptRun={adapter.interrupt} onReady={onReady} threadId={threadId} />
+      <ChatSessionReady interruptRun={interrupt} onReady={onReady} threadId={threadId} />
     </AssistantRuntimeProvider>
   )
 }
@@ -100,7 +91,7 @@ function ChatSessionReady({
   interruptRun,
   onReady,
   threadId,
-}: Pick<ChatSessionOwnerProps, "onReady" | "threadId"> & Pick<ChatSession, "interruptRun">) {
+}: Pick<ChatSessionOwnerProps, "onReady"> & Pick<ChatSession, "interruptRun"> & { threadId: string }) {
   const client = useAui()
 
   useLayoutEffect(() => {

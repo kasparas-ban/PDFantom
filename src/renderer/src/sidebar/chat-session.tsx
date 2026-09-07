@@ -11,8 +11,6 @@ import {
 import type { AssistantClient } from "@assistant-ui/react"
 import { useStore } from "zustand"
 
-import { DEFAULT_CHAT_EFFORT } from "../../../shared/chat-api"
-import type { ChatThreadSummary } from "../../../shared/chat-thread-api"
 import { usePlatform } from "../app/platform"
 import { useAppConfig } from "../store/app-config-provider"
 import { useReaderSession } from "../store/reader-session-provider"
@@ -22,7 +20,6 @@ import {
   createChatThreadStore,
   type ChatThreadState,
   type ChatThreadStore,
-  type ChatThreadTarget,
 } from "./chat-thread-store"
 
 export type ChatSession = {
@@ -47,8 +44,7 @@ export function ChatSessionProvider({ children }: PropsWithChildren) {
   const selectedDocumentId = useReaderSession((state) => state.selectedDocument?.id ?? null)
   const isHydrated = useStore(threadStore, (state) => state.isHydrated)
   const active = useStore(threadStore, (state) => state.active)
-  const threads = useStore(threadStore, (state) => state.threads)
-  const streamingThreadIds = useStore(threadStore, (state) => state.streamingThreadIds)
+  const streaming = useStore(threadStore, (state) => state.streaming)
 
   useEffect(() => {
     if (isChatPanelOpen) setIsInitialized(true)
@@ -85,7 +81,7 @@ export function ChatSessionProvider({ children }: PropsWithChildren) {
     if (selectedDocumentId) {
       threadStore.getState().showDocument(selectedDocumentId)
     } else {
-      threadStore.getState().clearActive()
+      threadStore.getState().detach()
     }
   }, [isHydrated, selectedDocumentId, threadStore])
 
@@ -116,11 +112,7 @@ export function ChatSessionProvider({ children }: PropsWithChildren) {
       .getState()
       .threads.find((thread) => thread.id === activeThreadId)?.selection
 
-    modelStore
-      .getState()
-      .restoreSelection(
-        selection ? { model: selection.model, effort: selection.effort ?? DEFAULT_CHAT_EFFORT } : null,
-      )
+    modelStore.getState().restoreSelection(selection ?? null)
   }, [activeThreadId, modelStore, threadStore])
 
   const handleReady = useCallback((threadId: string, session: ChatSession) => {
@@ -139,9 +131,7 @@ export function ChatSessionProvider({ children }: PropsWithChildren) {
     })
   }, [])
 
-  const background = streamingThreadIds
-    .filter((id) => id !== active?.threadId)
-    .map((threadId) => streamingTarget(threads, threadId))
+  const background = streaming.filter((target) => target.threadId !== active?.threadId)
   const ownedThreads = active ? [active, ...background] : background
 
   return (
@@ -151,12 +141,10 @@ export function ChatSessionProvider({ children }: PropsWithChildren) {
           <Suspense fallback={null}>
             {ownedThreads.map((target) => (
               <ChatSessionOwner
-                documentId={target.documentId}
-                isDraft={target.isDraft}
                 key={target.threadId}
                 onDispose={handleDispose}
                 onReady={handleReady}
-                threadId={target.threadId}
+                target={target}
               />
             ))}
           </Suspense>
@@ -167,13 +155,6 @@ export function ChatSessionProvider({ children }: PropsWithChildren) {
       </ChatThreadStoreContext>
     </ChatModelStoreContext>
   )
-}
-
-/** A thread still streaming after the User moved on keeps its runtime alive. */
-function streamingTarget(threads: readonly ChatThreadSummary[], threadId: string): ChatThreadTarget {
-  const thread = threads.find((item) => item.id === threadId)
-
-  return { threadId, documentId: thread?.documentId ?? "", isDraft: !thread }
 }
 
 export const useChatSession = () => useContext(ChatSessionContext)

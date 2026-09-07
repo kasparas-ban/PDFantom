@@ -127,22 +127,9 @@ export class ChatThreadRepository {
         .run(threadId, ordinal)
       this.insertMessage(threadId, ordinal, message)
       this.database
-        .prepare(
-          `UPDATE chat_threads
-           SET last_message_at = ?,
-               model = COALESCE(?, model),
-               model_source = COALESCE(?, model_source),
-               effort = CASE WHEN ? IS NULL THEN effort ELSE ? END
-           WHERE id = ?`,
-        )
-        .run(
-          message.createdAt,
-          selection?.model ?? null,
-          selection?.source ?? null,
-          selection?.model ?? null,
-          selection?.effort ?? null,
-          threadId,
-        )
+        .prepare(`UPDATE chat_threads SET last_message_at = ? WHERE id = ?`)
+        .run(message.createdAt, threadId)
+      if (selection) this.rememberSelection(threadId, selection)
 
       return this.requireThread(threadId)
     })
@@ -158,6 +145,12 @@ export class ChatThreadRepository {
 
   deleteThread(threadId: string) {
     this.database.prepare(`DELETE FROM chat_threads WHERE id = ?`).run(threadId)
+  }
+
+  private rememberSelection(threadId: string, selection: ChatThreadSelection) {
+    this.database
+      .prepare(`UPDATE chat_threads SET model = ?, model_source = ?, effort = ? WHERE id = ?`)
+      .run(selection.model, selection.source, selection.effort ?? null, threadId)
   }
 
   private insertMessage(threadId: string, ordinal: number, message: ChatThreadMessage) {
