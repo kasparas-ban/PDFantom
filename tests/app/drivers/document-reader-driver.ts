@@ -95,6 +95,66 @@ export class DocumentReaderDriver {
     return this.chatUserMessageActions.getByRole("button", { name: "Copy message" })
   }
 
+  get chatViewport() {
+    return this.chatPanel.locator("[data-slot='chat-viewport']")
+  }
+
+  get chatMinimap() {
+    return this.chatPanel.locator("[data-slot='chat-minimap']")
+  }
+
+  get chatMinimapJumpButton() {
+    return this.chatMinimap.getByRole("button")
+  }
+
+  get chatMinimapDashes() {
+    return this.chatMinimap.locator("[data-in-view]")
+  }
+
+  get chatMinimapPreview() {
+    return this.chatMinimap.locator("[data-slot='chat-minimap-preview']")
+  }
+
+  chatMinimapDashesInView() {
+    return this.chatMinimapDashes.evaluateAll((dashes) =>
+      dashes.map((dash) => dash.getAttribute("data-in-view") === "true"),
+    )
+  }
+
+  chatMinimapDashColours() {
+    return this.chatMinimapDashes.evaluateAll((dashes) =>
+      dashes.map((dash) => getComputedStyle(dash).backgroundColor),
+    )
+  }
+
+  /** Aims at a dash by its share of the rail, top (0) to bottom (1). */
+  async hoverChatMinimapAt(railProgress: number) {
+    await this.chatMinimapJumpButton.hover({
+      position: await this.chatMinimapPosition(railProgress),
+    })
+  }
+
+  async clickChatMinimapAt(railProgress: number) {
+    await this.chatMinimapJumpButton.click({
+      position: await this.chatMinimapPosition(railProgress),
+    })
+  }
+
+  /** The rail is only a few pixels tall, so stay clear of its edges. */
+  private async chatMinimapPosition(railProgress: number) {
+    const bounds = await this.chatMinimapJumpButton.boundingBox()
+    if (!bounds) throw new Error("Chat minimap was not found")
+
+    return {
+      x: 2,
+      y: Math.min(bounds.height - 1, Math.max(1, bounds.height * railProgress)),
+    }
+  }
+
+  chatViewportScrollTop() {
+    return this.chatViewport.evaluate((viewport) => viewport.scrollTop)
+  }
+
   get tooltip() {
     return this.page.locator("[data-slot='tooltip-content']")
   }
