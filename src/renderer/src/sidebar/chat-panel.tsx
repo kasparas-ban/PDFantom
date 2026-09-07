@@ -286,7 +286,7 @@ function QueuedMessage() {
 function UserMessage() {
   return (
     <MessagePrimitive.Root className="flex justify-end">
-      <div className="max-w-[85%] rounded-xl bg-sidebar-accent px-3.5 py-2.5 text-sm wrap-break-word text-foreground">
+      <div className="max-w-[85%] rounded-xl bg-sidebar-accent px-3.5 py-2.5 text-[15px]/5 wrap-break-word text-foreground">
         <MessagePrimitive.Parts />
       </div>
     </MessagePrimitive.Root>
@@ -295,7 +295,7 @@ function UserMessage() {
 
 function AssistantMessage() {
   return (
-    <MessagePrimitive.Root className="group/message text-sm leading-relaxed wrap-break-word">
+    <MessagePrimitive.Root className="group/message text-[15px] leading-relaxed wrap-break-word">
       <div className="py-1">
         <MessagePrimitive.Parts components={{ Text: AssistantMarkdown }} />
         <AuiIf
@@ -303,9 +303,7 @@ function AssistantMessage() {
             state.message.status?.type === "running" && state.message.parts.length === 0
           }
         >
-          <span aria-label="Assistant is working" className="animate-pulse text-muted-foreground">
-            Thinking…
-          </span>
+          <ThinkingIndicator />
         </AuiIf>
         <MessagePrimitive.Error>
           <ChatError />
@@ -314,6 +312,37 @@ function AssistantMessage() {
       <AssistantActionBar />
     </MessagePrimitive.Root>
   )
+}
+
+function ThinkingIndicator() {
+  const startedAt = useAuiState((state) => state.message.createdAt.getTime())
+  const [now, setNow] = useState(() => Date.now())
+
+  useEffect(() => {
+    setNow(Date.now())
+    const interval = setInterval(() => setNow(Date.now()), 1000)
+
+    return () => clearInterval(interval)
+  }, [startedAt])
+
+  return (
+    <span
+      aria-label="Assistant is working"
+      className="animate-pulse text-muted-foreground tabular-nums"
+    >
+      Thinking for {formatElapsed(now - startedAt)}
+    </span>
+  )
+}
+
+function formatElapsed(elapsedMs: number) {
+  const totalSeconds = Math.max(0, Math.floor(elapsedMs / 1000))
+  const minutes = Math.floor(totalSeconds / 60)
+  const seconds = totalSeconds % 60
+
+  if (minutes === 0) return `${seconds}s`
+
+  return `${minutes}m ${String(seconds).padStart(2, "0")}s`
 }
 
 function AssistantMarkdown({ text }: TextMessagePartProps) {

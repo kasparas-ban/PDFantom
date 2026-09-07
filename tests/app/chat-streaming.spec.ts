@@ -258,3 +258,38 @@ test("Stop cancels OpenRouter and retains the partial Assistant Message", async 
     reader.chatPanel.getByText("Unable to generate response. Please try again later."),
   ).toBeHidden()
 })
+
+test("counts up the elapsed time while waiting for the first token", async ({ application }) => {
+  await application.page.evaluate(() => window.pdfantom.saveOpenRouterApiKey("sk-or-test"))
+  await application.electronApplication.evaluate(() => {
+    const encoder = new TextEncoder()
+
+    globalThis.fetch = async () =>
+      new Response(
+        new ReadableStream({
+          start(controller) {
+            Reflect.set(globalThis, "chatStreamController", controller)
+            Reflect.set(globalThis, "chatStreamEncoder", encoder)
+          },
+        }),
+        { headers: { "Content-Type": "text/event-stream" } },
+      )
+  })
+
+  const reader = new DocumentReaderDriver(application.page)
+  await reader.toggleChatPanel("Show")
+  await reader.writeChatMessage("Ping")
+  await reader.chatSendMessageButton.click()
+  await expect(reader.chatThinkingIndicator).toHaveText(/^Thinking for \ds$/)
+  await expect(reader.chatThinkingIndicator).toHaveText("Thinking for 2s")
+
+  await application.electronApplication.evaluate(() => {
+    const controller = Reflect.get(globalThis, "chatStreamController")
+    const encoder = Reflect.get(globalThis, "chatStreamEncoder")
+    controller.enqueue(encoder.encode('data: {"choices":[{"delta":{"content":"Pong"}}]}\n\n'))
+    controller.enqueue(encoder.encode("data: [DONE]\n\n"))
+    controller.close()
+  })
+  await expect(reader.chatPanel.getByText("Pong", { exact: true })).toBeVisible()
+  await expect(reader.chatThinkingIndicator).toBeHidden()
+})

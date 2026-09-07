@@ -22,7 +22,7 @@ type HastNode = {
 
 export function ChatMarkdown({ text }: { text: string }) {
   return (
-    <div className="text-sm leading-relaxed wrap-break-word [&_.katex-display]:overflow-x-auto [&_.katex-display]:overflow-y-hidden [&_.katex-display]:py-1 [&>:first-child]:mt-0 [&>:last-child]:mb-0">
+    <div className="text-[15px] leading-relaxed wrap-break-word [&_.katex-display]:overflow-x-auto [&_.katex-display]:overflow-y-hidden [&_.katex-display]:py-1 [&>:first-child]:mt-0 [&>:last-child]:mb-0">
       <Markdown
         components={MARKDOWN_COMPONENTS}
         rehypePlugins={REHYPE_PLUGINS}
@@ -35,17 +35,17 @@ export function ChatMarkdown({ text }: { text: string }) {
 }
 
 const MARKDOWN_COMPONENTS: Components = {
-  h1: ({ node, ...props }) => <h2 className="mt-5 mb-2 text-base font-semibold" {...props} />,
+  h1: ({ node, ...props }) => <h2 className="mt-5 mb-2 text-[17px]/6 font-semibold" {...props} />,
   h2: ({ node, ...props }) => (
-    <h3 className="mt-5 mb-2 text-[15px] font-semibold" {...props} />
+    <h3 className="mt-5 mb-2 text-base font-semibold" {...props} />
   ),
-  h3: ({ node, ...props }) => <h4 className="mt-4 mb-1.5 text-sm font-semibold" {...props} />,
-  h4: ({ node, ...props }) => <h5 className="mt-4 mb-1.5 text-sm font-semibold" {...props} />,
+  h3: ({ node, ...props }) => <h4 className="mt-4 mb-1.5 text-[15px]/5 font-semibold" {...props} />,
+  h4: ({ node, ...props }) => <h5 className="mt-4 mb-1.5 text-[15px]/5 font-semibold" {...props} />,
   h5: ({ node, ...props }) => (
-    <h6 className="mt-4 mb-1.5 text-sm font-semibold text-muted-foreground" {...props} />
+    <h6 className="mt-4 mb-1.5 text-[15px]/5 font-semibold text-muted-foreground" {...props} />
   ),
   h6: ({ node, ...props }) => (
-    <h6 className="mt-4 mb-1.5 text-sm font-semibold text-muted-foreground" {...props} />
+    <h6 className="mt-4 mb-1.5 text-[15px]/5 font-semibold text-muted-foreground" {...props} />
   ),
 
   p: ({ node, ...props }) => <p className="my-2" {...props} />,

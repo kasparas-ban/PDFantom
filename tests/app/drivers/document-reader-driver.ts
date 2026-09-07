@@ -63,6 +63,10 @@ export class DocumentReaderDriver {
     return this.chatPanel.getByRole("button", { name: "Queue message" })
   }
 
+  get chatThinkingIndicator() {
+    return this.chatPanel.getByLabel("Assistant is working")
+  }
+
   get chatStopResponseButton() {
     return this.chatPanel.getByRole("button", { name: "Stop response" })
   }
