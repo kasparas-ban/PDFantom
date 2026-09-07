@@ -2,7 +2,7 @@ import { persist } from "zustand/middleware"
 import { createStore } from "zustand/vanilla"
 
 export const DEFAULT_DOCUMENTS_PANEL_WIDTH = 256
-export const DEFAULT_CHAT_PANEL_WIDTH = 320
+export const DEFAULT_CHAT_PANEL_WIDTH = 360
 
 export type Appearance = "dark" | "light" | "system"
 

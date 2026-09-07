@@ -99,7 +99,7 @@ function ChatThread() {
           <ChatEmptyState />
         </AuiIf>
 
-        <div className="mx-auto flex w-full max-w-182.5 flex-col gap-4 pb-8 empty:hidden">
+        <div className="mx-auto flex w-full max-w-182.5 flex-col gap-5 pb-8 empty:hidden">
           <ThreadPrimitive.Messages
             components={{
               AssistantMessage,
@@ -295,7 +295,7 @@ function UserMessage() {
 
 function AssistantMessage() {
   return (
-    <MessagePrimitive.Root className="group/message text-[15px] leading-relaxed wrap-break-word">
+    <MessagePrimitive.Root className="group/message text-base leading-[1.625] wrap-break-word">
       <div className="py-1">
         <MessagePrimitive.Parts components={{ Text: AssistantMarkdown }} />
         <AuiIf
@@ -328,7 +328,7 @@ function ThinkingIndicator() {
   return (
     <span
       aria-label="Assistant is working"
-      className="animate-pulse text-muted-foreground tabular-nums"
+      className="animate-pulse text-[15px] text-muted-foreground tabular-nums"
     >
       Thinking for {formatElapsed(now - startedAt)}
     </span>
@@ -391,7 +391,7 @@ function AssistantActionBar() {
   return (
     <ActionBarPrimitive.Root
       hideWhenRunning
-      className="mt-1 flex h-7 items-center gap-0.5 text-muted-foreground"
+      className="mt-2 flex h-7 items-center gap-0.5 text-muted-foreground"
     >
       <ActionBarPrimitive.Copy asChild>
         <Button
