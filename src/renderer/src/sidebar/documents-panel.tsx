@@ -133,8 +133,7 @@ export function DocumentsPanel({ onActivateDocument, onOpenDocument }: Documents
         <AlertDialogContent>
           <AlertDialogTitle>Delete this chat thread?</AlertDialogTitle>
           <AlertDialogDescription>
-            “{pendingDelete?.title}” and all of its messages will be removed. This cannot be
-            undone.
+            “{pendingDelete?.title}” and all of its messages will be removed. This cannot be undone.
           </AlertDialogDescription>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
@@ -309,32 +308,37 @@ function ChatThreadRow({ isActive, onDelete, onOpen, thread }: ChatThreadRowProp
       >
         {thread.title}
       </button>
-      {isResponding && (
-        <output aria-label="Responding" className="flex shrink-0 items-center">
-          <Loader2Icon aria-hidden="true" className="size-3.5 animate-spin text-primary" />
-        </output>
-      )}
-      <DropdownMenu>
-        <DropdownMenuTrigger
-          render={
-            <Button
-              aria-label={`Chat thread actions for ${thread.title}`}
-              className="size-6 shrink-0 text-muted-foreground opacity-0 group-hover/thread:opacity-100 focus-visible:opacity-100 aria-expanded:opacity-100"
-              size="icon-xs"
-              type="button"
-              variant="ghost"
-            />
-          }
-        >
-          <MoreHorizontalIcon />
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="min-w-36">
-          <DropdownMenuItem onClick={onDelete} variant="destructive">
-            <Trash2Icon />
-            Delete
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+      <div className="relative flex size-6 shrink-0 items-center justify-center">
+        {isResponding && (
+          <output
+            aria-label="Responding"
+            className="pointer-events-none absolute inset-0 flex items-center justify-center group-focus-within/thread:opacity-0 group-hover/thread:opacity-0 group-has-aria-expanded/thread:opacity-0"
+          >
+            <Loader2Icon aria-hidden="true" className="size-3.5 animate-spin text-primary" />
+          </output>
+        )}
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <Button
+                aria-label={`Chat thread actions for ${thread.title}`}
+                className="size-6 shrink-0 text-muted-foreground opacity-0 group-hover/thread:opacity-100 focus-visible:opacity-100 aria-expanded:opacity-100"
+                size="icon-xs"
+                type="button"
+                variant="ghost"
+              />
+            }
+          >
+            <MoreHorizontalIcon />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="min-w-36">
+            <DropdownMenuItem onClick={onDelete} variant="destructive">
+              <Trash2Icon />
+              Delete
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
     </li>
   )
 }

@@ -20,7 +20,7 @@ export function ChatQuoteChip({ removable = false, className }: ChatQuoteChipPro
   return (
     <AttachmentPrimitive.Root
       className={cn(
-        "flex min-w-0 items-start gap-2 rounded-lg border-l-2 border-muted-foreground/40 bg-muted/60 py-1.5 pr-1 pl-2.5 text-sm/5 text-muted-foreground",
+        "flex min-w-0 items-start gap-2 rounded-lg bg-muted/60 py-1.5 pr-1 pl-2.5 text-sm/5 text-muted-foreground",
         className,
       )}
       data-chat-quote-selectable="false"
@@ -29,7 +29,9 @@ export function ChatQuoteChip({ removable = false, className }: ChatQuoteChipPro
       <TextQuoteIcon aria-hidden="true" className="mt-0.5 size-3.5 shrink-0" />
       <Tooltip delay={600}>
         <TooltipTrigger
-          render={<span className="line-clamp-2 min-w-0 flex-1 whitespace-pre-wrap wrap-break-word" />}
+          render={
+            <span className="line-clamp-2 min-w-0 flex-1 wrap-break-word whitespace-pre-wrap" />
+          }
         >
           <span data-slot="chat-quote-text">{quote.text}</span>
         </TooltipTrigger>
