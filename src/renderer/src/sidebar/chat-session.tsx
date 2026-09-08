@@ -5,6 +5,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useState,
   type PropsWithChildren,
 } from "react"
@@ -14,12 +15,18 @@ import { useStore } from "zustand"
 import { usePlatform } from "../app/platform"
 import { useAppConfig } from "../store/app-config-provider"
 import { useReaderSession } from "../store/reader-session-provider"
-import { createChatModelStore, type ChatModelStore } from "./chat-model-store"
+import {
+  createChatModelStore,
+  createSideChatModelStore,
+  currentSelection,
+  type ChatModelStore,
+} from "./chat-model-store"
 import { CHAT_MODEL_SOURCES } from "./chat-models"
 import {
   createChatThreadStore,
   type ChatThreadState,
   type ChatThreadStore,
+  type ChatThreadTarget,
 } from "./chat-thread-store"
 
 export type ChatSession = {
@@ -27,9 +34,14 @@ export type ChatSession = {
   readonly interruptRun: () => void
 }
 
-const ChatSessionContext = createContext<ChatSession | null>(null)
-const ChatModelStoreContext = createContext<ChatModelStore | null>(null)
+export type ChatPanelMode = "main" | "side"
+
+type PerMode<T> = Readonly<Record<ChatPanelMode, T>>
+
+const ChatSessionsContext = createContext<PerMode<ChatSession | null>>({ main: null, side: null })
+const ChatModelStoresContext = createContext<PerMode<ChatModelStore> | null>(null)
 const ChatThreadStoreContext = createContext<ChatThreadStore | null>(null)
+export const ChatPanelModeContext = createContext<ChatPanelMode>("main")
 const ChatSessionOwner = lazy(() =>
   import("./chat-session-owner").then((module) => ({ default: module.ChatSessionOwner })),
 )
@@ -39,11 +51,16 @@ export function ChatSessionProvider({ children }: PropsWithChildren) {
   const [isInitialized, setIsInitialized] = useState(isChatPanelOpen)
   const [sessions, setSessions] = useState<Readonly<Record<string, ChatSession>>>({})
   const platform = usePlatform()
-  const [modelStore] = useState(() => createChatModelStore(platform))
+  const [modelStores] = useState<PerMode<ChatModelStore>>(() => {
+    const main = createChatModelStore(platform)
+
+    return { main, side: createSideChatModelStore(platform, main) }
+  })
   const [threadStore] = useState(() => createChatThreadStore())
   const selectedDocumentId = useReaderSession((state) => state.selectedDocument?.id ?? null)
   const isHydrated = useStore(threadStore, (state) => state.isHydrated)
   const active = useStore(threadStore, (state) => state.active)
+  const activeSideChat = useStore(threadStore, (state) => state.activeSideChat)
   const streaming = useStore(threadStore, (state) => state.streaming)
 
   useEffect(() => {
@@ -51,10 +68,10 @@ export function ChatSessionProvider({ children }: PropsWithChildren) {
   }, [isChatPanelOpen])
 
   useEffect(() => {
-    const { loadSourceListings } = modelStore.getState()
+    const { loadSourceListings } = modelStores.main.getState()
 
     for (const { source } of CHAT_MODEL_SOURCES) void loadSourceListings(source)
-  }, [modelStore])
+  }, [modelStores])
 
   useEffect(() => {
     let disposed = false
@@ -83,35 +100,27 @@ export function ChatSessionProvider({ children }: PropsWithChildren) {
     }
   }, [isHydrated, selectedDocumentId, threadStore])
 
+  useMarkViewed(active, threadStore)
+  useMarkViewed(activeSideChat, threadStore)
+
   const activeThreadId = active?.threadId ?? null
-  const activeIsDraft = active?.isDraft ?? true
-
-  useEffect(() => {
-    if (!activeThreadId || activeIsDraft) return
-
-    let disposed = false
-
-    platform
-      .markChatThreadViewed(activeThreadId)
-      .then((thread) => {
-        if (thread && !disposed) threadStore.getState().upsertThread(thread)
-      })
-      .catch(() => undefined)
-
-    return () => {
-      disposed = true
-    }
-  }, [activeIsDraft, activeThreadId, platform, threadStore])
+  const sideChatId = activeSideChat?.threadId ?? null
+  const sideChatIsDraft = activeSideChat?.isDraft ?? true
 
   useEffect(() => {
     if (!activeThreadId) return
 
-    const selection = threadStore
-      .getState()
-      .threads.find((thread) => thread.id === activeThreadId)?.selection
+    modelStores.main.getState().restoreSelection(rememberedSelection(threadStore, activeThreadId))
+  }, [activeThreadId, modelStores, threadStore])
 
-    modelStore.getState().restoreSelection(selection ?? null)
-  }, [activeThreadId, modelStore, threadStore])
+  useEffect(() => {
+    if (!sideChatId) return
+
+    const remembered = sideChatIsDraft ? null : rememberedSelection(threadStore, sideChatId)
+    modelStores.side
+      .getState()
+      .restoreSelection(remembered ?? currentSelection(modelStores.main.getState()))
+  }, [modelStores, sideChatId, sideChatIsDraft, threadStore])
 
   const handleReady = useCallback((threadId: string, session: ChatSession) => {
     setSessions((current) =>
@@ -129,17 +138,28 @@ export function ChatSessionProvider({ children }: PropsWithChildren) {
     })
   }, [])
 
-  const background = streaming.filter((target) => target.threadId !== active?.threadId)
-  const ownedThreads = active ? [active, ...background] : background
+  const shown = [active, activeSideChat].filter((target) => target !== null)
+  const ownedThreads = [
+    ...shown,
+    ...streaming.filter((target) => !shown.some((owned) => owned.threadId === target.threadId)),
+  ]
+  const currentSessions = useMemo(
+    () => ({
+      main: activeThreadId ? (sessions[activeThreadId] ?? null) : null,
+      side: sideChatId ? (sessions[sideChatId] ?? null) : null,
+    }),
+    [activeThreadId, sessions, sideChatId],
+  )
 
   return (
-    <ChatModelStoreContext value={modelStore}>
+    <ChatModelStoresContext value={modelStores}>
       <ChatThreadStoreContext value={threadStore}>
         {isInitialized && (
           <Suspense fallback={null}>
             {ownedThreads.map((target) => (
               <ChatSessionOwner
                 key={target.threadId}
+                modelStore={target.parentThreadId ? modelStores.side : modelStores.main}
                 onDispose={handleDispose}
                 onReady={handleReady}
                 target={target}
@@ -147,21 +167,50 @@ export function ChatSessionProvider({ children }: PropsWithChildren) {
             ))}
           </Suspense>
         )}
-        <ChatSessionContext value={active ? (sessions[active.threadId] ?? null) : null}>
-          {children}
-        </ChatSessionContext>
+        <ChatSessionsContext value={currentSessions}>{children}</ChatSessionsContext>
       </ChatThreadStoreContext>
-    </ChatModelStoreContext>
+    </ChatModelStoresContext>
   )
 }
 
-export const useChatSession = () => useContext(ChatSessionContext)
+function useMarkViewed(target: ChatThreadTarget | null, threadStore: ChatThreadStore) {
+  const platform = usePlatform()
+  const threadId = target?.threadId ?? null
+  const isDraft = target?.isDraft ?? true
+
+  useEffect(() => {
+    if (!threadId || isDraft) return
+
+    let disposed = false
+
+    platform
+      .markChatThreadViewed(threadId)
+      .then((thread) => {
+        if (thread && !disposed) threadStore.getState().upsertThread(thread)
+      })
+      .catch(() => undefined)
+
+    return () => {
+      disposed = true
+    }
+  }, [isDraft, platform, threadId, threadStore])
+}
+
+function rememberedSelection(threadStore: ChatThreadStore, threadId: string) {
+  return threadStore.getState().threads.find((thread) => thread.id === threadId)?.selection ?? null
+}
+
+export const useChatPanelMode = () => useContext(ChatPanelModeContext)
+
+export function useChatSession() {
+  return useContext(ChatSessionsContext)[useChatPanelMode()]
+}
 
 export function useChatModelStore() {
-  const store = useContext(ChatModelStoreContext)
-  if (!store) throw new Error("useChatModelStore must be used within ChatSessionProvider")
+  const stores = useContext(ChatModelStoresContext)
+  if (!stores) throw new Error("useChatModelStore must be used within ChatSessionProvider")
 
-  return store
+  return stores[useChatPanelMode()]
 }
 
 export function useChatThreadStore() {

@@ -34,6 +34,7 @@ const thread = (id: string, lastMessageAt: string): ChatThreadSummary => ({
   lastMessageAt,
   lastViewedAt: lastMessageAt,
   selection: null,
+  parentThreadId: null,
 })
 
 test("orders Chat Threads by last message, newest first", () => {

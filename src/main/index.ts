@@ -76,7 +76,13 @@ void app.whenReady().then(() => {
   const codexSession = new CodexSession(settingsStore)
   const window = createWindow()
 
-  const chatBoundary = registerChatBoundary(window, rendererUrl, apiKeyStore, codexSession)
+  const chatBoundary = registerChatBoundary(
+    window,
+    rendererUrl,
+    apiKeyStore,
+    codexSession,
+    chatThreads,
+  )
   registerChatModelsBoundary(window, rendererUrl, codexSession)
   registerChatThreadBoundary(window, rendererUrl, chatThreads, {
     onDeleteThread: (threadId) => chatBoundary.abortConversation(threadId),

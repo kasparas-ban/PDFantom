@@ -2,7 +2,6 @@ import type { Attachment, CompleteAttachment, CreateAttachment } from "@assistan
 
 const QUOTE_TYPE = "quote"
 const QUOTE_SOURCE_PART = "pdfantom.quote-source"
-const QUOTE_LABEL = "Quoting from the conversation:"
 
 export type ChatQuote = {
   readonly text: string
@@ -54,18 +53,4 @@ export function hasQuote(attachments: readonly QuoteAttachmentLike[], quote: Cha
   return readQuoteAttachments(attachments).some(
     (existing) => existing.text === quote.text && existing.messageId === quote.messageId,
   )
-}
-
-export function formatUserMessageContent(text: string, quotes: readonly ChatQuote[]) {
-  const blocks = quotes.map((quote) => `${QUOTE_LABEL}\n${formatBlockquote(quote.text)}`)
-  if (text.trim()) blocks.push(text)
-
-  return blocks.join("\n\n")
-}
-
-function formatBlockquote(text: string) {
-  return text
-    .split("\n")
-    .map((line) => (line ? `> ${line}` : ">"))
-    .join("\n")
 }

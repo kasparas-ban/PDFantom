@@ -61,7 +61,8 @@ export class StudyHistoryDatabase {
         effort TEXT,
         created_at TEXT NOT NULL,
         last_message_at TEXT NOT NULL,
-        last_viewed_at TEXT NOT NULL
+        last_viewed_at TEXT NOT NULL,
+        parent_thread_id TEXT REFERENCES chat_threads(id) ON DELETE CASCADE
       );
 
       CREATE INDEX IF NOT EXISTS chat_threads_by_document
@@ -84,12 +85,24 @@ export class StudyHistoryDatabase {
       );
     `)
 
-    const messageColumns = this.connection
-      .prepare(`SELECT name FROM pragma_table_info('chat_messages')`)
-      .all()
+    this.ensureColumn("chat_messages", "quotes_json", "TEXT")
+    this.ensureColumn(
+      "chat_threads",
+      "parent_thread_id",
+      "TEXT REFERENCES chat_threads(id) ON DELETE CASCADE",
+    )
+    this.connection.exec(
+      "CREATE INDEX IF NOT EXISTS chat_threads_by_parent ON chat_threads (parent_thread_id)",
+    )
+  }
+
+  private ensureColumn(table: string, column: string, definition: string) {
+    const columns = this.connection
+      .prepare(`SELECT name FROM pragma_table_info(?)`)
+      .all(table)
       .map((row) => row.name)
-    if (!messageColumns.includes("quotes_json")) {
-      this.connection.exec("ALTER TABLE chat_messages ADD COLUMN quotes_json TEXT")
+    if (!columns.includes(column)) {
+      this.connection.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`)
     }
   }
 }

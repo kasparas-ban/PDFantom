@@ -1,11 +1,12 @@
 import { useLayoutEffect, useState } from "react"
+import { useAui, type AssistantClient } from "@assistant-ui/react"
 import { createPortal } from "react-dom"
-import { useAui } from "@assistant-ui/react"
 
 import { Button } from "@/components/ui/button"
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
-import { createQuoteAttachment, hasQuote } from "./chat-quote"
+import { useAppConfig } from "../store/app-config-provider"
+import { createQuoteAttachment, hasQuote, type ChatQuote } from "./chat-quote"
 import { resolveSelectionToolbarPosition, type LayoutSize } from "./chat-selection-toolbar-layout"
+import { useChatPanelMode, useChatThreadStore } from "./chat-session"
 import { useChatTextSelection } from "./use-chat-text-selection"
 
 const ESTIMATED_TOOLBAR_SIZE: LayoutSize = { width: 240, height: 36 }
@@ -14,8 +15,17 @@ type ChatSelectionToolbarProps = {
   readonly viewportElement: HTMLElement | null
 }
 
+export function addQuoteToComposer(aui: AssistantClient, quote: ChatQuote) {
+  if (hasQuote(aui.composer.getState().attachments, quote)) return
+
+  void aui.composer.addAttachment(createQuoteAttachment(quote))
+}
+
 export function ChatSelectionToolbar({ viewportElement }: ChatSelectionToolbarProps) {
   const aui = useAui()
+  const threadStore = useChatThreadStore()
+  const isMain = useChatPanelMode() === "main"
+  const openSideChatPanel = useAppConfig((state) => state.openSideChatPanel)
   const selection = useChatTextSelection(viewportElement)
   const [toolbarElement, setToolbarElement] = useState<HTMLDivElement | null>(null)
   const [toolbarSize, setToolbarSize] = useState(ESTIMATED_TOOLBAR_SIZE)
@@ -24,7 +34,9 @@ export function ChatSelectionToolbar({ viewportElement }: ChatSelectionToolbarPr
     if (!toolbarElement) return
 
     const { width, height } = toolbarElement.getBoundingClientRect()
-    setToolbarSize((size) => (size.width === width && size.height === height ? size : { width, height }))
+    setToolbarSize((size) =>
+      size.width === width && size.height === height ? size : { width, height },
+    )
   }, [toolbarElement])
 
   if (!selection || !viewportElement) return null
@@ -36,14 +48,18 @@ export function ChatSelectionToolbar({ viewportElement }: ChatSelectionToolbarPr
   })
   if (!position) return null
 
-  const addToChat = () => {
-    const quote = { text: selection.text, messageId: selection.messageId }
-    if (!hasQuote(aui.composer.getState().attachments, quote)) {
-      void aui.composer.addAttachment(createQuoteAttachment(quote))
-    }
+  const quote = { text: selection.text, messageId: selection.messageId }
 
+  const addToChat = () => {
+    addQuoteToComposer(aui, quote)
     window.getSelection()?.removeAllRanges()
     viewportElement.querySelector("textarea")?.focus()
+  }
+
+  const askInSideChat = () => {
+    threadStore.getState().askInSideChat(quote)
+    openSideChatPanel()
+    window.getSelection()?.removeAllRanges()
   }
 
   return createPortal(
@@ -60,24 +76,14 @@ export function ChatSelectionToolbar({ viewportElement }: ChatSelectionToolbarPr
       <Button onClick={addToChat} size="sm" type="button" variant="ghost">
         Add to chat
       </Button>
-      <span aria-hidden="true" className="h-4 w-px bg-border" />
-      <Tooltip delay={300}>
-        <TooltipTrigger
-          render={
-            <Button
-              className="text-muted-foreground aria-disabled:opacity-60"
-              focusableWhenDisabled
-              size="sm"
-              type="button"
-              variant="ghost"
-              disabled
-            />
-          }
-        >
-          Ask in side chat
-        </TooltipTrigger>
-        <TooltipContent>Coming soon</TooltipContent>
-      </Tooltip>
+      {isMain && (
+        <>
+          <span aria-hidden="true" className="h-4 w-px bg-border" />
+          <Button onClick={askInSideChat} size="sm" type="button" variant="ghost">
+            Ask in side chat
+          </Button>
+        </>
+      )}
     </div>,
     document.body,
   )

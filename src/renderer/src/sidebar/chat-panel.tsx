@@ -23,6 +23,7 @@ import {
   CornerUpRightIcon,
   FilePlus2,
   KeyRoundIcon,
+  MessagesSquareIcon,
   MicIcon,
   MoreHorizontalIcon,
   PlusIcon,
@@ -39,20 +40,33 @@ import { PdfantomLogo } from "@/components/pdfantom-logo"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+import { cn } from "@/lib/utils"
 import { GENERIC_CHAT_ERROR } from "../../../shared/chat-api"
 import { usePlatform } from "../app/platform"
+import { useAppConfig } from "../store/app-config-provider"
 import { ChatMarkdown } from "./chat-markdown"
 import { ChatMinimap } from "./chat-minimap"
 import { ChatPanelShell } from "./chat-panel-shell"
 import { ChatQuoteChip } from "./chat-quote-chip"
-import { ChatSelectionToolbar } from "./chat-selection-toolbar"
-import { useChatModel, useChatSession, useChatThreads, useChatThreadStore } from "./chat-session"
+import { addQuoteToComposer, ChatSelectionToolbar } from "./chat-selection-toolbar"
+import {
+  useChatModel,
+  useChatPanelMode,
+  useChatSession,
+  useChatThreads,
+  useChatThreadStore,
+} from "./chat-session"
+import { SIDE_CHAT_DRAFT_TITLE, SideChatHeader } from "./side-chat-header"
 
 const ApiKeyMissingContext = createContext(false)
 const OpenDocumentContext = createContext<() => void>(() => {})
 
 function useIsDetached() {
   return useChatThreads((state) => state.active?.documentId === null)
+}
+
+function useIsSideChat() {
+  return useChatPanelMode() === "side"
 }
 
 function useIsProviderMissing() {
@@ -81,6 +95,7 @@ export function ChatPanel({ client, onOpenDocument }: ChatPanelProps) {
 
 function ChatPresentation() {
   const platform = usePlatform()
+  const isSideChat = useIsSideChat()
   const [isApiKeyMissing, setIsApiKeyMissing] = useState(false)
 
   useEffect(() => {
@@ -100,7 +115,7 @@ function ChatPresentation() {
 
   return (
     <ChatPanelShell>
-      <ChatPanelHeader />
+      {isSideChat ? <SideChatHeader /> : <ChatPanelHeader />}
 
       <ApiKeyMissingContext value={isApiKeyMissing}>
         <ChatThread />
@@ -112,15 +127,38 @@ function ChatPresentation() {
 function ChatPanelHeader() {
   const threadStore = useChatThreadStore()
   const documentId = useChatThreads((state) => state.active?.documentId ?? null)
+  const hasSideChat = useChatThreads((state) => state.activeSideChat !== null)
   const title = useChatThreads(
     (state) => state.threads.find((thread) => thread.id === state.active?.threadId)?.title,
   )
+  const isSideChatPanelOpen = useAppConfig((state) => state.isSideChatPanelOpen)
+  const toggleSideChatPanel = useAppConfig((state) => state.toggleSideChatPanel)
+  const showsSideChats = isSideChatPanelOpen && hasSideChat
 
   return (
-    <div className="window-drag-region flex h-12 shrink-0 items-center gap-1 pr-20 pl-4">
+    <div
+      className={cn(
+        "window-drag-region flex h-12 shrink-0 items-center gap-1 pl-4",
+        showsSideChats ? "pr-2" : "pr-20",
+      )}
+    >
       <h2 className="min-w-0 flex-1 truncate text-sm font-medium" title={title ?? "New chat"}>
         {title ?? "New chat"}
       </h2>
+      <Button
+        aria-controls="side-chat-panel"
+        aria-expanded={showsSideChats}
+        aria-label="Toggle side chats"
+        className="window-no-drag size-7 rounded-full text-muted-foreground aria-expanded:bg-sidebar-accent aria-expanded:text-foreground"
+        disabled={!hasSideChat}
+        onClick={toggleSideChatPanel}
+        size="icon-sm"
+        title="Toggle side chats"
+        type="button"
+        variant="ghost"
+      >
+        <MessagesSquareIcon />
+      </Button>
       <Button
         aria-label="New chat thread"
         className="window-no-drag size-7 rounded-full text-muted-foreground"
@@ -141,6 +179,7 @@ function ChatPanelHeader() {
 
 function ChatThread() {
   const [viewportElement, setViewportElement] = useState<HTMLDivElement | null>(null)
+  const isSideChat = useIsSideChat()
 
   return (
     <ThreadPrimitive.Root
@@ -174,19 +213,44 @@ function ChatThread() {
 
       <ChatMinimap viewportElement={viewportElement} />
       <ChatSelectionToolbar viewportElement={viewportElement} />
+      {isSideChat && <SideChatQuoteIntake viewportElement={viewportElement} />}
     </ThreadPrimitive.Root>
   )
+}
+
+function SideChatQuoteIntake({ viewportElement }: { viewportElement: HTMLElement | null }) {
+  const aui = useAui()
+  const threadStore = useChatThreadStore()
+  const quote = useChatThreads((state) => state.pendingSideChatQuote)
+
+  useEffect(() => {
+    if (!quote || !viewportElement) return
+
+    addQuoteToComposer(aui, quote)
+    viewportElement.querySelector("textarea")?.focus()
+    threadStore.getState().takeSideChatQuote()
+  }, [aui, quote, threadStore, viewportElement])
+
+  return null
 }
 
 function ChatEmptyState() {
   const isProviderMissing = useIsProviderMissing()
   const isDetached = useIsDetached()
+  const isSideChat = useIsSideChat()
   const openDocument = useContext(OpenDocumentContext)
 
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-3 px-3 text-center">
       <PdfantomLogo aria-hidden="true" className="size-24 opacity-70" />
-      {isDetached ? (
+      {isSideChat ? (
+        <div className="flex max-w-64 flex-col items-center gap-1">
+          <p className="text-base font-medium text-gray-600">{SIDE_CHAT_DRAFT_TITLE}</p>
+          <p className="text-sm text-muted-foreground">
+            Ask about the main chat without adding to it.
+          </p>
+        </div>
+      ) : isDetached ? (
         <div className="flex max-w-56 flex-col items-center gap-2">
           <p className="text-base font-medium text-gray-600">Open a PDF to start a chat</p>
           <Button className="mt-1" onClick={openDocument} size="sm" type="button" variant="outline">

@@ -23,9 +23,14 @@ export async function* streamOpenRouterChat(
   try {
     const openRouter = createOpenRouter({ apiKey, compatibility: "strict" })
     const effort = request.effort && z.enum(OPENROUTER_EFFORT_LEVELS).parse(request.effort)
+    const instructions = request.messages
+      .filter((message) => message.role === "system")
+      .map((message) => message.content)
+      .join("\n\n")
     const result = streamText({
       model: openRouter.chat(request.model, effort ? { reasoning: { effort } } : undefined),
-      messages: request.messages,
+      ...(instructions && { instructions }),
+      messages: request.messages.filter((message) => message.role !== "system"),
       abortSignal,
       timeout: 120_000,
       maxRetries: 0,

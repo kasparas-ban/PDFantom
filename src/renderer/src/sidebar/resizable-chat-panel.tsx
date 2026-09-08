@@ -2,7 +2,12 @@ import { lazy, Suspense } from "react"
 
 import { MINIMUM_PANEL_WIDTH } from "../reader/reader-workspace-layout"
 import { ChatPanelShell } from "./chat-panel-shell"
-import { useChatSession } from "./chat-session"
+import {
+  ChatPanelModeContext,
+  useChatPanelMode,
+  useChatSession,
+  type ChatPanelMode,
+} from "./chat-session"
 import { ResizablePanel } from "./resizable-panel"
 
 const ChatPanel = lazy(() =>
@@ -11,25 +16,35 @@ const ChatPanel = lazy(() =>
 
 type ResizableChatPanelProps = {
   readonly maximumWidth: number
+  readonly mode?: ChatPanelMode
   readonly onOpenDocument: () => void
   readonly onWidthChange: (width: number) => void
   readonly width: number
 }
 
-export function ResizableChatPanel({
+export function ResizableChatPanel({ mode = "main", ...props }: ResizableChatPanelProps) {
+  return (
+    <ChatPanelModeContext value={mode}>
+      <ChatPanelContent {...props} />
+    </ChatPanelModeContext>
+  )
+}
+
+function ChatPanelContent({
   maximumWidth,
   onOpenDocument,
   onWidthChange,
   width,
-}: ResizableChatPanelProps) {
+}: Omit<ResizableChatPanelProps, "mode">) {
   const session = useChatSession()
+  const isSide = useChatPanelMode() === "side"
 
   return (
     <ResizablePanel
       maximumWidth={maximumWidth}
       minimumWidth={MINIMUM_PANEL_WIDTH}
       onWidthChange={onWidthChange}
-      resizeHandleLabel="Resize chat panel"
+      resizeHandleLabel={isSide ? "Resize side chat panel" : "Resize chat panel"}
       side="right"
       width={width}
     >

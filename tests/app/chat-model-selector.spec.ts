@@ -43,6 +43,7 @@ function mountModelCatalog(page: Page) {
           lastMessageAt: message.createdAt,
           lastViewedAt: message.createdAt,
           selection,
+          parentThreadId: null,
         }),
         appendChatMessage: async ({ threadId, message, selection }) => ({
           id: threadId,
@@ -52,6 +53,7 @@ function mountModelCatalog(page: Page) {
           lastMessageAt: message.createdAt,
           lastViewedAt: message.createdAt,
           selection: selection ?? null,
+          parentThreadId: null,
         }),
         deleteChatThread: async () => {},
         markChatThreadViewed: async () => null,

@@ -2,11 +2,11 @@ import { describe, expect, test } from "vitest"
 
 import {
   createQuoteAttachment,
-  formatUserMessageContent,
   hasQuote,
   readQuoteAttachment,
   readQuoteAttachments,
 } from "../../src/renderer/src/sidebar/chat-quote"
+import { formatUserMessageContent } from "../../src/shared/chat-thread-api"
 
 describe("quote attachments", () => {
   test("round-trip text and source message id through attachment content", () => {

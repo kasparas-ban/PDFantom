@@ -1,7 +1,7 @@
 import { mkdtemp, rm } from "node:fs/promises"
-import { DatabaseSync } from "node:sqlite"
 import os from "node:os"
 import path from "node:path"
+import { DatabaseSync } from "node:sqlite"
 
 import { expect, test } from "@playwright/test"
 
@@ -67,7 +67,12 @@ test("creates a Chat Thread with its first message and a derived title", async (
     const thread = threads.createThread({
       id: THREAD_ID,
       documentId: document.id,
-      message: message("u1", "user", "  Explain   the first chapter\nin detail", "2026-09-07T10:00:05.000Z"),
+      message: message(
+        "u1",
+        "user",
+        "  Explain   the first chapter\nin detail",
+        "2026-09-07T10:00:05.000Z",
+      ),
       selection: { model: "openai/gpt-5.4-mini", source: "openrouter", effort: "high" },
     })
 
@@ -196,6 +201,54 @@ test("persists Quotes on user messages and titles a quote-only message from its 
       message("u1", "user", "", "2026-09-07T10:00:05.000Z", { quotes }),
       message("a1", "assistant", "Because.", "2026-09-07T10:00:06.000Z"),
     ])
+  })
+})
+
+test("a Side Chat copies its parent's Document, never nests, and dies with its parent", async () => {
+  await withRepositories(({ database, documents, threads }) => {
+    const document = documents.recordOpenedDocument({
+      fingerprint: "a".repeat(64),
+      name: "notes.pdf",
+      sourcePath: "/documents/notes.pdf",
+    })
+    const sideChatId = "33333333-3333-4333-8333-333333333333"
+    threads.createThread({
+      id: THREAD_ID,
+      documentId: document.id,
+      message: message("u1", "user", "Main question", "2026-09-07T10:00:00.000Z"),
+      selection: { model: "openrouter/free", source: "openrouter" },
+    })
+
+    const sideChat = threads.createThread({
+      id: sideChatId,
+      documentId: "ignored-document",
+      parentThreadId: THREAD_ID,
+      message: message("s1", "user", "Side question", "2026-09-07T10:01:00.000Z"),
+      selection: { model: "openrouter/free", source: "openrouter" },
+    })
+
+    expect(sideChat).toMatchObject({ documentId: document.id, parentThreadId: THREAD_ID })
+    expect(threads.listThreads().map(({ id, parentThreadId }) => ({ id, parentThreadId }))).toEqual(
+      [
+        { id: sideChatId, parentThreadId: THREAD_ID },
+        { id: THREAD_ID, parentThreadId: null },
+      ],
+    )
+    expect(() =>
+      threads.createThread({
+        id: "44444444-4444-4444-8444-444444444444",
+        documentId: document.id,
+        parentThreadId: sideChatId,
+        message: message("n1", "user", "Nested", "2026-09-07T10:02:00.000Z"),
+        selection: { model: "openrouter/free", source: "openrouter" },
+      }),
+    ).toThrow("A Side Chat cannot own another Side Chat.")
+
+    threads.deleteThread(THREAD_ID)
+    expect(threads.listThreads()).toEqual([])
+    expect(
+      database.connection.prepare("SELECT COUNT(*) AS count FROM chat_messages").get(),
+    ).toEqual({ count: 0 })
   })
 })
 

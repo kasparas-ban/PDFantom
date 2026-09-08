@@ -21,12 +21,21 @@ _Avoid_: Textbook, file, PDF (when naming the record rather than the format)
 **Chat Thread**:
 An ordered exchange of messages between the User and one or more Models, belonging
 to exactly one Document. The User may switch Model partway through; the Chat Thread
-stays the same.
+stays the same. A Chat Thread owns zero or more Side Chats.
 _Avoid_: Conversation, chat, thread (unqualified), session
+
+**Side Chat**:
+An exchange between the User and one or more Models that belongs to exactly one Chat
+Thread, its parent, and exists to ask about that Chat Thread's content without adding
+to it. A Side Chat is persisted with its parent and deleted with it, and is never
+listed in the sidebar; it is reached only through its parent.
+_Avoid_: Side thread, sub-thread, scratchpad, branch
 
 **Draft**:
 The empty composer shown for a Document before any message is sent. A Draft is not a
-Chat Thread and is never persisted; it becomes a Chat Thread at first send.
+Chat Thread and is never persisted; it becomes a Chat Thread at first send. A Side
+Chat Draft is the same thing for a Side Chat: an empty composer beside a Chat Thread
+that becomes a Side Chat at first send.
 _Avoid_: Empty thread, new thread, unsaved chat
 
 **Assistant Message**:
@@ -114,6 +123,12 @@ Earlier documents, the GitHub issues, and the accepted ADRs use Student for User
 Textbook for Document. New writing uses User and Document. ADRs are historical
 records and keep their original wording.
 
+**Closing a Side Chat vs. hiding the side panel** — closing deletes.
+Closing a Side Chat removes it and its messages permanently; that is why a Side Chat
+with messages asks for confirmation first. The side panel, by contrast, is shown or
+hidden, and hiding it keeps every Side Chat of the Chat Thread. Never say "close" for
+the panel or "hide" for a Side Chat.
+
 **"Subscription"** — not a term in this domain.
 PDFantom cannot observe a subscription; it observes a Codex Session. Entitlement is
 enforced by OpenAI and surfaced to the User as an error from Codex, never predicted
@@ -134,6 +149,14 @@ by PDFantom.
 > and Model Source produced it. On the Codex side, a Codex Thread gets created
 > lazily for that Chat Thread — but that's a cache. If Codex restarts, we rebuild
 > it from the Chat Thread we already hold.
+>
+> **Dev:** The User highlights a sentence in an Assistant Message and asks
+> "what does this mean?" without wanting it in the main chat. Where does that go?
+>
+> **Domain expert:** Into a Side Chat. It belongs to that Chat Thread, sees the
+> whole Chat Thread as context, and never adds a message to it. The Chat Thread can
+> have several; they're tabs beside it, not rows in the sidebar. Delete the Chat
+> Thread and its Side Chats go with it.
 >
 > **Dev:** If a User is signed into Codex on the free plan, do they get the
 > ChatGPT models in the picker?

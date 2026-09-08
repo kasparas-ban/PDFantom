@@ -9,3 +9,4 @@ blockExoticSubdeps: false
 
 overrides:
   vite: npm:@voidzero-dev/vite-plus-core@0.2.4
+  zod@4.5.2: 4.4.3

@@ -8,9 +8,11 @@ import {
   type ChatRequest,
   type ChatStreamEvent,
 } from "../shared/chat-api"
+import type { ChatThreadRepository } from "./chat-thread-repository"
 import type { CodexSession } from "./codex/session"
 import type { OpenRouterApiKeyStore } from "./openrouter-api-key-store"
 import { streamOpenRouterChat } from "./openrouter-chat"
+import { parentContextBlock } from "./side-chat-context"
 import { isTrustedRenderer } from "./trusted-renderer"
 
 const requestSchema = z.object({
@@ -36,6 +38,7 @@ const requestSchema = z.object({
     .string()
     .regex(/^[a-z]{1,20}$/)
     .optional(),
+  parentThreadId: z.uuid().optional(),
 })
 
 export function registerChatBoundary(
@@ -43,6 +46,7 @@ export function registerChatBoundary(
   rendererUrl: string,
   apiKeyStore: OpenRouterApiKeyStore,
   codexSession: CodexSession,
+  chatThreads: ChatThreadRepository,
 ) {
   const requests = new Map<
     string,
@@ -50,8 +54,12 @@ export function registerChatBoundary(
   >()
 
   const streamEvents = async function* (request: ChatRequest, signal: AbortSignal) {
+    const parentMessages = request.parentThreadId
+      ? (chatThreads.loadThread(request.parentThreadId)?.messages ?? [])
+      : undefined
+
     if (request.source === "chatgpt") {
-      yield* codexSession.streamChat(request, signal)
+      yield* codexSession.streamChat(request, signal, parentMessages)
       return
     }
 
@@ -61,7 +69,18 @@ export function registerChatBoundary(
       return
     }
 
-    yield* streamOpenRouterChat(request, apiKey, signal)
+    const messages = parentMessages
+      ? [
+          {
+            id: "parent-context",
+            role: "system" as const,
+            content: parentContextBlock(parentMessages),
+          },
+          ...request.messages,
+        ]
+      : request.messages
+
+    yield* streamOpenRouterChat({ ...request, messages }, apiKey, signal)
   }
 
   const handleStream = (event: IpcMainEvent, input: unknown) => {

@@ -5,41 +5,39 @@ import type { ChatThreadSelection } from "../../../shared/chat-thread-api"
 import { usePlatform } from "../app/platform"
 import { createChatHistoryAdapter } from "./chat-history-adapter"
 import { createChatModelAdapter } from "./chat-model-adapter"
-import { supportsEffortChatModel } from "./chat-models"
-import { useChatModelStore, useChatThreadStore, type ChatSession } from "./chat-session"
+import { currentSelection, type ChatModelStore } from "./chat-model-store"
+import { useChatThreadStore, type ChatSession } from "./chat-session"
 import type { ChatThreadTarget } from "./chat-thread-store"
 
 type ChatSessionOwnerProps = {
   readonly target: ChatThreadTarget
+  readonly modelStore: ChatModelStore
   readonly onReady: (threadId: string, session: ChatSession) => void
   readonly onDispose: (threadId: string) => void
 }
 
-export function ChatSessionOwner({ target: initialTarget, onReady, onDispose }: ChatSessionOwnerProps) {
+export function ChatSessionOwner({
+  target: initialTarget,
+  modelStore,
+  onReady,
+  onDispose,
+}: ChatSessionOwnerProps) {
   const platform = usePlatform()
-  const chatModelStore = useChatModelStore()
   const threadStore = useChatThreadStore()
   const [target] = useState(initialTarget)
-  const { threadId } = target
+  const { threadId, parentThreadId } = target
 
   const { chatModel, history, interrupt } = useMemo(() => {
     const getSelection = (): ChatThreadSelection => {
-      const { active, threads } = threadStore.getState()
+      const { active, activeSideChat, threads } = threadStore.getState()
+      const shown = parentThreadId === null ? active : activeSideChat
       const remembered = threads.find((thread) => thread.id === threadId)?.selection
-      if (active?.threadId !== threadId && remembered) return remembered
+      if (shown?.threadId !== threadId && remembered) return remembered
 
-      const { model, effort, models } = chatModelStore.getState()
-      const selectedModel = models.find((option) => option.id === model)
-      if (!selectedModel) throw new Error("The selected chat model must belong to the catalog")
-
-      return {
-        model,
-        source: selectedModel.source,
-        ...(supportsEffortChatModel(selectedModel) && { effort }),
-      }
+      return currentSelection(modelStore.getState())
     }
 
-    const adapter = createChatModelAdapter(platform, getSelection, threadId)
+    const adapter = createChatModelAdapter(platform, getSelection, threadId, parentThreadId)
 
     return {
       chatModel: {
@@ -58,12 +56,13 @@ export function ChatSessionOwner({ target: initialTarget, onReady, onDispose }: 
         threadId,
         documentId: target.documentId,
         isDraft: target.isDraft,
+        parentThreadId,
         getSelection,
         onThreadChanged: (thread) => threadStore.getState().upsertThread(thread),
       }),
       interrupt: adapter.interrupt,
     }
-  }, [chatModelStore, platform, target, threadId, threadStore])
+  }, [modelStore, parentThreadId, platform, target, threadId, threadStore])
 
   const runtime = useLocalRuntime(chatModel, {
     adapters: { history },
@@ -83,7 +82,8 @@ function ChatSessionReady({
   interruptRun,
   onReady,
   threadId,
-}: Pick<ChatSessionOwnerProps, "onReady"> & Pick<ChatSession, "interruptRun"> & { threadId: string }) {
+}: Pick<ChatSessionOwnerProps, "onReady"> &
+  Pick<ChatSession, "interruptRun"> & { threadId: string }) {
   const client = useAui()
 
   useLayoutEffect(() => {

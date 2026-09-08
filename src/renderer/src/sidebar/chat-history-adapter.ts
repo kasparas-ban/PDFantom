@@ -16,10 +16,14 @@ import type {
 import { readQuoteAttachments, toCompleteQuoteAttachment } from "./chat-quote"
 
 type ChatHistoryAdapterOptions = {
-  readonly platform: Pick<ChatThreadApi, "loadChatThread" | "createChatThread" | "appendChatMessage">
+  readonly platform: Pick<
+    ChatThreadApi,
+    "loadChatThread" | "createChatThread" | "appendChatMessage"
+  >
   readonly threadId: string
   readonly documentId: string | null
   readonly isDraft: boolean
+  readonly parentThreadId?: string | null
   readonly getSelection: () => ChatThreadSelection
   readonly onThreadChanged: (thread: ChatThreadSummary) => void
 }
@@ -29,6 +33,7 @@ export function createChatHistoryAdapter({
   threadId,
   documentId,
   isDraft,
+  parentThreadId,
   getSelection,
   onThreadChanged,
 }: ChatHistoryAdapterOptions): ThreadHistoryAdapter {
@@ -49,6 +54,7 @@ export function createChatHistoryAdapter({
           documentId,
           message,
           selection: getSelection(),
+          ...(parentThreadId && { parentThreadId }),
         }),
       )
       return
@@ -115,7 +121,10 @@ export function toChatThreadMessage(message: ThreadMessage): ChatThreadMessage |
     status:
       message.status.type === "complete"
         ? { type: "complete" }
-        : { type: "incomplete", ...(errorText(message.status) && { error: errorText(message.status) }) },
+        : {
+            type: "incomplete",
+            ...(errorText(message.status) && { error: errorText(message.status) }),
+          },
     createdAt: message.createdAt.toISOString(),
     ...(generation && { generation }),
   }

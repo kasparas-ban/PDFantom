@@ -1,4 +1,4 @@
-import type { Page } from "@playwright/test"
+import type { Locator, Page } from "@playwright/test"
 
 export class DocumentReaderDriver {
   constructor(private readonly page: Page) {}
@@ -12,7 +12,71 @@ export class DocumentReaderDriver {
   }
 
   get chatPanel() {
-    return this.page.getByRole("complementary", { name: "Chat panel" })
+    return this.page.getByRole("complementary", { name: "Chat panel", exact: true })
+  }
+
+  get sideChatPanel() {
+    return this.page.getByRole("complementary", { name: "Side chat panel" })
+  }
+
+  get sideChatThread() {
+    return this.sideChatPanel.locator("[data-slot='chat-thread']")
+  }
+
+  get sideChatMessageInput() {
+    return this.sideChatPanel.getByRole("textbox", { name: "Message" })
+  }
+
+  get sideChatSendMessageButton() {
+    return this.sideChatPanel.getByRole("button", { name: "Send message" })
+  }
+
+  get sideChatEmptyState() {
+    return this.sideChatPanel.getByText("Ask about the main chat without adding to it.")
+  }
+
+  get sideChatTabs() {
+    return this.sideChatPanel.getByRole("tab")
+  }
+
+  sideChatTab(title: string) {
+    return this.sideChatPanel.getByRole("tab", { name: title, exact: true })
+  }
+
+  closeSideChatButton(title: string) {
+    return this.sideChatPanel.getByRole("button", { name: `Close ${title}`, exact: true })
+  }
+
+  get newSideChatButton() {
+    return this.sideChatPanel.getByRole("button", { name: "New side chat" })
+  }
+
+  get toggleSideChatsButton() {
+    return this.chatPanel.getByRole("button", { name: "Toggle side chats" })
+  }
+
+  get sideChatComposerQuoteTexts() {
+    return this.sideChatPanel.locator(
+      "[data-slot='chat-composer-quotes'] [data-slot='chat-quote-text']",
+    )
+  }
+
+  get sideChatPanelResizeHandle() {
+    return this.page.getByRole("separator", { name: "Resize side chat panel" })
+  }
+
+  sideChatPanelWidth() {
+    return this.sideChatPanel.evaluate((panel) => panel.getBoundingClientRect().width)
+  }
+
+  sideChatMessageText(text: string) {
+    return this.sideChatThread.locator(
+      `[data-message-id] :text-is("${text}"):not([data-slot='chat-quote-text'])`,
+    )
+  }
+
+  selectSideChatMessageText(text: string) {
+    return this.selectMessageText(this.sideChatMessageText(text))
   }
 
   get chatThread() {
@@ -124,7 +188,9 @@ export class DocumentReaderDriver {
   }
 
   get chatUserMessageQuoteTexts() {
-    return this.chatThread.locator("[data-slot='user-message-quotes'] [data-slot='chat-quote-text']")
+    return this.chatThread.locator(
+      "[data-slot='user-message-quotes'] [data-slot='chat-quote-text']",
+    )
   }
 
   get chatMinimap() {
@@ -190,7 +256,7 @@ export class DocumentReaderDriver {
   }
 
   get chatPanelResizeHandle() {
-    return this.page.getByRole("separator", { name: "Resize chat panel" })
+    return this.page.getByRole("separator", { name: "Resize chat panel", exact: true })
   }
 
   get settingsButton() {
@@ -397,7 +463,9 @@ export class DocumentReaderDriver {
 
   toggleChatThreadsButton(documentName: string) {
     return this.documentsPanel.getByRole("button", {
-      name: new RegExp(`^(Expand|Collapse) chat threads for ${documentName.replaceAll(".", "\\.")}$`),
+      name: new RegExp(
+        `^(Expand|Collapse) chat threads for ${documentName.replaceAll(".", "\\.")}$`,
+      ),
     })
   }
 
@@ -450,9 +518,13 @@ export class DocumentReaderDriver {
     )
   }
 
-  async selectChatMessageText(text: string) {
-    const bounds = await this.chatMessageText(text).boundingBox()
-    if (!bounds) throw new Error(`Chat message text "${text}" was not found`)
+  selectChatMessageText(text: string) {
+    return this.selectMessageText(this.chatMessageText(text))
+  }
+
+  private async selectMessageText(target: Locator) {
+    const bounds = await target.boundingBox()
+    if (!bounds) throw new Error(`Chat message text ${String(target)} was not found`)
 
     await this.page.evaluate(() => window.getSelection()?.removeAllRanges())
     const y = bounds.y + bounds.height / 2
