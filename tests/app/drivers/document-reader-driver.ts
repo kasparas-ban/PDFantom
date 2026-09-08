@@ -121,13 +121,12 @@ export class DocumentReaderDriver {
     )
   }
 
-  chatMinimapDashColours() {
+  chatMinimapDashColors() {
     return this.chatMinimapDashes.evaluateAll((dashes) =>
       dashes.map((dash) => getComputedStyle(dash).backgroundColor),
     )
   }
 
-  /** Aims at a dash by its share of the rail, top (0) to bottom (1). */
   async hoverChatMinimapAt(railProgress: number) {
     await this.chatMinimapJumpButton.hover({
       position: await this.chatMinimapPosition(railProgress),
@@ -140,7 +139,6 @@ export class DocumentReaderDriver {
     })
   }
 
-  /** The rail is only a few pixels tall, so stay clear of its edges. */
   private async chatMinimapPosition(railProgress: number) {
     const bounds = await this.chatMinimapJumpButton.boundingBox()
     if (!bounds) throw new Error("Chat minimap was not found")

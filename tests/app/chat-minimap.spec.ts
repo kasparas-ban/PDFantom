@@ -5,7 +5,6 @@ import { expect, test } from "./test"
 
 const WIDE_PANEL_DELTA = 600
 
-/** Enough of a reply that a single turn overflows the Conversation viewport. */
 const stubLongReplies = (electronApplication: ElectronApplication) =>
   electronApplication.evaluate(() => {
     const paragraph = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. ".repeat(120)
@@ -53,7 +52,7 @@ test("maps every turn of the Conversation onto the minimap", async ({ applicatio
   await expect.poll(() => reader.chatViewportScrollTop()).toBeLessThan(40)
   await expect.poll(() => reader.chatMinimapDashesInView()).toEqual([true, false])
 
-  const [onScreen, offScreen] = await reader.chatMinimapDashColours()
+  const [onScreen, offScreen] = await reader.chatMinimapDashColors()
   expect(onScreen).not.toBe(offScreen)
 })
 

@@ -97,7 +97,7 @@ function ChatThread() {
   const [viewportElement, setViewportElement] = useState<HTMLDivElement | null>(null)
 
   return (
-    <ThreadPrimitive.Root className="relative flex min-h-0 flex-1 flex-col">
+    <ThreadPrimitive.Root className="@container relative flex min-h-0 flex-1 flex-col">
       <ThreadPrimitive.Viewport
         className="relative flex min-h-0 flex-1 flex-col overflow-y-auto scroll-smooth px-4 pt-5"
         data-slot="chat-viewport"
@@ -294,15 +294,8 @@ function QueuedMessage() {
 }
 
 function UserMessage() {
-  const messageId = useAuiState((state) => state.message.id)
-
   return (
-    // The id and the scroll margin are how ChatMinimap finds this message and
-    // leaves it clear of the viewport's top edge when it jumps here.
-    <MessagePrimitive.Root
-      className="group/message flex scroll-mt-6 flex-col items-end"
-      data-message-id={messageId}
-    >
+    <MessagePrimitive.Root className="group/message flex scroll-mt-6 flex-col items-end">
       <div className="max-w-[85%] rounded-xl bg-sidebar-accent px-3.5 py-2.5 text-[15px]/5 wrap-break-word text-foreground">
         <MessagePrimitive.Parts />
       </div>
