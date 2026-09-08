@@ -34,6 +34,15 @@ One Model-generated reply within a Chat Thread, carrying its own Model and Model
 Source provenance.
 _Avoid_: Response, completion, answer
 
+**Quote**:
+Text the User selected from a message in a Chat Thread and attached to the message
+they are composing, so the Model knows which passage the question is about. A message
+carries zero or more Quotes; each remembers the message it came from. Quotes and the
+spec's Context Attachments (text and pages selected from the Document, not yet built)
+are both attachments on a user message.
+_Avoid_: Snippet, highlight, selection (when naming the attached thing rather than the
+act of selecting), reply
+
 ### Models and where they come from
 
 **Model**:
