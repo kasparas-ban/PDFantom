@@ -5,6 +5,7 @@ import {
   deriveChatThreadTitle,
   type AppendChatMessageInput,
   type ChatThreadMessage,
+  type ChatThreadQuote,
   type ChatThreadSelection,
   type ChatThreadSummary,
   type CreateChatThreadInput,
@@ -37,6 +38,7 @@ const MESSAGE_COLUMNS = `
   model,
   model_source,
   usage_json,
+  quotes_json,
   created_at
 `
 
@@ -102,7 +104,7 @@ export class ChatThreadRepository {
         .run(
           id,
           documentId,
-          deriveChatThreadTitle(message.content),
+          deriveChatThreadTitle(message.content.trim() || message.quotes?.[0]?.text || ""),
           selection.model,
           selection.source,
           selection.effort ?? null,
@@ -158,8 +160,8 @@ export class ChatThreadRepository {
       .prepare(
         `INSERT INTO chat_messages (
            id, thread_id, ordinal, role, content, status, error,
-           model, model_source, usage_json, created_at
-         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+           model, model_source, usage_json, quotes_json, created_at
+         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(
         message.id,
@@ -172,6 +174,7 @@ export class ChatThreadRepository {
         message.generation?.model ?? null,
         message.generation?.source ?? null,
         message.generation?.usage ? JSON.stringify(message.generation.usage) : null,
+        message.quotes?.length ? JSON.stringify(message.quotes) : null,
         message.createdAt,
       )
   }
@@ -254,6 +257,7 @@ function mapMessage(row: Record<string, SQLOutputValue>): ChatThreadMessage {
     model,
     model_source: source,
     usage_json: usageJson,
+    quotes_json: quotesJson,
     created_at: createdAt,
   } = row
 
@@ -271,6 +275,7 @@ function mapMessage(row: Record<string, SQLOutputValue>): ChatThreadMessage {
     typeof model === "string" && isModelSource(source)
       ? { model, source, ...(typeof usageJson === "string" && { usage: parseUsage(usageJson) }) }
       : undefined
+  const quotes = role === "user" && typeof quotesJson === "string" ? parseQuotes(quotesJson) : []
 
   return {
     id,
@@ -282,6 +287,25 @@ function mapMessage(row: Record<string, SQLOutputValue>): ChatThreadMessage {
         ? { type: "complete" }
         : { type: "incomplete", ...(typeof error === "string" && { error }) },
     ...(generation && { generation }),
+    ...(quotes.length > 0 && { quotes }),
+  }
+}
+
+function parseQuotes(json: string): ChatThreadQuote[] {
+  try {
+    const parsed: unknown = JSON.parse(json)
+    if (!Array.isArray(parsed)) return []
+
+    return parsed.flatMap((entry: unknown) => {
+      if (typeof entry !== "object" || entry === null) return []
+
+      const { text, messageId } = entry as { text?: unknown; messageId?: unknown }
+      if (typeof text !== "string" || !text) return []
+
+      return [{ text, messageId: typeof messageId === "string" ? messageId : "" }]
+    })
+  } catch {
+    return []
   }
 }
 

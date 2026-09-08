@@ -29,12 +29,18 @@ export type ChatThreadMessageStatus =
   | { readonly type: "complete" }
   | { readonly type: "incomplete"; readonly error?: string }
 
+export type ChatThreadQuote = {
+  readonly text: string
+  readonly messageId: string
+}
+
 export type ChatThreadMessage = {
   readonly id: string
   readonly role: "user" | "assistant"
   readonly content: string
   readonly status: ChatThreadMessageStatus
   readonly createdAt: string
+  readonly quotes?: readonly ChatThreadQuote[]
   readonly generation?: {
     readonly source: ChatModelSourceId
     readonly model: string

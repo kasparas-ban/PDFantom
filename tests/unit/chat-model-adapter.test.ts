@@ -1,7 +1,8 @@
-import type { ChatModelRunOptions } from "@assistant-ui/react"
+import type { ChatModelRunOptions, CompleteAttachment } from "@assistant-ui/react"
 import { expect, test, vi } from "vitest"
 
 import { createChatModelAdapter } from "../../src/renderer/src/sidebar/chat-model-adapter"
+import { createQuoteAttachment } from "../../src/renderer/src/sidebar/chat-quote"
 import type { ChatApi, ChatRequest, ChatStreamEvent } from "../../src/shared/chat-api"
 
 test("preserves provider provenance and terminal metadata in the final update", async () => {
@@ -54,6 +55,53 @@ test("preserves provider provenance and terminal metadata in the final update", 
           },
         },
       },
+    },
+  ])
+})
+
+test("prepends Quote attachments to the user message the provider receives", async () => {
+  let receivedRequest: ChatRequest | undefined
+  const streamChat: ChatApi["streamChat"] = (request, onEvent) => {
+    receivedRequest = request
+    queueMicrotask(() =>
+      onEvent({ type: "done", metadata: { source: "openrouter", model: "openai/gpt-5.4-nano" } }),
+    )
+
+    return vi.fn()
+  }
+  const adapter = createChatModelAdapter(
+    { streamChat },
+    () => ({ model: "openai/gpt-5.4-nano", source: "openrouter" }),
+    "conversation-1",
+  )
+  const base = createRunOptions()
+  const quote: CompleteAttachment = {
+    ...createQuoteAttachment({ text: "keepalives at 20", messageId: "assistant-1" }),
+    id: "quote-1",
+    type: "quote",
+    status: { type: "complete" },
+  }
+  const options: ChatModelRunOptions = {
+    ...base,
+    messages: [
+      {
+        id: "user-message",
+        role: "user",
+        content: [{ type: "text", text: "Hello" }],
+        attachments: [quote],
+        metadata: { custom: {} },
+        createdAt: new Date(),
+      },
+    ],
+  }
+
+  for await (const update of adapter.run(options)) void update
+
+  expect(receivedRequest?.messages).toEqual([
+    {
+      id: "user-message",
+      role: "user",
+      content: "Quoting from the conversation:\n> keepalives at 20\n\nHello",
     },
   ])
 })

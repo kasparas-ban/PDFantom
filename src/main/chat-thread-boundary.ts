@@ -34,10 +34,16 @@ const usageSchema = z.object({
   totalTokens: z.number().nonnegative().optional(),
 })
 
+const quoteSchema = z.object({
+  text: z.string().min(1).max(200_000),
+  messageId: z.string().max(200),
+})
+
 const messageSchema = z.object({
   id: z.string().min(1).max(200),
   role: z.enum(["user", "assistant"]),
   content: z.string().max(200_000),
+  quotes: z.array(quoteSchema).min(1).max(50).optional(),
   status: z.union([
     z.object({ type: z.literal("complete") }),
     z.object({ type: z.literal("incomplete"), error: z.string().max(4_000).optional() }),

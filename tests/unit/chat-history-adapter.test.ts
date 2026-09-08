@@ -6,6 +6,7 @@ import {
   toChatThreadMessage,
   toThreadMessageLike,
 } from "../../src/renderer/src/sidebar/chat-history-adapter"
+import { createQuoteAttachment, toCompleteQuoteAttachment } from "../../src/renderer/src/sidebar/chat-quote"
 import type { ChatThreadSummary } from "../../src/shared/chat-thread-api"
 
 const summary: ChatThreadSummary = {
@@ -180,4 +181,49 @@ test("round-trips a stopped reply as cancelled", () => {
   expect(toThreadMessageLike(stopped!)).toMatchObject({
     status: { type: "incomplete", reason: "cancelled" },
   })
+})
+
+test("round-trips Quotes between user message attachments and the persisted shape", () => {
+  const sent: ThreadMessage = {
+    ...userMessage("u2", "Why 20?"),
+    attachments: [
+      {
+        ...createQuoteAttachment({ text: "keepalives at 20", messageId: "a1" }),
+        id: "quote-1",
+        type: "quote",
+        status: { type: "complete" },
+      },
+      { id: "file-1", type: "file", name: "notes.txt", content: [], status: { type: "complete" } },
+    ],
+  }
+
+  const persisted = toChatThreadMessage(sent)
+
+  expect(persisted).toEqual({
+    id: "u2",
+    role: "user",
+    content: "Why 20?",
+    status: { type: "complete" },
+    createdAt: "2026-09-07T10:00:00.000Z",
+    quotes: [{ text: "keepalives at 20", messageId: "a1" }],
+  })
+  expect(toThreadMessageLike(persisted!)).toEqual({
+    id: "u2",
+    role: "user",
+    createdAt: new Date("2026-09-07T10:00:00.000Z"),
+    content: [{ type: "text", text: "Why 20?" }],
+    attachments: [
+      toCompleteQuoteAttachment({ text: "keepalives at 20", messageId: "a1" }, "u2:quote:0"),
+    ],
+  })
+  expect(toChatThreadMessage(userMessage("u3", "Plain"))).not.toHaveProperty("quotes")
+  expect(
+    toThreadMessageLike({
+      id: "u3",
+      role: "user",
+      content: "Plain",
+      status: { type: "complete" },
+      createdAt: "2026-09-07T10:00:00.000Z",
+    }),
+  ).toMatchObject({ attachments: [] })
 })

@@ -1,4 +1,4 @@
-import type { ChatModelRunOptions, ChatModelRunResult } from "@assistant-ui/react"
+import type { ChatModelRunOptions, ChatModelRunResult, ThreadMessage } from "@assistant-ui/react"
 
 import {
   GENERIC_CHAT_ERROR,
@@ -7,6 +7,7 @@ import {
   type ChatRequest,
   type ChatStreamEvent,
 } from "../../../shared/chat-api"
+import { formatUserMessageContent, readQuoteAttachments } from "./chat-quote"
 
 export type ChatModelSelection = {
   model: string
@@ -42,10 +43,7 @@ export function createChatModelAdapter(
           .map((message) => ({
             id: message.id,
             role: message.role,
-            content: message.content
-              .filter((part) => part.type === "text")
-              .map((part) => part.text)
-              .join("\n"),
+            content: resolveRequestContent(message),
           }))
           .filter((message) => message.content.length > 0),
       }
@@ -57,6 +55,16 @@ export function createChatModelAdapter(
       )
     },
   }
+}
+
+function resolveRequestContent(message: ThreadMessage) {
+  const text = message.content
+    .filter((part) => part.type === "text")
+    .map((part) => part.text)
+    .join("\n")
+  if (message.role !== "user") return text
+
+  return formatUserMessageContent(text, readQuoteAttachments(message.attachments))
 }
 
 export async function* streamChatResponse(

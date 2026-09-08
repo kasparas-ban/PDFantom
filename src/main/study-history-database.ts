@@ -78,9 +78,18 @@ export class StudyHistoryDatabase {
         model TEXT,
         model_source TEXT,
         usage_json TEXT,
+        quotes_json TEXT,
         created_at TEXT NOT NULL,
         UNIQUE (thread_id, ordinal)
       );
     `)
+
+    const messageColumns = this.connection
+      .prepare(`SELECT name FROM pragma_table_info('chat_messages')`)
+      .all()
+      .map((row) => row.name)
+    if (!messageColumns.includes("quotes_json")) {
+      this.connection.exec("ALTER TABLE chat_messages ADD COLUMN quotes_json TEXT")
+    }
   }
 }

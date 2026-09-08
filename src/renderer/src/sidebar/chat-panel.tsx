@@ -44,6 +44,8 @@ import { usePlatform } from "../app/platform"
 import { ChatMarkdown } from "./chat-markdown"
 import { ChatMinimap } from "./chat-minimap"
 import { ChatPanelShell } from "./chat-panel-shell"
+import { ChatQuoteChip } from "./chat-quote-chip"
+import { ChatSelectionToolbar } from "./chat-selection-toolbar"
 import { useChatModel, useChatSession, useChatThreads, useChatThreadStore } from "./chat-session"
 
 const ApiKeyMissingContext = createContext(false)
@@ -171,6 +173,7 @@ function ChatThread() {
       </ThreadPrimitive.Viewport>
 
       <ChatMinimap viewportElement={viewportElement} />
+      <ChatSelectionToolbar viewportElement={viewportElement} />
     </ThreadPrimitive.Root>
   )
 }
@@ -186,13 +189,7 @@ function ChatEmptyState() {
       {isDetached ? (
         <div className="flex max-w-56 flex-col items-center gap-2">
           <p className="text-base font-medium text-gray-600">Open a PDF to start a chat</p>
-          <Button
-            className="mt-1"
-            onClick={openDocument}
-            size="sm"
-            type="button"
-            variant="outline"
-          >
+          <Button className="mt-1" onClick={openDocument} size="sm" type="button" variant="outline">
             <FilePlus2 />
             Open PDF
           </Button>
@@ -238,13 +235,16 @@ function ChatComposer() {
           if (canSend) send()
         }}
       >
+        <ChatComposerQuotes />
         <ComposerPrimitive.Input asChild>
           <Textarea
             aria-label="Message"
             className="max-h-40 min-h-16 resize-none border-0 bg-transparent px-2.5 py-1.5 text-sm shadow-none placeholder:text-muted-foreground/80 focus-visible:ring-0 dark:bg-transparent"
             disabled={isDetached}
             placeholder={
-              isDetached ? "Open a PDF to start a chat" : "Send a message… (@ to mention, / for commands)"
+              isDetached
+                ? "Open a PDF to start a chat"
+                : "Send a message… (@ to mention, / for commands)"
             }
             rows={1}
           />
@@ -308,6 +308,24 @@ function ChatComposer() {
   )
 }
 
+function ChatComposerQuotes() {
+  return (
+    <AuiIf condition={(state) => state.composer.attachments.length > 0}>
+      <div className="flex flex-col gap-1.5 px-1 pt-1" data-slot="chat-composer-quotes">
+        <ComposerPrimitive.Attachments components={{ Attachment: ComposerQuoteChip }} />
+      </div>
+    </AuiIf>
+  )
+}
+
+function ComposerQuoteChip() {
+  return <ChatQuoteChip removable />
+}
+
+function MessageQuoteChip() {
+  return <ChatQuoteChip className="bg-background/70" />
+}
+
 function ChatQueue() {
   return (
     <AuiIf condition={(state) => state.composer.queue.length > 0}>
@@ -364,6 +382,9 @@ function UserMessage() {
   return (
     <MessagePrimitive.Root className="group/message flex scroll-mt-6 flex-col items-end">
       <div className="max-w-[85%] rounded-xl bg-sidebar-accent px-3.5 py-2.5 text-[15px]/5 wrap-break-word text-foreground">
+        <div className="mb-2 flex flex-col gap-1.5 empty:hidden" data-slot="user-message-quotes">
+          <MessagePrimitive.Attachments components={{ Attachment: MessageQuoteChip }} />
+        </div>
         <MessagePrimitive.Parts />
       </div>
       <UserActionBar />
@@ -375,6 +396,7 @@ function UserActionBar() {
   return (
     <ActionBarPrimitive.Root
       className="mt-1 flex h-6 items-center gap-0.5 text-muted-foreground opacity-0 transition-opacity group-hover/message:opacity-100 has-focus-visible:opacity-100"
+      data-chat-quote-selectable="false"
       data-slot="user-message-actions"
     >
       <MessageSentTime />
@@ -433,7 +455,7 @@ function MessageSentTime() {
 
 function AssistantMessage() {
   return (
-    <MessagePrimitive.Root className="group/message text-[15px] leading-[1.625] wrap-break-word">
+    <MessagePrimitive.Root className="group/message text-[15px] leading-relaxed wrap-break-word">
       <div className="py-1">
         <MessagePrimitive.Parts components={{ Text: AssistantMarkdown }} />
         <AuiIf
@@ -530,6 +552,7 @@ function AssistantActionBar() {
     <ActionBarPrimitive.Root
       hideWhenRunning
       className="mt-2 flex h-7 items-center gap-0.5 text-muted-foreground"
+      data-chat-quote-selectable="false"
     >
       <ActionBarPrimitive.Copy asChild>
         <Button

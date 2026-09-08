@@ -13,6 +13,7 @@ import type {
   ChatThreadSelection,
   ChatThreadSummary,
 } from "../../../shared/chat-thread-api"
+import { readQuoteAttachments, toCompleteQuoteAttachment } from "./chat-quote"
 
 type ChatHistoryAdapterOptions = {
   readonly platform: Pick<ChatThreadApi, "loadChatThread" | "createChatThread" | "appendChatMessage">
@@ -93,12 +94,15 @@ export function toChatThreadMessage(message: ThreadMessage): ChatThreadMessage |
     .join("\n")
 
   if (message.role === "user") {
+    const quotes = readQuoteAttachments(message.attachments)
+
     return {
       id: message.id,
       role: "user",
       content,
       status: { type: "complete" },
       createdAt: message.createdAt.toISOString(),
+      ...(quotes.length > 0 && { quotes }),
     }
   }
 
@@ -124,7 +128,15 @@ export function toThreadMessageLike(message: ChatThreadMessage): ThreadMessageLi
     content: [{ type: "text" as const, text: message.content }],
   }
 
-  if (message.role === "user") return { ...base, role: "user" }
+  if (message.role === "user") {
+    return {
+      ...base,
+      role: "user",
+      attachments: (message.quotes ?? []).map((quote, index) =>
+        toCompleteQuoteAttachment(quote, `${message.id}:quote:${index}`),
+      ),
+    }
+  }
 
   return {
     ...base,

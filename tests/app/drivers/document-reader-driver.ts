@@ -103,6 +103,30 @@ export class DocumentReaderDriver {
     return this.chatPanel.locator("[data-slot='chat-viewport']")
   }
 
+  get chatSelectionToolbar() {
+    return this.page.locator("[data-slot='chat-selection-toolbar']")
+  }
+
+  get chatAddToChatButton() {
+    return this.chatSelectionToolbar.getByRole("button", { name: "Add to chat" })
+  }
+
+  get chatAskInSideChatButton() {
+    return this.chatSelectionToolbar.getByRole("button", { name: "Ask in side chat" })
+  }
+
+  get chatComposerQuotes() {
+    return this.chatPanel.locator("[data-slot='chat-composer-quotes'] [data-slot='chat-quote']")
+  }
+
+  get chatComposerQuoteTexts() {
+    return this.chatComposerQuotes.locator("[data-slot='chat-quote-text']")
+  }
+
+  get chatUserMessageQuoteTexts() {
+    return this.chatThread.locator("[data-slot='user-message-quotes'] [data-slot='chat-quote-text']")
+  }
+
   get chatMinimap() {
     return this.chatPanel.locator("[data-slot='chat-minimap']")
   }
@@ -412,6 +436,30 @@ export class DocumentReaderDriver {
 
   selectedText() {
     return this.page.evaluate(() => window.getSelection()?.toString())
+  }
+
+  chatMessageText(text: string) {
+    return this.chatThread.locator(
+      `[data-message-id] :text-is("${text}"):not([data-slot='chat-quote-text'])`,
+    )
+  }
+
+  scrollChatMessageTextIntoView(text: string) {
+    return this.chatMessageText(text).evaluate((element) =>
+      element.scrollIntoView({ behavior: "instant", block: "center" }),
+    )
+  }
+
+  async selectChatMessageText(text: string) {
+    const bounds = await this.chatMessageText(text).boundingBox()
+    if (!bounds) throw new Error(`Chat message text "${text}" was not found`)
+
+    await this.page.evaluate(() => window.getSelection()?.removeAllRanges())
+    const y = bounds.y + bounds.height / 2
+    await this.page.mouse.move(bounds.x + 1, y)
+    await this.page.mouse.down()
+    await this.page.mouse.move(bounds.x + bounds.width - 1, y, { steps: 4 })
+    await this.page.mouse.up()
   }
 
   readerScrollTop() {

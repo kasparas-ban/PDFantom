@@ -1,4 +1,5 @@
 import { mkdtemp, rm } from "node:fs/promises"
+import { DatabaseSync } from "node:sqlite"
 import os from "node:os"
 import path from "node:path"
 
@@ -164,4 +165,72 @@ test("lists Chat Threads by activity, tracks viewing, and cascades deletion", as
       database.connection.prepare("SELECT COUNT(*) AS count FROM chat_messages").get(),
     ).toEqual({ count: 1 })
   })
+})
+
+test("persists Quotes on user messages and titles a quote-only message from its Quote", async () => {
+  await withRepositories(({ documents, threads }) => {
+    const document = documents.recordOpenedDocument({
+      fingerprint: "a".repeat(64),
+      name: "notes.pdf",
+      sourcePath: "/documents/notes.pdf",
+    })
+    const quotes = [
+      { text: "keepalives at 20, 40, and 60", messageId: "a0" },
+      { text: "close the socket", messageId: "a0" },
+    ]
+
+    const thread = threads.createThread({
+      id: THREAD_ID,
+      documentId: document.id,
+      message: message("u1", "user", "", "2026-09-07T10:00:05.000Z", { quotes }),
+      selection: { model: "openrouter/free", source: "openrouter" },
+    })
+    threads.appendMessage({
+      threadId: THREAD_ID,
+      parentId: "u1",
+      message: message("a1", "assistant", "Because.", "2026-09-07T10:00:06.000Z"),
+    })
+
+    expect(thread.title).toBe("keepalives at 20, 40, and 60")
+    expect(threads.loadThread(THREAD_ID)?.messages).toEqual([
+      message("u1", "user", "", "2026-09-07T10:00:05.000Z", { quotes }),
+      message("a1", "assistant", "Because.", "2026-09-07T10:00:06.000Z"),
+    ])
+  })
+})
+
+test("adds the quotes column to a database created before Quotes existed", async () => {
+  const workspace = await mkdtemp(path.join(os.tmpdir(), "pdfantom-chat-threads-"))
+  const databasePath = path.join(workspace, "study-history.sqlite")
+
+  try {
+    const legacy = new DatabaseSync(databasePath)
+    legacy.exec(`
+      CREATE TABLE chat_messages (
+        id TEXT PRIMARY KEY,
+        thread_id TEXT NOT NULL,
+        ordinal INTEGER NOT NULL,
+        role TEXT NOT NULL,
+        content TEXT NOT NULL,
+        status TEXT NOT NULL,
+        error TEXT,
+        model TEXT,
+        model_source TEXT,
+        usage_json TEXT,
+        created_at TEXT NOT NULL
+      );
+    `)
+    legacy.close()
+
+    const database = new StudyHistoryDatabase(databasePath)
+    const columns = database.connection
+      .prepare(`SELECT name FROM pragma_table_info('chat_messages')`)
+      .all()
+      .map((row) => row.name)
+    database.close()
+
+    expect(columns).toContain("quotes_json")
+  } finally {
+    await rm(workspace, { force: true, recursive: true })
+  }
 })
