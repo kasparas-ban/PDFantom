@@ -47,7 +47,6 @@ import { useChatModel, useChatSession, useChatThreads, useChatThreadStore } from
 const ApiKeyMissingContext = createContext(false)
 const OpenDocumentContext = createContext<() => void>(() => {})
 
-/** Every Chat Thread belongs to a Document; without one the Draft is detached. */
 function useIsDetached() {
   return useChatThreads((state) => state.active?.documentId === null)
 }
@@ -106,7 +105,6 @@ function ChatPresentation() {
   )
 }
 
-/** Names the visible Chat Thread; the sidebar may be hidden while several exist. */
 function ChatPanelHeader() {
   const threadStore = useChatThreadStore()
   const documentId = useChatThreads((state) => state.active?.documentId ?? null)

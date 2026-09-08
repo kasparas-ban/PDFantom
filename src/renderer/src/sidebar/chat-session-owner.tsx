@@ -15,12 +15,6 @@ type ChatSessionOwnerProps = {
   readonly onDispose: (threadId: string) => void
 }
 
-/**
- * One assistant-ui runtime for one Chat Thread. Mounted while the thread is visible or
- * still streaming. An owner is born from a target and outlives its later changes: a
- * Draft that becomes a Chat Thread keeps the same owner, and the adapter tracks the
- * transition itself.
- */
 export function ChatSessionOwner({ target: initialTarget, onReady, onDispose }: ChatSessionOwnerProps) {
   const platform = usePlatform()
   const chatModelStore = useChatModelStore()
@@ -29,8 +23,6 @@ export function ChatSessionOwner({ target: initialTarget, onReady, onDispose }: 
   const { threadId } = target
 
   const { chatModel, history, interrupt } = useMemo(() => {
-    // The visible thread follows the picker. A thread streaming in the background keeps
-    // the Model it last sent with, so switching threads never changes a queued run.
     const getSelection = (): ChatThreadSelection => {
       const { active, threads } = threadStore.getState()
       const remembered = threads.find((thread) => thread.id === threadId)?.selection

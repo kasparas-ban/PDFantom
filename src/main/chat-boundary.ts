@@ -123,7 +123,6 @@ export function registerChatBoundary(
   })
 
   return {
-    /** Stops any response still streaming for a Chat Thread, e.g. before deleting it. */
     abortConversation(conversationId: string) {
       for (const [id, request] of requests) {
         if (request.conversationId !== conversationId) continue

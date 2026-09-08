@@ -15,7 +15,6 @@ export class DocumentReaderDriver {
     return this.page.getByRole("complementary", { name: "Chat panel" })
   }
 
-  /** The messages, empty state and composer; excludes the header naming the thread. */
   get chatThread() {
     return this.chatPanel.locator("[data-slot='chat-thread']")
   }

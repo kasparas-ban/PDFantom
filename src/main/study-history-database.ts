@@ -2,10 +2,6 @@ import type { DatabaseSync as Database } from "node:sqlite"
 
 const { DatabaseSync } = process.getBuiltinModule("node:sqlite")
 
-/**
- * Owns the single SQLite connection behind Study History. Repositories share it so
- * a Document and its Chat Threads live in one file and one transaction scope.
- */
 export class StudyHistoryDatabase {
   readonly connection: Database
 

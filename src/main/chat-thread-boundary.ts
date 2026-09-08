@@ -67,7 +67,6 @@ const appendSchema = z.object({
 })
 
 type ChatThreadBoundaryHooks = {
-  /** Called before a Chat Thread's rows are removed, so in-flight work stops first. */
   readonly onDeleteThread: (threadId: string) => void
 }
 

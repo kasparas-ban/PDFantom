@@ -7,10 +7,6 @@ import {
 
 export const VISIBLE_CHAT_THREADS_PER_DOCUMENT = 5
 
-/**
- * What the chat panel is showing: a persisted Chat Thread, or a Draft that is not one
- * yet. A Draft with no Document is detached: its composer is disabled until a PDF opens.
- */
 export type ChatThreadTarget = {
   readonly documentId: string | null
   readonly threadId: string
@@ -21,7 +17,6 @@ export type ChatThreadState = {
   threads: readonly ChatThreadSummary[]
   isHydrated: boolean
   active: ChatThreadTarget | null
-  /** Threads with a reply in flight keep their runtime alive after the User moves on. */
   streaming: readonly ChatThreadTarget[]
   revealedDocumentIds: readonly string[]
   hydrate: (threads: readonly ChatThreadSummary[]) => void
@@ -118,7 +113,6 @@ export function threadsOfDocument(threads: readonly ChatThreadSummary[], documen
   return threads.filter((thread) => thread.documentId === documentId)
 }
 
-/** The rows a Document shows: the most recent few, always including the active one. */
 export function visibleThreadsOfDocument(
   threads: readonly ChatThreadSummary[],
   documentId: string,

@@ -31,10 +31,6 @@ export type ChatModelState = {
   unavailableSources: Partial<Record<ChatModelSourceId, string>>
   setModel: (model: string) => void
   setEffort: (effort: string) => void
-  /**
-   * Shows a Chat Thread's remembered selection without making it the preference for
-   * new threads. Falls back to the preference when the Model is gone or unavailable.
-   */
   restoreSelection: (selection: ChatThreadSelection | null) => void
   toggleFavorite: (modelId: string) => void
   loadSourceListings: (source: ChatModelSourceId) => Promise<void>

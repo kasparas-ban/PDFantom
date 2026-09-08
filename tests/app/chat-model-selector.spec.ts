@@ -29,7 +29,6 @@ function mountModelCatalog(page: Page) {
     mountRoutes(
       host,
       {
-        // A Document that is present but unavailable: chat works, the reader shows nothing.
         getDocumentLibrary: async () => ({ selectedDocument: notes, documents: [notes] }),
         openDocument: async () => null,
         activateDocument: async () => ({ selectedDocument: notes, documents: [notes] }),

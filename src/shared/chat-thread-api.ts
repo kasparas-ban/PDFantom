@@ -9,7 +9,6 @@ export const MARK_CHAT_THREAD_VIEWED_CHANNEL = "chat-thread:mark-viewed"
 
 export const CHAT_THREAD_TITLE_MAX_LENGTH = 60
 
-/** The Model, Model Source and effort a Chat Thread last sent a message with. */
 export type ChatThreadSelection = {
   readonly model: string
   readonly source: ChatModelSourceId
@@ -55,10 +54,6 @@ export type CreateChatThreadInput = {
   readonly selection: ChatThreadSelection
 }
 
-/**
- * Appends after `parentId`, discarding anything that followed it. A Chat Thread is
- * linear, so a regenerated reply replaces the one before it.
- */
 export type AppendChatMessageInput = {
   readonly threadId: string
   readonly parentId: string | null

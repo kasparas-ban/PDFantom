@@ -23,12 +23,6 @@ type ChatHistoryAdapterOptions = {
   readonly onThreadChanged: (thread: ChatThreadSummary) => void
 }
 
-/**
- * Persists a Chat Thread through the main process. The runtime calls `append` for a
- * user message when it is sent and for an Assistant Message once its stream settles,
- * which is exactly the write timing ADR 0004 asks for. A Draft becomes a Chat Thread
- * on its first append.
- */
 export function createChatHistoryAdapter({
   platform,
   threadId,

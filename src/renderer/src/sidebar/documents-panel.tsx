@@ -48,7 +48,6 @@ export function DocumentsPanel({ onActivateDocument, onOpenDocument }: Documents
   const [pendingDelete, setPendingDelete] = useState<ChatThreadSummary | null>(null)
 
   const openThread = (thread: ChatThreadSummary) => {
-    // Set the thread first: the Document change would otherwise pick the most recent one.
     threadStore.getState().openThread(thread)
     onActivateDocument(thread.documentId)
     openChatPanel()
@@ -66,9 +65,7 @@ export function DocumentsPanel({ onActivateDocument, onOpenDocument }: Documents
     try {
       await platform.deleteChatThread(thread.id)
       threadStore.getState().removeThread(thread.id)
-    } catch {
-      /* The row stays; the User can retry. */
-    }
+    } catch {}
   }
 
   return (

@@ -10,7 +10,6 @@ const documentFixture = path.resolve("tests/fixtures/pdfs/document-mock.pdf")
 
 type Application = Awaited<ReturnType<typeof launchTestApplication>>
 
-/** OpenRouter that echoes the prompt back, so replies identify their Chat Thread. */
 async function installEchoingOpenRouter(application: Application) {
   await application.page.evaluate(() => window.pdfantom.saveOpenRouterApiKey("sk-or-test"))
   await application.electronApplication.evaluate(() => {

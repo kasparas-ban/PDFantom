@@ -4,7 +4,6 @@ import { useAppConfig } from "../store/app-config-provider"
 import { useReaderSessionStore } from "../store/reader-session-provider"
 import { useChatThreadStore } from "./chat-session"
 
-/** ⌘N starts a Draft on the selected Document, the keyboard route to the hover button. */
 export function useNewChatThreadShortcut() {
   const sessionStore = useReaderSessionStore()
   const threadStore = useChatThreadStore()

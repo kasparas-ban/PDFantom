@@ -73,8 +73,6 @@ export function ChatSessionProvider({ children }: PropsWithChildren) {
     }
   }, [platform, threadStore])
 
-  // The chat follows the selected Document: its most recently viewed Chat Thread, or a
-  // Draft when it has none. Opening a thread row sets both, so this only fills gaps.
   useEffect(() => {
     if (!isHydrated) return
 
