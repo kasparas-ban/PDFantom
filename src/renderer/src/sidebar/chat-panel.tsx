@@ -42,6 +42,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { GENERIC_CHAT_ERROR } from "../../../shared/chat-api"
 import { usePlatform } from "../app/platform"
 import { ChatMarkdown } from "./chat-markdown"
+import { ChatMinimap } from "./chat-minimap"
 import { ChatPanelShell } from "./chat-panel-shell"
 import { useChatModel, useChatSession, useChatThreads, useChatThreadStore } from "./chat-session"
 
@@ -137,9 +138,18 @@ function ChatPanelHeader() {
 }
 
 function ChatThread() {
+  const [viewportElement, setViewportElement] = useState<HTMLDivElement | null>(null)
+
   return (
-    <ThreadPrimitive.Root className="flex min-h-0 flex-1 flex-col" data-slot="chat-thread">
-      <ThreadPrimitive.Viewport className="relative flex min-h-0 flex-1 flex-col overflow-y-auto scroll-smooth px-4 pt-5">
+    <ThreadPrimitive.Root
+      className="@container relative flex min-h-0 flex-1 flex-col"
+      data-slot="chat-thread"
+    >
+      <ThreadPrimitive.Viewport
+        className="relative flex min-h-0 flex-1 flex-col overflow-y-auto scroll-smooth px-4 pt-5"
+        data-slot="chat-viewport"
+        ref={setViewportElement}
+      >
         <AuiIf condition={(state) => state.thread.isEmpty && !state.thread.isLoading}>
           <ChatEmptyState />
         </AuiIf>
@@ -159,6 +169,8 @@ function ChatThread() {
           </div>
         </ThreadPrimitive.ViewportFooter>
       </ThreadPrimitive.Viewport>
+
+      <ChatMinimap viewportElement={viewportElement} />
     </ThreadPrimitive.Root>
   )
 }
@@ -350,7 +362,7 @@ function QueuedMessage() {
 
 function UserMessage() {
   return (
-    <MessagePrimitive.Root className="group/message flex flex-col items-end">
+    <MessagePrimitive.Root className="group/message flex scroll-mt-6 flex-col items-end">
       <div className="max-w-[85%] rounded-xl bg-sidebar-accent px-3.5 py-2.5 text-[15px]/5 wrap-break-word text-foreground">
         <MessagePrimitive.Parts />
       </div>
