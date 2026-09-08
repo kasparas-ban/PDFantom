@@ -5,6 +5,7 @@ import path from "node:path"
 import { expect, test } from "@playwright/test"
 
 import { DocumentRepository } from "../../src/main/document-repository"
+import { StudyHistoryDatabase } from "../../src/main/study-history-database"
 
 type RepositoryDependencies = NonNullable<ConstructorParameters<typeof DocumentRepository>[1]>
 
@@ -13,15 +14,13 @@ async function withDocumentRepository<T>(
   run: (repository: DocumentRepository) => T | Promise<T>,
 ) {
   const workspace = await mkdtemp(path.join(os.tmpdir(), "pdfantom-document-repository-"))
-  const repository = new DocumentRepository(
-    path.join(workspace, "study-history.sqlite"),
-    dependencies,
-  )
+  const database = new StudyHistoryDatabase(path.join(workspace, "study-history.sqlite"))
+  const repository = new DocumentRepository(database, dependencies)
 
   try {
     return await run(repository)
   } finally {
-    repository.close()
+    database.close()
     await rm(workspace, { force: true, recursive: true })
   }
 }

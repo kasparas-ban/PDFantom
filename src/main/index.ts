@@ -5,6 +5,8 @@ import { app, BrowserWindow, safeStorage } from "electron"
 import { resolveApplicationLaunchConfiguration } from "../shared/application-launch"
 import { registerChatBoundary } from "./chat-boundary"
 import { registerChatModelsBoundary } from "./chat-models-boundary"
+import { registerChatThreadBoundary } from "./chat-thread-boundary"
+import { ChatThreadRepository } from "./chat-thread-repository"
 import { CodexSession } from "./codex/session"
 import { registerDocumentBoundary } from "./document-boundary"
 import { DocumentLibrary } from "./document-library"
@@ -13,6 +15,7 @@ import { OpenRouterApiKeyStore } from "./openrouter-api-key-store"
 import { rendererEntryUrl } from "./renderer-entry"
 import { registerSettingsBoundary } from "./settings-boundary"
 import { SettingsStore } from "./settings-store"
+import { StudyHistoryDatabase } from "./study-history-database"
 import { registerWindowBoundary } from "./window-boundary"
 
 const launchConfiguration = resolveApplicationLaunchConfiguration({
@@ -59,9 +62,11 @@ void app.whenReady().then(() => {
   }
 
   const rendererUrl = rendererEntryUrl()
-  const repository = new DocumentRepository(
+  const studyHistory = new StudyHistoryDatabase(
     path.join(app.getPath("userData"), "study-history.sqlite"),
   )
+  const repository = new DocumentRepository(studyHistory)
+  const chatThreads = new ChatThreadRepository(studyHistory)
   const library = new DocumentLibrary(repository)
   const apiKeyStore = new OpenRouterApiKeyStore(
     path.join(app.getPath("userData"), "secrets", "openrouter-api-key"),
@@ -71,8 +76,11 @@ void app.whenReady().then(() => {
   const codexSession = new CodexSession(settingsStore)
   const window = createWindow()
 
-  registerChatBoundary(window, rendererUrl, apiKeyStore, codexSession)
+  const chatBoundary = registerChatBoundary(window, rendererUrl, apiKeyStore, codexSession)
   registerChatModelsBoundary(window, rendererUrl, codexSession)
+  registerChatThreadBoundary(window, rendererUrl, chatThreads, {
+    onDeleteThread: (threadId) => chatBoundary.abortConversation(threadId),
+  })
   registerDocumentBoundary(window, rendererUrl, library)
   registerSettingsBoundary(window, rendererUrl, apiKeyStore, settingsStore, codexSession)
   registerWindowBoundary(window, rendererUrl)
@@ -81,7 +89,7 @@ void app.whenReady().then(() => {
   )
   app.once("before-quit", () => {
     codexSession.dispose()
-    repository.close()
+    studyHistory.close()
   })
 
   void window.loadURL(rendererUrl)

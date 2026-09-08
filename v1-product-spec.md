@@ -186,7 +186,7 @@ Store structured records in SQLite. Store page images as content-addressed files
 8. Switching Models affects the next request and records the producing Model on its Assistant Message.
 9. Markdown, code, and math render correctly without allowing unsafe HTML or navigation.
 10. Restarting restores Conversations, attachments, page images, reading position, theme, and split-pane position.
-11. Moving an identical PDF can be repaired without losing Study History; replacing it with different content does not inherit that history.
+11. Moving an identical PDF can be repaired without losing Study History; replacing it with different content resets the reading position but keeps the Document's Chat Threads.
 12. Deleting a Conversation removes unreferenced persisted page images.
 13. Renderer compromise cannot directly access files, SQLite, Keychain, raw IPC, or Provider Credentials.
 14. The packaged macOS build runs without a project backend and makes provider requests directly.

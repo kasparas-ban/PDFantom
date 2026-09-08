@@ -1,6 +1,10 @@
+import path from "node:path"
+
 import { DocumentReaderDriver } from "./drivers/document-reader-driver"
 import type { launchTestApplication } from "./launch-application"
 import { expect, test } from "./test"
+
+const documentFixture = path.resolve("tests/fixtures/pdfs/document-mock.pdf")
 
 type ControlledChatStream = {
   aborted: boolean
@@ -87,6 +91,7 @@ test("queues messages sent during a response and sends them in order afterwards"
 }) => {
   const openRouter = await installControllableOpenRouter(application)
   const reader = new DocumentReaderDriver(application.page)
+  await reader.openFixtureDocument(application, documentFixture)
   await reader.toggleChatPanel("Show")
 
   await reader.writeChatMessage("First")
@@ -111,13 +116,13 @@ test("queues messages sent during a response and sends them in order afterwards"
   await expect(reader.chatQueuedMessageTexts).toHaveText(["Second"])
 
   await openRouter.finishStream(0, "First answer")
-  await expect(reader.chatPanel.getByText("First answer", { exact: true })).toBeVisible()
+  await expect(reader.chatThread.getByText("First answer", { exact: true })).toBeVisible()
   await expect(reader.chatQueuedMessages).toHaveCount(0)
   await expect.poll(openRouter.streamCount).toBe(2)
 
   await openRouter.finishStream(1, "Second answer")
-  await expect(reader.chatPanel.getByText("Second answer", { exact: true })).toBeVisible()
-  await expect(reader.chatPanel.getByText("Third", { exact: true })).toBeHidden()
+  await expect(reader.chatThread.getByText("Second answer", { exact: true })).toBeVisible()
+  await expect(reader.chatThread.getByText("Third", { exact: true })).toBeHidden()
   expect(await openRouter.requestBodies()).toMatchObject([
     { messages: [{ role: "user", content: "First" }] },
     {
@@ -135,6 +140,7 @@ test("Interrupt stops the current response and sends the queued message right aw
 }) => {
   const openRouter = await installControllableOpenRouter(application)
   const reader = new DocumentReaderDriver(application.page)
+  await reader.openFixtureDocument(application, documentFixture)
   await reader.toggleChatPanel("Show")
 
   await reader.writeChatMessage("First")
@@ -153,14 +159,14 @@ test("Interrupt stops the current response and sends the queued message right aw
   await expect(reader.chatQueuedMessageTexts).toHaveText(["Second"])
   await expect(reader.chatStopResponseButton).toBeVisible()
   await expect(
-    reader.chatPanel.getByText("Unable to generate response. Please try again later."),
+    reader.chatThread.getByText("Unable to generate response. Please try again later."),
   ).toBeHidden()
 
   await openRouter.finishStream(1, "Third answer")
-  await expect(reader.chatPanel.getByText("Third answer", { exact: true })).toBeVisible()
+  await expect(reader.chatThread.getByText("Third answer", { exact: true })).toBeVisible()
   await expect.poll(openRouter.streamCount).toBe(3)
   await openRouter.finishStream(2, "Second answer")
-  await expect(reader.chatPanel.getByText("Second answer", { exact: true })).toBeVisible()
+  await expect(reader.chatThread.getByText("Second answer", { exact: true })).toBeVisible()
 
   expect((await openRouter.requestBodies()).map((body) => body.messages.at(-1))).toEqual([
     { role: "user", content: "First" },

@@ -34,6 +34,28 @@ test("shared memory routes defer the reader on direct entry and preserve one own
         loadDocument: async () => {
           throw new Error("No documents")
         },
+        listChatThreads: async () => [],
+        loadChatThread: async () => null,
+        createChatThread: async ({ id, documentId, message, selection }) => ({
+          id,
+          documentId,
+          title: message.content,
+          createdAt: message.createdAt,
+          lastMessageAt: message.createdAt,
+          lastViewedAt: message.createdAt,
+          selection,
+        }),
+        appendChatMessage: async ({ threadId, message, selection }) => ({
+          id: threadId,
+          documentId: "document-1",
+          title: "Test thread",
+          createdAt: message.createdAt,
+          lastMessageAt: message.createdAt,
+          lastViewedAt: message.createdAt,
+          selection: selection ?? null,
+        }),
+        deleteChatThread: async () => {},
+        markChatThreadViewed: async () => null,
         streamChat: (request, onEvent) => {
           queueMicrotask(() => {
             onEvent({ type: "delta", text: "Test response" })

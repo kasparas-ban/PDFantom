@@ -6,6 +6,7 @@ import { expect, test } from "@playwright/test"
 
 import { DocumentLibrary } from "../../src/main/document-library"
 import { DocumentRepository } from "../../src/main/document-repository"
+import { StudyHistoryDatabase } from "../../src/main/study-history-database"
 
 const fingerprint = "a".repeat(64)
 const bytes = new ArrayBuffer(4)
@@ -14,11 +15,12 @@ async function withLibrary(
   run: (repository: DocumentRepository, workspace: string) => Promise<void>,
 ) {
   const workspace = await mkdtemp(path.join(os.tmpdir(), "pdfantom-library-"))
-  const repository = new DocumentRepository(path.join(workspace, "study-history.sqlite"))
+  const database = new StudyHistoryDatabase(path.join(workspace, "study-history.sqlite"))
+  const repository = new DocumentRepository(database)
   try {
     await run(repository, workspace)
   } finally {
-    repository.close()
+    database.close()
     await rm(workspace, { recursive: true, force: true })
   }
 }

@@ -34,6 +34,7 @@ test("toggles the Documents panel", async ({ application }) => {
 
 test("toggles the Chat panel", async ({ application }) => {
   const reader = new DocumentReaderDriver(application.page)
+  await reader.openFixtureDocument(application, documentFixture)
 
   await expect(reader.chatPanel).toBeHidden()
 
@@ -82,9 +83,10 @@ test("shows the AI Provider settings link when Chat opens without an API key", a
   application,
 }) => {
   const reader = new DocumentReaderDriver(application.page)
+  await reader.openFixtureDocument(application, documentFixture)
   await reader.toggleChatPanel("Show")
 
-  await expect(reader.chatPanel.getByText("Connect an AI provider")).toBeVisible()
+  await expect(reader.chatThread.getByText("Connect an AI provider")).toBeVisible()
   await reader.openAiProviderSettingsFromChatButton.click()
 
   await expect(reader.settings.getByRole("heading", { name: "AI Provider" })).toBeVisible()
@@ -95,6 +97,7 @@ test("opens full-screen Settings from Chat and returns to the workspace", async 
   application,
 }) => {
   const reader = new DocumentReaderDriver(application.page)
+  await reader.openFixtureDocument(application, documentFixture)
   await reader.toggleChatPanel("Show")
   await reader.writeChatMessage("Keep this draft")
 

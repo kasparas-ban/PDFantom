@@ -21,6 +21,7 @@ test.beforeEach(async ({ application }) => {
 function mountModelCatalog(page: Page) {
   return page.evaluate(async (url) => {
     const { mountRoutes }: Boundary = await import(url)
+    const notes = { id: "document-1", name: "notes.pdf", fingerprint: "a".repeat(64) }
     document.getElementById("root")!.style.display = "none"
     const host = document.createElement("div")
     document.body.append(host)
@@ -28,12 +29,32 @@ function mountModelCatalog(page: Page) {
     mountRoutes(
       host,
       {
-        getDocumentLibrary: async () => ({ selectedDocument: null, documents: [] }),
+        getDocumentLibrary: async () => ({ selectedDocument: notes, documents: [notes] }),
         openDocument: async () => null,
-        activateDocument: async () => ({ selectedDocument: null, documents: [] }),
-        loadDocument: async () => {
-          throw new Error("No documents")
-        },
+        activateDocument: async () => ({ selectedDocument: notes, documents: [notes] }),
+        loadDocument: async () => ({ status: "unavailable", document: notes, reason: "missing" }),
+        listChatThreads: async () => [],
+        loadChatThread: async () => null,
+        createChatThread: async ({ id, documentId, message, selection }) => ({
+          id,
+          documentId,
+          title: message.content,
+          createdAt: message.createdAt,
+          lastMessageAt: message.createdAt,
+          lastViewedAt: message.createdAt,
+          selection,
+        }),
+        appendChatMessage: async ({ threadId, message, selection }) => ({
+          id: threadId,
+          documentId: "document-1",
+          title: "Test thread",
+          createdAt: message.createdAt,
+          lastMessageAt: message.createdAt,
+          lastViewedAt: message.createdAt,
+          selection: selection ?? null,
+        }),
+        deleteChatThread: async () => {},
+        markChatThreadViewed: async () => null,
         streamChat: ({ model, effort }, onEvent) => {
           queueMicrotask(() => {
             onEvent({
@@ -127,7 +148,7 @@ for (const interaction of ["click", "arrows", "shortcut"] as const) {
     await reader.chatModelFilterInput.press("Escape")
     await reader.writeChatMessage("Hello")
     await reader.chatSendMessageButton.click()
-    await expect(reader.chatPanel.getByText("Response from test/live-model")).toBeVisible()
+    await expect(reader.chatThread.getByText("Response from test/live-model")).toBeVisible()
   })
 }
 
@@ -201,7 +222,7 @@ test("chooses a reasoning effort only for models that support it", async ({ appl
   await reader.writeChatMessage("Hello")
   await reader.chatSendMessageButton.click()
   await expect(
-    reader.chatPanel.getByText("Response from test/effort-model at high effort"),
+    reader.chatThread.getByText("Response from test/effort-model at high effort"),
   ).toBeVisible()
 })
 
