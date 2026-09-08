@@ -8,6 +8,7 @@ export type Appearance = "dark" | "light" | "system"
 
 export type AppConfigState = {
   appearance: Appearance
+  collapsedDocumentIds: readonly string[]
   isChatPanelOpen: boolean
   isDocumentsPanelOpen: boolean
   lastResizedPanel: "chat" | "documents" | null
@@ -16,7 +17,9 @@ export type AppConfigState = {
   setAppearance: (appearance: Appearance) => void
   setChatPanelWidth: (width: number) => void
   setDocumentsPanelWidth: (width: number) => void
+  openChatPanel: () => void
   toggleChatPanel: () => void
+  toggleDocumentChatThreads: (documentId: string) => void
   toggleDocumentsPanel: () => void
 }
 
@@ -25,6 +28,7 @@ export const createAppConfigStore = () =>
     persist(
       (set) => ({
         appearance: "system",
+        collapsedDocumentIds: [],
         isChatPanelOpen: false,
         isDocumentsPanelOpen: true,
         lastResizedPanel: null,
@@ -35,7 +39,14 @@ export const createAppConfigStore = () =>
           set({ lastResizedPanel: "chat", preferredChatPanelWidth }),
         setDocumentsPanelWidth: (preferredDocumentsPanelWidth) =>
           set({ lastResizedPanel: "documents", preferredDocumentsPanelWidth }),
+        openChatPanel: () => set({ isChatPanelOpen: true }),
         toggleChatPanel: () => set((state) => ({ isChatPanelOpen: !state.isChatPanelOpen })),
+        toggleDocumentChatThreads: (documentId) =>
+          set((state) => ({
+            collapsedDocumentIds: state.collapsedDocumentIds.includes(documentId)
+              ? state.collapsedDocumentIds.filter((id) => id !== documentId)
+              : [...state.collapsedDocumentIds, documentId],
+          })),
         toggleDocumentsPanel: () =>
           set((state) => ({ isDocumentsPanelOpen: !state.isDocumentsPanelOpen })),
       }),
@@ -43,6 +54,7 @@ export const createAppConfigStore = () =>
         name: "pdfantom-layout",
         partialize: ({
           appearance,
+          collapsedDocumentIds,
           isChatPanelOpen,
           isDocumentsPanelOpen,
           lastResizedPanel,
@@ -50,6 +62,7 @@ export const createAppConfigStore = () =>
           preferredDocumentsPanelWidth,
         }) => ({
           appearance,
+          collapsedDocumentIds,
           isChatPanelOpen,
           isDocumentsPanelOpen,
           lastResizedPanel,

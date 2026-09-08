@@ -1,5 +1,9 @@
+import path from "node:path"
+
 import { DocumentReaderDriver } from "./drivers/document-reader-driver"
 import { expect, test } from "./test"
+
+const documentFixture = path.resolve("tests/fixtures/pdfs/document-mock.pdf")
 
 const MARKDOWN_RESPONSE = [
   "## Foundational Relations",
@@ -37,7 +41,7 @@ test("renders Assistant Message markdown as formatted elements", async ({ applic
   await expect(reader.chatPanel.getByRole("table")).toBeVisible()
   await expect(reader.chatPanel.getByRole("cell", { name: "Photon energy" })).toBeVisible()
   await expect(reader.chatPanel.getByRole("listitem")).toContainText("A bullet with bold text")
-  await expect(reader.chatPanel.getByText("python", { exact: true })).toBeVisible()
+  await expect(reader.chatThread.getByText("python", { exact: true })).toBeVisible()
   await expect(reader.chatPanel.getByRole("button", { name: "Copy code" })).toBeVisible()
   await expect(reader.chatPanel.locator(".katex-display")).toBeVisible()
 })
@@ -71,6 +75,7 @@ async function sendMockedResponse(
   }, markdown)
 
   const reader = new DocumentReaderDriver(application.page)
+  await reader.openFixtureDocument(application, documentFixture)
   await reader.toggleChatPanel("Show")
   await reader.writeChatMessage("Explain the basics")
   await reader.chatSendMessageButton.click()

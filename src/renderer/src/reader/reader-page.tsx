@@ -13,6 +13,7 @@ import type { ReaderWorkspace } from "./reader-workspace"
 import { resolveReaderWorkspaceLayout } from "./reader-workspace-layout"
 import { ResizableChatPanel } from "../sidebar/resizable-chat-panel"
 import { ResizableDocumentsPanel } from "../sidebar/resizable-documents-panel"
+import { useNewChatThreadShortcut } from "../sidebar/use-new-chat-thread-shortcut"
 import { useAppConfig } from "../store/app-config-provider"
 import { useReaderSession } from "../store/reader-session-provider"
 
@@ -26,6 +27,7 @@ export function ReaderPage({
   workspace: ReaderWorkspace | null
 }) {
   useReaderShortcuts()
+  useNewChatThreadShortcut()
   const isChatPanelOpen = useAppConfig((state) => state.isChatPanelOpen)
   const isDocumentsPanelOpen = useAppConfig((state) => state.isDocumentsPanelOpen)
   const lastResizedPanel = useAppConfig((state) => state.lastResizedPanel)
@@ -87,6 +89,7 @@ export function ReaderPage({
       <Activity mode={isChatPanelOpen ? "visible" : "hidden"}>
         <ResizableChatPanel
           maximumWidth={panelLayout.chatPanel.maximumWidth}
+          onOpenDocument={openDocument}
           onWidthChange={setChatPanelWidth}
           width={panelLayout.chatPanel.width}
         />

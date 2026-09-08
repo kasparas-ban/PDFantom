@@ -2,6 +2,7 @@ import { persist } from "zustand/middleware"
 import { createStore } from "zustand/vanilla"
 
 import { DEFAULT_CHAT_EFFORT, type ChatApi } from "../../../shared/chat-api"
+import type { ChatThreadSelection } from "../../../shared/chat-thread-api"
 import {
   CHAT_MODEL_SOURCES,
   mergeSourceListings,
@@ -30,6 +31,7 @@ export type ChatModelState = {
   unavailableSources: Partial<Record<ChatModelSourceId, string>>
   setModel: (model: string) => void
   setEffort: (effort: string) => void
+  restoreSelection: (selection: ChatThreadSelection | null) => void
   toggleFavorite: (modelId: string) => void
   loadSourceListings: (source: ChatModelSourceId) => Promise<void>
 }
@@ -57,6 +59,18 @@ export const createChatModelStore = (platform: Pick<ChatApi, "listModels">) =>
             return preferSelection(state, { model: model.id })
           }),
         setEffort: (effort) => set((state) => preferSelection(state, { effort })),
+        restoreSelection: (selection) =>
+          set((state) => {
+            const remembered = selection && state.models.find((m) => m.id === selection.model)
+            if (!selection || !remembered || remembered.unavailableReason) {
+              return resolveSelection(state.models, state.preference)
+            }
+
+            return resolveSelection(state.models, {
+              model: selection.model,
+              effort: selection.effort ?? DEFAULT_CHAT_EFFORT,
+            })
+          }),
         toggleFavorite: (modelId) =>
           set((state) => ({
             favoriteModelIds: state.favoriteModelIds.includes(modelId)

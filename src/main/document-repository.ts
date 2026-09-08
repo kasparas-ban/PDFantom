@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto"
 import type { DatabaseSync as Database, SQLOutputValue } from "node:sqlite"
 
-const { DatabaseSync } = process.getBuiltinModule("node:sqlite")
+import type { StudyHistoryDatabase } from "./study-history-database"
 
 export type StoredDocument = {
   readonly fingerprint: string
@@ -37,20 +37,13 @@ export class DocumentRepository {
   private readonly database: Database
   private readonly now: () => Date
 
-  constructor(databasePath: string, dependencies: DocumentRepositoryDependencies = {}) {
+  constructor(
+    private readonly studyHistory: StudyHistoryDatabase,
+    dependencies: DocumentRepositoryDependencies = {},
+  ) {
     this.createId = dependencies.createId ?? randomUUID
-    this.database = new DatabaseSync(databasePath)
+    this.database = studyHistory.connection
     this.now = dependencies.now ?? (() => new Date())
-    try {
-      this.initializeSchema()
-    } catch (error) {
-      this.database.close()
-      throw error
-    }
-  }
-
-  close() {
-    this.database.close()
   }
 
   activateDocument(documentId: string) {
@@ -96,7 +89,7 @@ export class DocumentRepository {
   recordOpenedDocument(record: OpenedDocumentRecord) {
     const openedAt = this.now().toISOString()
 
-    return this.inTransaction(() => {
+    return this.studyHistory.inTransaction(() => {
       this.database
         .prepare(
           `INSERT INTO documents (
@@ -129,40 +122,6 @@ export class DocumentRepository {
       .get(sourcePath)
 
     return row ? mapDocument(row) : null
-  }
-
-  private initializeSchema() {
-    this.database.exec(`
-      PRAGMA journal_mode = WAL;
-      PRAGMA foreign_keys = ON;
-
-      CREATE TABLE IF NOT EXISTS documents (
-        id TEXT PRIMARY KEY,
-        fingerprint TEXT NOT NULL,
-        source_path TEXT NOT NULL UNIQUE,
-        name TEXT NOT NULL,
-        first_opened_at TEXT NOT NULL,
-        last_opened_at TEXT NOT NULL
-      );
-
-      CREATE TABLE IF NOT EXISTS application_state (
-        key TEXT PRIMARY KEY,
-        value TEXT NOT NULL
-      );
-    `)
-  }
-
-  private inTransaction<T>(operation: () => T) {
-    this.database.exec("BEGIN IMMEDIATE")
-
-    try {
-      const result = operation()
-      this.database.exec("COMMIT")
-      return result
-    } catch (error) {
-      this.database.exec("ROLLBACK")
-      throw error
-    }
   }
 
   private setActiveDocumentId(documentId: string) {

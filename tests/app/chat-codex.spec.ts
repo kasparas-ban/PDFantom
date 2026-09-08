@@ -1,6 +1,10 @@
+import path from "node:path"
+
 import { readFakeCodexRequests } from "../fixtures/fake-codex/fake-codex"
 import { DocumentReaderDriver } from "./drivers/document-reader-driver"
 import { expect, test } from "./test"
+
+const documentFixture = path.resolve("tests/fixtures/pdfs/document-mock.pdf")
 
 const SIGNED_OUT_REASON = "Run `codex login` to use ChatGPT models."
 
@@ -104,6 +108,7 @@ test.describe("with a Codex Session", () => {
     application,
   }) => {
     const reader = new DocumentReaderDriver(application.page)
+    await reader.openFixtureDocument(application, documentFixture)
     await chooseChatGptModel(reader, "GPT-5.6-Sol")
     await reader.chatEffortButton.click()
     await reader.chatEffortOption("Extra high").click()
@@ -112,13 +117,13 @@ test.describe("with a Codex Session", () => {
     await reader.writeChatMessage("What is osmosis?")
     await reader.chatSendMessageButton.click()
     await expect(
-      reader.chatPanel.getByText("Osmosis moves water across a membrane", { exact: true }),
+      reader.chatThread.getByText("Osmosis moves water across a membrane", { exact: true }),
     ).toBeVisible()
 
     await reader.writeChatMessage("Why?")
     await reader.chatSendMessageButton.click()
     await expect(
-      reader.chatPanel.getByText("Because concentrations differ", { exact: true }),
+      reader.chatThread.getByText("Because concentrations differ", { exact: true }),
     ).toBeVisible()
 
     const requests = await readFakeCodexRequests(application.workspace)
@@ -167,22 +172,23 @@ test.describe("with a Codex Session", () => {
     application,
   }) => {
     const reader = new DocumentReaderDriver(application.page)
+    await reader.openFixtureDocument(application, documentFixture)
     await chooseChatGptModel(reader, "GPT-5.6-Sol")
 
     await reader.writeChatMessage("What is osmosis?")
     await reader.chatSendMessageButton.click()
     await expect(
-      reader.chatPanel.getByText("Osmosis moves water across a membrane", { exact: true }),
+      reader.chatThread.getByText("Osmosis moves water across a membrane", { exact: true }),
     ).toBeVisible()
     await reader.writeChatMessage("Why?")
     await reader.chatSendMessageButton.click()
     await expect(
-      reader.chatPanel.getByText("Because concentrations differ", { exact: true }),
+      reader.chatThread.getByText("Because concentrations differ", { exact: true }),
     ).toBeVisible()
 
     await reader.chatPanel.getByRole("button", { name: "Regenerate response" }).last().click()
     await expect(
-      reader.chatPanel.getByText("Osmosis moves water across a membrane", { exact: true }),
+      reader.chatThread.getByText("Osmosis moves water across a membrane", { exact: true }),
     ).toHaveCount(2)
 
     const requests = await readFakeCodexRequests(application.workspace)
@@ -198,11 +204,11 @@ test.describe("with a Codex Session", () => {
           text: [
             "The conversation so far, oldest first:",
             "",
-            "Student:\nWhat is osmosis?",
+            "User:\nWhat is osmosis?",
             "",
             "Assistant:\nOsmosis moves water across a membrane",
             "",
-            "The Student's new message:\nWhy?",
+            "The User's new message:\nWhy?",
           ].join("\n"),
         },
       ],
@@ -213,20 +219,21 @@ test.describe("with a Codex Session", () => {
     application,
   }) => {
     const reader = new DocumentReaderDriver(application.page)
+    await reader.openFixtureDocument(application, documentFixture)
     await chooseChatGptModel(reader, "GPT-5.6-Sol")
 
     await reader.writeChatMessage("What is osmosis?")
     await reader.chatSendMessageButton.click()
-    await expect(reader.chatPanel.getByText(/^Osmosis/)).toBeVisible()
+    await expect(reader.chatThread.getByText(/^Osmosis/)).toBeVisible()
     await reader.chatPanel.getByRole("button", { name: "Stop response" }).click()
 
     await expect(reader.chatPanel.getByRole("button", { name: "Stop response" })).toBeHidden()
-    await expect(reader.chatPanel.getByText(/^Osmosis/)).toBeVisible()
+    await expect(reader.chatThread.getByText(/^Osmosis/)).toBeVisible()
     await expect(
       reader.chatPanel.getByRole("button", { name: "Regenerate response" }),
     ).toBeEnabled()
     await expect(
-      reader.chatPanel.getByText("Unable to generate response. Please try again later."),
+      reader.chatThread.getByText("Unable to generate response. Please try again later."),
     ).toBeHidden()
     await expect
       .poll(async () =>
@@ -239,13 +246,14 @@ test.describe("with a Codex Session", () => {
 
   test("shows the upstream message when Codex reports a failed turn", async ({ application }) => {
     const reader = new DocumentReaderDriver(application.page)
+    await reader.openFixtureDocument(application, documentFixture)
     await chooseChatGptModel(reader, "GPT-5.4-Mini")
 
     await reader.writeChatMessage("Try the unavailable model please")
     await reader.chatSendMessageButton.click()
 
     await expect(
-      reader.chatPanel.getByText("This model is not available on your plan.", { exact: true }),
+      reader.chatThread.getByText("This model is not available on your plan.", { exact: true }),
     ).toBeVisible()
   })
 

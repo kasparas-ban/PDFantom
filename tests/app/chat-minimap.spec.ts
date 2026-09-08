@@ -1,8 +1,11 @@
+import path from "node:path"
+
 import type { ElectronApplication } from "@playwright/test"
 
 import { DocumentReaderDriver } from "./drivers/document-reader-driver"
 import { expect, test } from "./test"
 
+const documentFixture = path.resolve("tests/fixtures/pdfs/document-mock.pdf")
 const WIDE_PANEL_DELTA = 600
 
 const stubLongReplies = (electronApplication: ElectronApplication) =>
@@ -19,7 +22,7 @@ const stubLongReplies = (electronApplication: ElectronApplication) =>
 async function ask(reader: DocumentReaderDriver, question: string) {
   await reader.writeChatMessage(question)
   await reader.chatSendMessageButton.click()
-  await expect(reader.chatPanel.getByText(question, { exact: true })).toBeVisible()
+  await expect(reader.chatThread.getByText(question, { exact: true })).toBeVisible()
   await expect(reader.chatStopResponseButton).toBeHidden()
 }
 
@@ -28,6 +31,7 @@ test("maps every turn of the Conversation onto the minimap", async ({ applicatio
   await stubLongReplies(application.electronApplication)
 
   const reader = new DocumentReaderDriver(application.page)
+  await reader.openFixtureDocument(application, documentFixture)
   await reader.toggleChatPanel("Show")
   await reader.toggleDocumentsPanel("Hide")
   await reader.resizeChatPanelBy(WIDE_PANEL_DELTA)
@@ -61,6 +65,7 @@ test("holds the minimap back until a narrow panel is pointed at", async ({ appli
   await stubLongReplies(application.electronApplication)
 
   const reader = new DocumentReaderDriver(application.page)
+  await reader.openFixtureDocument(application, documentFixture)
   await reader.toggleChatPanel("Show")
 
   await ask(reader, "What does the first section argue?")
