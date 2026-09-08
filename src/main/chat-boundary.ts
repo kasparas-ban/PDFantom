@@ -69,18 +69,12 @@ export function registerChatBoundary(
       return
     }
 
-    const messages = parentMessages
-      ? [
-          {
-            id: "parent-context",
-            role: "system" as const,
-            content: parentContextBlock(parentMessages),
-          },
-          ...request.messages,
-        ]
-      : request.messages
-
-    yield* streamOpenRouterChat({ ...request, messages }, apiKey, signal)
+    yield* streamOpenRouterChat(
+      request,
+      apiKey,
+      signal,
+      parentMessages && parentContextBlock(parentMessages),
+    )
   }
 
   const handleStream = (event: IpcMainEvent, input: unknown) => {

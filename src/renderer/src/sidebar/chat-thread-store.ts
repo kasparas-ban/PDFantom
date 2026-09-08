@@ -40,19 +40,13 @@ export type ChatThreadState = {
 }
 
 export function createChatThreadStore(createId: () => string = () => crypto.randomUUID()) {
-  const draftTarget = (documentId: string | null): ChatThreadTarget => ({
-    documentId,
-    threadId: createId(),
-    isDraft: true,
-    parentThreadId: null,
-  })
+  const draftTarget = (
+    documentId: string | null,
+    parentThreadId: string | null = null,
+  ): ChatThreadTarget => ({ documentId, threadId: createId(), isDraft: true, parentThreadId })
 
-  const sideChatDraft = (parent: ChatThreadTarget): ChatThreadTarget => ({
-    documentId: parent.documentId,
-    threadId: createId(),
-    isDraft: true,
-    parentThreadId: parent.threadId,
-  })
+  const sideChatDraft = (parent: ChatThreadTarget) =>
+    draftTarget(parent.documentId, parent.threadId)
 
   const sideChatFor = (
     threads: readonly ChatThreadSummary[],

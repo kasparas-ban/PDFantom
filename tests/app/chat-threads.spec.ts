@@ -3,41 +3,10 @@ import os from "node:os"
 import path from "node:path"
 
 import { DocumentReaderDriver } from "./drivers/document-reader-driver"
-import type { launchTestApplication } from "./launch-application"
+import { installEchoingOpenRouter } from "./echoing-openrouter"
 import { expect, test } from "./test"
 
 const documentFixture = path.resolve("tests/fixtures/pdfs/document-mock.pdf")
-
-type Application = Awaited<ReturnType<typeof launchTestApplication>>
-
-async function installEchoingOpenRouter(application: Application) {
-  await application.page.evaluate(() => window.pdfantom.saveOpenRouterApiKey("sk-or-test"))
-  await application.electronApplication.evaluate(() => {
-    const bodies: { model: string; messages: { role: string; content: string }[] }[] = []
-    Reflect.set(globalThis, "chatBodies", bodies)
-
-    globalThis.fetch = async (_input, init) => {
-      if (typeof init?.body !== "string") throw new Error("Expected a JSON request body")
-
-      const body = JSON.parse(init.body)
-      bodies.push(body)
-      const prompt: string = body.messages.at(-1).content
-
-      return new Response(
-        `data: ${JSON.stringify({ choices: [{ delta: { content: `Reply to ${prompt}` } }] })}\n\ndata: [DONE]\n\n`,
-        { headers: { "Content-Type": "text/event-stream" } },
-      )
-    }
-  })
-
-  return () =>
-    application.electronApplication.evaluate(() => {
-      const bodies: { model: string; messages: { role: string; content: string }[] }[] =
-        Reflect.get(globalThis, "chatBodies")
-
-      return bodies
-    })
-}
 
 async function send(reader: DocumentReaderDriver, text: string) {
   await reader.writeChatMessage(text)
