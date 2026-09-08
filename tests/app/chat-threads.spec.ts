@@ -210,6 +210,56 @@ test("switching Documents switches Chat Threads, and the chat waits for a Docume
   }
 })
 
+test("the folder icon collapses a Document's Chat Threads, and selecting it expands them", async ({
+  application,
+}) => {
+  const workspace = await mkdtemp(path.join(os.tmpdir(), "pdfantom-chat-threads-"))
+
+  try {
+    const secondPath = path.join(workspace, "second.pdf")
+    await copyFile(documentFixture, secondPath)
+    await installEchoingOpenRouter(application)
+    const reader = new DocumentReaderDriver(application.page)
+    await reader.openFixtureDocument(application, documentFixture)
+    await reader.toggleChatPanel("Show")
+    await send(reader, "About the first document")
+
+    await application.selectOpenPath(secondPath)
+    await reader.openAnotherSelectedDocument()
+    await expect(reader.documentEntry("second.pdf")).toHaveAttribute("aria-current", "page")
+    await send(reader, "About the second document")
+
+    const toggle = reader.toggleChatThreadsButton("document-mock.pdf")
+    await expect(toggle).toHaveAttribute("aria-expanded", "true")
+    await toggle.click()
+    await expect(toggle).toHaveAttribute("aria-expanded", "false")
+    await expect(reader.chatThreadList("document-mock.pdf")).toBeHidden()
+    await expect(reader.chatThreadList("second.pdf")).toBeVisible()
+
+    await toggle.click()
+    await expect(toggle).toHaveAttribute("aria-expanded", "true")
+    await expect(reader.chatThreadEntries("document-mock.pdf")).toHaveText([
+      "About the first document",
+    ])
+
+    await toggle.click()
+    await expect(reader.chatThreadList("document-mock.pdf")).toBeHidden()
+
+    await reader.documentEntry("document-mock.pdf").click()
+    await expect(reader.documentEntry("document-mock.pdf")).toHaveAttribute("aria-current", "page")
+    await expect(toggle).toHaveAttribute("aria-expanded", "true")
+    await expect(reader.chatThreadEntries("document-mock.pdf")).toHaveText([
+      "About the first document",
+    ])
+    await expect(reader.toggleChatThreadsButton("second.pdf")).toHaveAttribute(
+      "aria-expanded",
+      "true",
+    )
+  } finally {
+    await rm(workspace, { force: true, recursive: true })
+  }
+})
+
 test("a reply keeps streaming in the background while another Chat Thread is open", async ({
   application,
 }) => {

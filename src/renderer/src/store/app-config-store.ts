@@ -9,6 +9,7 @@ export type Appearance = "dark" | "light" | "system"
 export type AppConfigState = {
   appearance: Appearance
   collapsedDocumentIds: readonly string[]
+  expandDocumentChatThreads: (documentId: string) => void
   isChatPanelOpen: boolean
   isDocumentsPanelOpen: boolean
   lastResizedPanel: "chat" | "documents" | null
@@ -29,6 +30,12 @@ export const createAppConfigStore = () =>
       (set) => ({
         appearance: "system",
         collapsedDocumentIds: [],
+        expandDocumentChatThreads: (documentId) =>
+          set((state) =>
+            state.collapsedDocumentIds.includes(documentId)
+              ? { collapsedDocumentIds: state.collapsedDocumentIds.filter((id) => id !== documentId) }
+              : state,
+          ),
         isChatPanelOpen: false,
         isDocumentsPanelOpen: true,
         lastResizedPanel: null,

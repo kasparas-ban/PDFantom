@@ -31,6 +31,8 @@ Related decisions: [ADR 0003](../adr/0003-chat-threads-belong-to-the-document-ro
   Draft when it has none. Hover reveals a "New Chat Thread" button on the right,
   which activates the Document and opens a Draft.
 - Expanded state persists per Document across restarts, alongside panel widths.
+  Switching to a different Document expands its Chat Threads again, so the selected
+  Document always shows its threads unless the folder is collapsed afterwards.
 - Chat Thread rows under a Document ordered by last message, newest first. Show the
   five most recent; "Show more" reveals the rest until restart. The active Chat
   Thread is always shown even when outside the first five.

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import {
   FilePlus2,
   FolderClosed,
@@ -46,6 +46,8 @@ export function DocumentsPanel({ onActivateDocument, onOpenDocument }: Documents
   const threadStore = useChatThreadStore()
   const openChatPanel = useAppConfig((state) => state.openChatPanel)
   const [pendingDelete, setPendingDelete] = useState<ChatThreadSummary | null>(null)
+
+  useExpandOnSelection()
 
   const openThread = (thread: ChatThreadSummary) => {
     threadStore.getState().openThread(thread)
@@ -152,6 +154,21 @@ export function DocumentsPanel({ onActivateDocument, onOpenDocument }: Documents
   )
 }
 
+function useExpandOnSelection() {
+  const selectedDocumentId = useReaderSession((state) => state.selectedDocument?.id ?? null)
+  const expandDocumentChatThreads = useAppConfig((state) => state.expandDocumentChatThreads)
+  const previousSelectedDocumentId = useRef<string | null>(null)
+
+  useEffect(() => {
+    const previous = previousSelectedDocumentId.current
+    previousSelectedDocumentId.current = selectedDocumentId
+
+    if (selectedDocumentId && previous && previous !== selectedDocumentId) {
+      expandDocumentChatThreads(selectedDocumentId)
+    }
+  }, [expandDocumentChatThreads, selectedDocumentId])
+}
+
 type DocumentRowProps = {
   readonly document: DocumentSummary
   readonly onActivate: () => void
@@ -184,18 +201,23 @@ function DocumentRow({
   const isExpanded = !isCollapsed && threadCount > 0
 
   return (
-    <li>
+    <li
+      className={cn(
+        "text-sidebar-foreground/65 transition-colors",
+        isActive && "text-sidebar-foreground",
+      )}
+    >
       <div
         className={cn(
-          "group/document flex h-8 items-center gap-0.5 rounded-lg pr-1 hover:bg-sidebar-accent",
-          isActive && "bg-sidebar-accent text-sidebar-accent-foreground",
+          "group/document flex h-8 items-center gap-0.5 rounded-lg pr-1 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+          isActive && "font-medium",
         )}
       >
         <Button
           aria-controls={threadCount > 0 ? `chat-threads-${document.id}` : undefined}
           aria-expanded={isExpanded}
           aria-label={`${isCollapsed ? "Expand" : "Collapse"} chat threads for ${document.name}`}
-          className="size-8 shrink-0 rounded-lg text-muted-foreground hover:bg-transparent aria-expanded:bg-transparent"
+          className="size-8 shrink-0 rounded-lg text-current hover:bg-transparent hover:text-current aria-expanded:bg-transparent aria-expanded:text-current"
           disabled={threadCount === 0}
           onClick={() => toggleDocumentChatThreads(document.id)}
           size="icon-sm"
@@ -273,7 +295,7 @@ function ChatThreadRow({ isActive, onDelete, onOpen, thread }: ChatThreadRowProp
   return (
     <li
       className={cn(
-        "group/thread flex h-7 items-center gap-0.5 rounded-lg pr-1 hover:bg-sidebar-accent",
+        "group/thread flex h-7 items-center gap-0.5 rounded-lg pr-1 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
         isActive && "bg-sidebar-accent text-sidebar-accent-foreground",
       )}
     >
