@@ -252,11 +252,11 @@ export function ChatModelSelector() {
 
   useLayoutEffect(() => {
     shouldRestoreFocus.current = true
-    setIsOpen(false)
-    setQuery("")
 
     return () => {
       shouldRestoreFocus.current = false
+      setIsOpen(false)
+      setQuery("")
     }
   }, [])
 
