@@ -87,6 +87,22 @@ export class DocumentReaderDriver {
     return this.chatQueuedMessages.filter({ hasText: text })
   }
 
+  get chatUserMessageActions() {
+    return this.chatPanel.locator("[data-slot='user-message-actions']")
+  }
+
+  get chatUserMessageSentTime() {
+    return this.chatUserMessageActions.locator("time")
+  }
+
+  get chatCopyMessageButton() {
+    return this.chatUserMessageActions.getByRole("button", { name: "Copy message" })
+  }
+
+  get tooltip() {
+    return this.page.locator("[data-slot='tooltip-content']")
+  }
+
   get openAiProviderSettingsFromChatButton() {
     return this.chatPanel.getByRole("link", { name: "Choose provider" })
   }

@@ -84,8 +84,8 @@ void app.whenReady().then(() => {
   registerDocumentBoundary(window, rendererUrl, library)
   registerSettingsBoundary(window, rendererUrl, apiKeyStore, settingsStore, codexSession)
   registerWindowBoundary(window, rendererUrl)
-  window.webContents.session.setPermissionRequestHandler((_webContents, _permission, callback) =>
-    callback(false),
+  window.webContents.session.setPermissionRequestHandler((_webContents, permission, callback) =>
+    callback(permission === "clipboard-sanitized-write"),
   )
   app.once("before-quit", () => {
     codexSession.dispose()

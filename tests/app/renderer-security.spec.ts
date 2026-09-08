@@ -75,6 +75,29 @@ test("the renderer exposes only the allowlisted preload API", async ({ applicati
   })
 })
 
+test("the renderer may write to the clipboard and holds no other permission", async ({
+  application,
+}) => {
+  const decisions = await application.page.evaluate(async () => {
+    const probes = await Promise.allSettled([
+      navigator.clipboard.writeText("copied by the renderer"),
+      navigator.clipboard.readText(),
+    ])
+
+    const [clipboardWrite, clipboardRead] = probes.map((probe) =>
+      probe.status === "fulfilled" ? "granted" : "denied",
+    )
+
+    return { clipboardWrite, clipboardRead, notifications: await Notification.requestPermission() }
+  })
+
+  expect(decisions).toEqual({
+    clipboardWrite: "granted",
+    clipboardRead: "denied",
+    notifications: "denied",
+  })
+})
+
 test("new document IPC arguments reject malformed IDs, fingerprints and bytes flags", async ({
   application,
 }) => {
