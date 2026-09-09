@@ -183,6 +183,12 @@ export function isStreaming(state: Pick<ChatThreadState, "streaming">, threadId:
   return state.streaming.some((target) => target.threadId === threadId)
 }
 
+export function isStreamingWithin(state: Pick<ChatThreadState, "streaming">, threadId: string) {
+  return state.streaming.some(
+    (target) => target.threadId === threadId || target.parentThreadId === threadId,
+  )
+}
+
 export function threadsOfDocument(threads: readonly ChatThreadSummary[], documentId: string) {
   return threads.filter(
     (thread) => thread.documentId === documentId && thread.parentThreadId === null,

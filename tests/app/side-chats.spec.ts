@@ -197,3 +197,59 @@ test("the side panel follows the active Chat Thread, resizes on its own, and goe
   await expect(restored.sideChatTabs).toHaveText(["Side chat"])
   expect(await restarted.page.evaluate(() => window.pdfantom.listChatThreads())).toHaveLength(1)
 })
+
+test("a streaming Side Chat spins on its tab and on the parent's row in the documents panel", async ({
+  application,
+}) => {
+  const { reader } = await openChatWithReply(application, "Main question")
+  await application.electronApplication.evaluate(() => {
+    const encoder = new TextEncoder()
+    const echo = globalThis.fetch
+    globalThis.fetch = async (input, init) => {
+      if (typeof init?.body !== "string") throw new Error("Expected a JSON request body")
+
+      const prompt: string = JSON.parse(init.body).messages.at(-1).content
+      if (prompt !== "Slow side question") return echo(input, init)
+
+      return new Response(
+        new ReadableStream({
+          start(controller) {
+            Reflect.set(globalThis, "finishSlowReply", () => {
+              controller.enqueue(
+                encoder.encode(
+                  'data: {"choices":[{"delta":{"content":"Slow reply arrived"}}]}\n\n',
+                ),
+              )
+              controller.enqueue(encoder.encode("data: [DONE]\n\n"))
+              controller.close()
+            })
+          },
+        }),
+        { headers: { "Content-Type": "text/event-stream" } },
+      )
+    }
+  })
+  const tabSpinner = reader.sideChatPanel
+    .getByRole("tablist", { name: "Side chats" })
+    .getByRole("status", { name: "Responding" })
+  const rowSpinner = reader
+    .chatThreadList("document-mock.pdf")
+    .getByRole("status", { name: "Responding" })
+
+  await reader.toggleSideChatsButton.click()
+  await reader.sideChatMessageInput.fill("Slow side question")
+  await reader.sideChatSendMessageButton.click()
+
+  await expect(reader.sideChatTab("Slow side question")).toBeVisible()
+  await expect(tabSpinner).toBeVisible()
+  await expect(rowSpinner).toBeVisible()
+  await expect(reader.chatStopResponseButton).toBeHidden()
+
+  await application.electronApplication.evaluate(() => {
+    const finish: () => void = Reflect.get(globalThis, "finishSlowReply")
+    finish()
+  })
+  await expect(reader.sideChatThread.getByText("Slow reply arrived", { exact: true })).toBeVisible()
+  await expect(tabSpinner).toBeHidden()
+  await expect(rowSpinner).toBeHidden()
+})

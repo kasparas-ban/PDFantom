@@ -2,6 +2,8 @@ import { expect, test } from "vitest"
 
 import {
   createChatThreadStore,
+  isStreaming,
+  isStreamingWithin,
   sideChatsOf,
   threadsOfDocument,
   visibleThreadsOfDocument,
@@ -250,4 +252,22 @@ test("asking in a side chat keeps the Quote until the Side Chat composer takes i
 
   store.getState().takeSideChatQuote()
   expect(store.getState().pendingSideChatQuote).toBeNull()
+})
+
+test("a streaming Side Chat counts as activity within its parent, not as the parent streaming", () => {
+  const store = createStore()
+  store
+    .getState()
+    .hydrate([
+      thread("parent", "doc", "2026-09-03T10:00:00.000Z"),
+      sideChat("side", "parent", "2026-09-03T11:00:00.000Z"),
+    ])
+  store.getState().showDocument("doc")
+
+  store.getState().setStreaming(store.getState().activeSideChat!, true)
+
+  expect(isStreaming(store.getState(), "parent")).toBe(false)
+  expect(isStreaming(store.getState(), "side")).toBe(true)
+  expect(isStreamingWithin(store.getState(), "parent")).toBe(true)
+  expect(isStreamingWithin(store.getState(), "side")).toBe(true)
 })

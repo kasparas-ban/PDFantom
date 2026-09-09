@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react"
-import { PlusIcon, XIcon } from "lucide-react"
+import { Loader2Icon, PlusIcon, XIcon } from "lucide-react"
 
 import {
   AlertDialog,
@@ -16,7 +16,7 @@ import type { ChatThreadSummary } from "../../../shared/chat-thread-api"
 import { usePlatform } from "../app/platform"
 import { useAppConfig } from "../store/app-config-provider"
 import { useChatThreads, useChatThreadStore } from "./chat-session"
-import { sideChatsOf } from "./chat-thread-store"
+import { isStreaming, sideChatsOf } from "./chat-thread-store"
 
 export const SIDE_CHAT_DRAFT_TITLE = "Side chat"
 
@@ -77,42 +77,17 @@ export function SideChatHeader() {
         className="flex min-w-0 flex-1 items-center gap-0.5 overflow-x-auto"
         role="tablist"
       >
-        {tabs.map((tab) => {
-          const isActive = tab.id === activeSideChat?.threadId
-
-          return (
-            <div
-              className={cn(
-                "group/tab flex h-8 shrink-0 items-center rounded-lg pr-0.5 text-muted-foreground hover:bg-sidebar-accent",
-                isActive && "bg-sidebar-accent text-foreground",
-              )}
-              key={tab.id}
-            >
-              <button
-                aria-selected={isActive}
-                className="window-no-drag h-full max-w-36 cursor-pointer truncate rounded-md pr-1 pl-2.5 text-sm outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
-                onClick={() => {
-                  if (tab.thread) threadStore.getState().openSideChat(tab.thread)
-                }}
-                role="tab"
-                title={tab.title}
-                type="button"
-              >
-                {tab.title}
-              </button>
-              <Button
-                aria-label={`Close ${tab.title}`}
-                className="window-no-drag size-6 text-muted-foreground hover:text-foreground"
-                onClick={() => requestClose(tab)}
-                size="icon-xs"
-                type="button"
-                variant="ghost"
-              >
-                <XIcon />
-              </Button>
-            </div>
-          )
-        })}
+        {tabs.map((tab) => (
+          <SideChatTabItem
+            isActive={tab.id === activeSideChat?.threadId}
+            key={tab.id}
+            onClose={() => requestClose(tab)}
+            onOpen={() => {
+              if (tab.thread) threadStore.getState().openSideChat(tab.thread)
+            }}
+            tab={tab}
+          />
+        ))}
       </div>
       <Button
         aria-label="New side chat"
@@ -162,6 +137,61 @@ export function SideChatHeader() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+    </div>
+  )
+}
+
+type SideChatTabItemProps = {
+  readonly isActive: boolean
+  readonly onClose: () => void
+  readonly onOpen: () => void
+  readonly tab: SideChatTab
+}
+
+function SideChatTabItem({ isActive, onClose, onOpen, tab }: SideChatTabItemProps) {
+  const isResponding = useChatThreads((state) => isStreaming(state, tab.id))
+
+  return (
+    <div
+      className={cn(
+        "group/tab flex h-8 shrink-0 items-center rounded-lg pr-0.5 text-muted-foreground hover:bg-sidebar-accent",
+        isActive && "bg-sidebar-accent text-foreground",
+      )}
+    >
+      <button
+        aria-selected={isActive}
+        className="window-no-drag h-full max-w-36 cursor-pointer truncate rounded-md pr-1 pl-2.5 text-sm outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+        onClick={onOpen}
+        role="tab"
+        title={tab.title}
+        type="button"
+      >
+        {tab.title}
+      </button>
+      <div className="relative flex size-6 shrink-0 items-center justify-center">
+        {isResponding && (
+          <output
+            aria-label="Responding"
+            className="pointer-events-none absolute inset-0 flex items-center justify-center group-focus-within/tab:opacity-0 group-hover/tab:opacity-0"
+          >
+            <Loader2Icon aria-hidden="true" className="size-3.5 animate-spin text-primary" />
+          </output>
+        )}
+        <Button
+          aria-label={`Close ${tab.title}`}
+          className={cn(
+            "window-no-drag size-6 text-muted-foreground hover:text-foreground",
+            isResponding &&
+              "opacity-0 group-focus-within/tab:opacity-100 group-hover/tab:opacity-100",
+          )}
+          onClick={onClose}
+          size="icon-xs"
+          type="button"
+          variant="ghost"
+        >
+          <XIcon />
+        </Button>
+      </div>
     </div>
   )
 }
