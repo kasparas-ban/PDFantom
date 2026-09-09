@@ -71,7 +71,7 @@ export function SideChatHeader() {
   }
 
   return (
-    <div className="window-drag-region flex h-12 shrink-0 items-center gap-1 pr-20 pl-3">
+    <div className="window-drag-region flex h-12 shrink-0 items-center gap-1 pr-12 pl-3">
       <div
         aria-label="Side chats"
         className="flex min-w-0 flex-1 items-center gap-0.5 overflow-x-auto"

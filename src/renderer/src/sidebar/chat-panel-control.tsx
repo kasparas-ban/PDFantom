@@ -1,7 +1,6 @@
-import { MessageCircleIcon, PanelRightClose, SettingsIcon } from "lucide-react"
-import { Link } from "react-router"
+import { MessageCircleIcon, PanelRightClose } from "lucide-react"
 
-import { Button, buttonVariants } from "@/components/ui/button"
+import { Button } from "@/components/ui/button"
 import { useAppConfig } from "../store/app-config-provider"
 
 export function ChatPanelControl() {
@@ -11,20 +10,6 @@ export function ChatPanelControl() {
 
   return (
     <div className="absolute top-2.5 right-2.5 z-20 flex items-center gap-0.5">
-      {isChatPanelOpen && (
-        <Link
-          to="/settings/general"
-          className={buttonVariants({
-            className: "window-no-drag text-muted-foreground",
-            variant: "ghost",
-            size: "icon-sm",
-          })}
-          aria-label="Open settings"
-          title="Settings"
-        >
-          <SettingsIcon />
-        </Link>
-      )}
       <Button
         aria-controls="chat-panel"
         aria-expanded={isChatPanelOpen}

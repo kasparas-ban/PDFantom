@@ -139,7 +139,7 @@ function ChatPanelHeader() {
     <div
       className={cn(
         "window-drag-region flex h-12 shrink-0 items-center gap-1 pl-4",
-        showsSideChats ? "pr-2" : "pr-20",
+        showsSideChats ? "pr-2" : "pr-12",
       )}
     >
       <h2 className="min-w-0 flex-1 truncate text-sm font-medium" title={title ?? "New chat"}>

@@ -5,9 +5,11 @@ import {
   FolderOpen,
   Loader2Icon,
   MoreHorizontalIcon,
+  SettingsIcon,
   SquarePenIcon,
   Trash2Icon,
 } from "lucide-react"
+import { Link } from "react-router"
 
 import {
   AlertDialog,
@@ -17,7 +19,7 @@ import {
   AlertDialogFooter,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { Button } from "@/components/ui/button"
+import { Button, buttonVariants } from "@/components/ui/button"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -122,6 +124,20 @@ export function DocumentsPanel({ onActivateDocument, onOpenDocument }: Documents
             </div>
           )}
         </div>
+
+        <nav aria-label="Secondary" className="mt-2 shrink-0 border-t border-sidebar-border pt-2">
+          <Link
+            className={buttonVariants({
+              className:
+                "w-full justify-start gap-2 px-2 font-semibold text-gray-600 hover:bg-sidebar-accent",
+              variant: "ghost",
+            })}
+            to="/settings/general"
+          >
+            <SettingsIcon />
+            Settings
+          </Link>
+        </nav>
       </div>
 
       <AlertDialog

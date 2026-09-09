@@ -260,7 +260,7 @@ export class DocumentReaderDriver {
   }
 
   get settingsButton() {
-    return this.page.getByRole("link", { name: "Open settings" })
+    return this.page.getByRole("link", { name: "Settings", exact: true })
   }
 
   get settings() {
