@@ -27,6 +27,7 @@ import {
   type ChatThreadState,
   type ChatThreadStore,
   type ChatThreadTarget,
+  type ChatPanelMode,
 } from "./chat-thread-store"
 
 export type ChatSession = {
@@ -34,7 +35,7 @@ export type ChatSession = {
   readonly interruptRun: () => void
 }
 
-export type ChatPanelMode = "main" | "side"
+export type { ChatPanelMode }
 
 type PerMode<T> = Readonly<Record<ChatPanelMode, T>>
 

@@ -44,13 +44,15 @@ Source provenance.
 _Avoid_: Response, completion, answer
 
 **Quote**:
-Text the User selected from a message in a Chat Thread and attached to the message
-they are composing, so the Model knows which passage the question is about. A message
-carries zero or more Quotes; each remembers the message it came from. Quotes and the
-spec's Context Attachments (text and pages selected from the Document, not yet built)
-are both attachments on a user message.
+Text the User selected and attached to the message they are composing, so the Model
+knows which passage the question is about. A message carries zero or more Quotes;
+each remembers its source, which is either a message in the Chat Thread or a page of
+the Document. The spec's Context Attachments (page text and page images around a
+Document selection, not yet built) would extend a Document-sourced Quote, not replace
+it.
 _Avoid_: Snippet, highlight, selection (when naming the attached thing rather than the
-act of selecting), reply
+act of selecting), reply, document quote (as a separate concept: it is a Quote whose
+source is the Document)
 
 ### Models and where they come from
 
@@ -157,6 +159,13 @@ by PDFantom.
 > whole Chat Thread as context, and never adds a message to it. The Chat Thread can
 > have several; they're tabs beside it, not rows in the sidebar. Delete the Chat
 > Thread and its Side Chats go with it.
+>
+> **Dev:** And if they highlight a paragraph in the PDF itself and press "Add to
+> chat"? Is that a different kind of attachment?
+>
+> **Domain expert:** No, it's a Quote too. The only difference is what it remembers
+> as its source: a page range of the Document instead of a message. Same chip, same
+> rule about not attaching the same passage twice.
 >
 > **Dev:** If a User is signed into Codex on the free plan, do they get the
 > ChatGPT models in the picker?

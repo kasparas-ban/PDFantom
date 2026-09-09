@@ -8,6 +8,13 @@ import {
 
 export const VISIBLE_CHAT_THREADS_PER_DOCUMENT = 5
 
+export type ChatPanelMode = "main" | "side"
+
+export type PendingChatQuote = {
+  readonly quote: ChatThreadQuote
+  readonly panel: ChatPanelMode
+}
+
 export type ChatThreadTarget = {
   readonly documentId: string | null
   readonly threadId: string
@@ -20,7 +27,7 @@ export type ChatThreadState = {
   isHydrated: boolean
   active: ChatThreadTarget | null
   activeSideChat: ChatThreadTarget | null
-  pendingSideChatQuote: ChatThreadQuote | null
+  pendingQuote: PendingChatQuote | null
   streaming: readonly ChatThreadTarget[]
   revealedDocumentIds: readonly string[]
   hydrate: (threads: readonly ChatThreadSummary[]) => void
@@ -31,8 +38,8 @@ export type ChatThreadState = {
   openSideChat: (thread: ChatThreadSummary) => void
   startSideChatDraft: () => void
   removeSideChat: (threadId: string) => void
-  askInSideChat: (quote: ChatThreadQuote) => void
-  takeSideChatQuote: () => void
+  askInChat: (quote: ChatThreadQuote, panel: ChatPanelMode) => void
+  takeQuote: () => void
   upsertThread: (thread: ChatThreadSummary) => void
   removeThread: (threadId: string) => void
   setStreaming: (target: ChatThreadTarget, streaming: boolean) => void
@@ -68,7 +75,7 @@ export function createChatThreadStore(createId: () => string = () => crypto.rand
       isHydrated: false,
       active: null,
       activeSideChat: null,
-      pendingSideChatQuote: null,
+      pendingQuote: null,
       streaming: [],
       revealedDocumentIds: [],
       hydrate: (threads) => set({ threads: sortThreads(threads), isHydrated: true }),
@@ -112,12 +119,14 @@ export function createChatThreadStore(createId: () => string = () => crypto.rand
             activeSideChat: next ? targetOf(next) : sideChatFor(threads, active),
           }
         }),
-      askInSideChat: (quote) =>
+      askInChat: (quote, panel) =>
         set((state) => ({
-          pendingSideChatQuote: quote,
-          activeSideChat: state.activeSideChat ?? sideChatFor(state.threads, state.active),
+          pendingQuote: { quote, panel },
+          ...(panel === "side" && {
+            activeSideChat: state.activeSideChat ?? sideChatFor(state.threads, state.active),
+          }),
         })),
-      takeSideChatQuote: () => set({ pendingSideChatQuote: null }),
+      takeQuote: () => set({ pendingQuote: null }),
       upsertThread: (thread) =>
         set((state) => {
           const threads = sortThreads([

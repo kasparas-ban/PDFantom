@@ -1,10 +1,11 @@
 import { useMemo } from "react"
 import { AttachmentPrimitive, useAuiState } from "@assistant-ui/react"
-import { TextQuoteIcon, XIcon } from "lucide-react"
+import { FileTextIcon, TextQuoteIcon, XIcon } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
+import { describeQuotePages } from "../../../shared/chat-thread-api"
 import { readQuoteAttachment } from "./chat-quote"
 
 type ChatQuoteChipProps = {
@@ -17,6 +18,9 @@ export function ChatQuoteChip({ removable = false, className }: ChatQuoteChipPro
   const quote = useMemo(() => readQuoteAttachment(attachment), [attachment])
   if (!quote) return null
 
+  const pages = describeQuotePages(quote.source)
+  const Icon = quote.source.type === "document" ? FileTextIcon : TextQuoteIcon
+
   return (
     <AttachmentPrimitive.Root
       className={cn(
@@ -26,7 +30,7 @@ export function ChatQuoteChip({ removable = false, className }: ChatQuoteChipPro
       data-chat-quote-selectable="false"
       data-slot="chat-quote"
     >
-      <TextQuoteIcon aria-hidden="true" className="mt-0.5 size-3.5 shrink-0" />
+      <Icon aria-hidden="true" className="mt-0.5 size-3.5 shrink-0" />
       <Tooltip delay={600}>
         <TooltipTrigger
           render={
@@ -39,6 +43,11 @@ export function ChatQuoteChip({ removable = false, className }: ChatQuoteChipPro
           {quote.text}
         </TooltipContent>
       </Tooltip>
+      {pages && (
+        <span className="shrink-0 text-xs/5 tabular-nums" data-slot="chat-quote-pages">
+          {pages}
+        </span>
+      )}
       {removable && (
         <AttachmentPrimitive.Remove asChild>
           <Button

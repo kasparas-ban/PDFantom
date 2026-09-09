@@ -25,7 +25,9 @@ test("the parent transcript labels roles and formats User Quotes like the live r
   const messages = [
     message("u1", "user", "What did the tests confirm?"),
     message("a1", "assistant", "Keepalives at 20, 40, and 60 seconds."),
-    message("u2", "user", "Why 20?", [{ text: "Keepalives at 20", messageId: "a1" }]),
+    message("u2", "user", "Why 20?", [
+      { text: "Keepalives at 20", source: { type: "message", messageId: "a1" } },
+    ]),
   ]
 
   expect(formatParentMessages(messages)).toBe(

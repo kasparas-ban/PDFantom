@@ -179,7 +179,6 @@ function ChatPanelHeader() {
 
 function ChatThread() {
   const [viewportElement, setViewportElement] = useState<HTMLDivElement | null>(null)
-  const isSideChat = useIsSideChat()
 
   return (
     <ThreadPrimitive.Root
@@ -213,23 +212,24 @@ function ChatThread() {
 
       <ChatMinimap viewportElement={viewportElement} />
       <ChatSelectionToolbar viewportElement={viewportElement} />
-      {isSideChat && <SideChatQuoteIntake viewportElement={viewportElement} />}
+      <ChatQuoteIntake viewportElement={viewportElement} />
     </ThreadPrimitive.Root>
   )
 }
 
-function SideChatQuoteIntake({ viewportElement }: { viewportElement: HTMLElement | null }) {
+function ChatQuoteIntake({ viewportElement }: { viewportElement: HTMLElement | null }) {
   const aui = useAui()
   const threadStore = useChatThreadStore()
-  const quote = useChatThreads((state) => state.pendingSideChatQuote)
+  const mode = useChatPanelMode()
+  const pending = useChatThreads((state) => state.pendingQuote)
 
   useEffect(() => {
-    if (!quote || !viewportElement) return
+    if (!pending || pending.panel !== mode || !viewportElement) return
 
-    addQuoteToComposer(aui, quote)
+    addQuoteToComposer(aui, pending.quote)
     viewportElement.querySelector("textarea")?.focus()
-    threadStore.getState().takeSideChatQuote()
-  }, [aui, quote, threadStore, viewportElement])
+    threadStore.getState().takeQuote()
+  }, [aui, mode, pending, threadStore, viewportElement])
 
   return null
 }

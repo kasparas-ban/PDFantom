@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest"
 
-import { resolveSelectionToolbarPosition } from "../../src/renderer/src/sidebar/chat-selection-toolbar-layout"
+import { resolveSelectionToolbarPosition } from "../../src/renderer/src/components/selection-toolbar-layout"
 
 const bounds = { top: 100, left: 600, width: 400, height: 700 }
 const toolbar = { width: 220, height: 36 }

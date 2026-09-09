@@ -76,7 +76,10 @@ test("prepends Quote attachments to the user message the provider receives", asy
   )
   const base = createRunOptions()
   const quote: CompleteAttachment = {
-    ...createQuoteAttachment({ text: "keepalives at 20", messageId: "assistant-1" }),
+    ...createQuoteAttachment({
+      text: "keepalives at 20",
+      source: { type: "message", messageId: "assistant-1" },
+    }),
     id: "quote-1",
     type: "quote",
     status: { type: "complete" },

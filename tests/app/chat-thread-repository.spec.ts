@@ -179,9 +179,14 @@ test("persists Quotes on user messages and titles a quote-only message from its 
       name: "notes.pdf",
       sourcePath: "/documents/notes.pdf",
     })
-    const quotes = [
-      { text: "keepalives at 20, 40, and 60", messageId: "a0" },
-      { text: "close the socket", messageId: "a0" },
+    const quotes: ChatThreadMessage["quotes"] = [
+      { text: "keepalives at 20, 40, and 60", source: { type: "message", messageId: "a0" } },
+      { text: "close the socket", source: { type: "message", messageId: "a0" } },
+      {
+        text: "Energy enters most ecosystems",
+        source: { type: "document", firstPage: 3, lastPage: 3 },
+      },
+      { text: "Matter is reused", source: { type: "document", firstPage: 3, lastPage: 4 } },
     ]
 
     const thread = threads.createThread({
@@ -200,6 +205,36 @@ test("persists Quotes on user messages and titles a quote-only message from its 
     expect(threads.loadThread(THREAD_ID)?.messages).toEqual([
       message("u1", "user", "", "2026-09-07T10:00:05.000Z", { quotes }),
       message("a1", "assistant", "Because.", "2026-09-07T10:00:06.000Z"),
+    ])
+  })
+})
+
+test("drops persisted Quotes without a valid source", async () => {
+  await withRepositories(({ database, documents, threads }) => {
+    const document = documents.recordOpenedDocument({
+      fingerprint: "a".repeat(64),
+      name: "notes.pdf",
+      sourcePath: "/documents/notes.pdf",
+    })
+    threads.createThread({
+      id: THREAD_ID,
+      documentId: document.id,
+      message: message("u1", "user", "Why?", "2026-09-07T10:00:05.000Z", {
+        quotes: [{ text: "kept", source: { type: "document", firstPage: 1, lastPage: 1 } }],
+      }),
+      selection: { model: "openrouter/free", source: "openrouter" },
+    })
+    database.connection.prepare("UPDATE chat_messages SET quotes_json = ? WHERE id = ?").run(
+      JSON.stringify([
+        { text: "legacy", messageId: "a0" },
+        { text: "backwards", source: { type: "document", firstPage: 2, lastPage: 1 } },
+        { text: "kept", source: { type: "document", firstPage: 1, lastPage: 1 } },
+      ]),
+      "u1",
+    )
+
+    expect(threads.loadThread(THREAD_ID)?.messages[0]?.quotes).toEqual([
+      { text: "kept", source: { type: "document", firstPage: 1, lastPage: 1 } },
     ])
   })
 })

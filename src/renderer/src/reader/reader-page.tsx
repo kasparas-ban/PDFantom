@@ -15,6 +15,7 @@ import { useNewChatThreadShortcut } from "../sidebar/use-new-chat-thread-shortcu
 import { useAppConfig } from "../store/app-config-provider"
 import { useReaderSession } from "../store/reader-session-provider"
 import { PDFControls } from "./controls/pdf-controls"
+import { DocumentSelectionToolbar } from "./document-selection-toolbar"
 import type { ReaderWorkspace } from "./reader-workspace"
 import { resolveReaderWorkspaceLayout } from "./reader-workspace-layout"
 
@@ -92,6 +93,7 @@ export function ReaderPage({
           <PDFCanvas host={host} openDocument={openDocument} />
         </div>
       </section>
+      <DocumentSelectionToolbar hostElement={hostElement} />
 
       <Activity mode={isChatPanelOpen ? "visible" : "hidden"}>
         <ResizableChatPanel

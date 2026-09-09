@@ -1,5 +1,7 @@
 import type { Locator, Page } from "@playwright/test"
 
+type DocumentTextLocation = { readonly page: number; readonly text: string }
+
 export class DocumentReaderDriver {
   constructor(private readonly page: Page) {}
 
@@ -190,6 +192,62 @@ export class DocumentReaderDriver {
   get chatUserMessageQuoteTexts() {
     return this.chatThread.locator(
       "[data-slot='user-message-quotes'] [data-slot='chat-quote-text']",
+    )
+  }
+
+  get chatComposerQuotePages() {
+    return this.chatComposerQuotes.locator("[data-slot='chat-quote-pages']")
+  }
+
+  get chatUserMessageQuotePages() {
+    return this.chatThread.locator(
+      "[data-slot='user-message-quotes'] [data-slot='chat-quote-pages']",
+    )
+  }
+
+  get documentSelectionToolbar() {
+    return this.page.locator("[data-slot='document-selection-toolbar']")
+  }
+
+  get documentAddToChatButton() {
+    return this.documentSelectionToolbar.getByRole("button", { name: "Add to chat" })
+  }
+
+  get presentedReader() {
+    return this.page.locator('[data-presented="true"] [data-slot="reader-scroll"]')
+  }
+
+  async selectDocumentText(from: DocumentTextLocation, to = from) {
+    await Promise.all(
+      [from, to].map(({ page, text }) =>
+        this.presentedReader
+          .locator(`.page[data-page-number="${page}"] .textLayer`)
+          .getByText(text, { exact: true })
+          .waitFor(),
+      ),
+    )
+
+    await this.page.evaluate(
+      (locations) => {
+        const presented = document.querySelector('[data-presented="true"]')!
+        const [start, end] = locations.map(({ page, text }) => {
+          const spans = presented.querySelectorAll(
+            `.page[data-page-number="${page}"] .textLayer span`,
+          )
+          const span = Array.from(spans).find((candidate) => candidate.textContent === text)
+          if (!span?.firstChild) throw new Error(`Text "${text}" was not found on page ${page}`)
+
+          return span.firstChild
+        })
+        const range = document.createRange()
+        range.setStart(start, 0)
+        range.setEnd(end, end.textContent?.length ?? 0)
+        const selection = window.getSelection()!
+        selection.removeAllRanges()
+        selection.addRange(range)
+        presented.dispatchEvent(new MouseEvent("mouseup", { bubbles: true }))
+      },
+      [from, to],
     )
   }
 

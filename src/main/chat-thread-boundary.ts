@@ -34,9 +34,20 @@ const usageSchema = z.object({
   totalTokens: z.number().nonnegative().optional(),
 })
 
+const pageNumberSchema = z.number().int().min(1)
+
 const quoteSchema = z.object({
   text: z.string().min(1).max(200_000),
-  messageId: z.string().max(200),
+  source: z.discriminatedUnion("type", [
+    z.object({ type: z.literal("message"), messageId: z.string().max(200) }),
+    z
+      .object({
+        type: z.literal("document"),
+        firstPage: pageNumberSchema,
+        lastPage: pageNumberSchema,
+      })
+      .refine((source) => source.firstPage <= source.lastPage),
+  ]),
 })
 
 const messageSchema = z.object({

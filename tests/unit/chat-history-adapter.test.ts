@@ -192,7 +192,10 @@ test("round-trips Quotes between user message attachments and the persisted shap
     ...userMessage("u2", "Why 20?"),
     attachments: [
       {
-        ...createQuoteAttachment({ text: "keepalives at 20", messageId: "a1" }),
+        ...createQuoteAttachment({
+          text: "keepalives at 20",
+          source: { type: "message", messageId: "a1" },
+        }),
         id: "quote-1",
         type: "quote",
         status: { type: "complete" },
@@ -209,7 +212,7 @@ test("round-trips Quotes between user message attachments and the persisted shap
     content: "Why 20?",
     status: { type: "complete" },
     createdAt: "2026-09-07T10:00:00.000Z",
-    quotes: [{ text: "keepalives at 20", messageId: "a1" }],
+    quotes: [{ text: "keepalives at 20", source: { type: "message", messageId: "a1" } }],
   })
   expect(toThreadMessageLike(persisted!)).toEqual({
     id: "u2",
@@ -217,7 +220,10 @@ test("round-trips Quotes between user message attachments and the persisted shap
     createdAt: new Date("2026-09-07T10:00:00.000Z"),
     content: [{ type: "text", text: "Why 20?" }],
     attachments: [
-      toCompleteQuoteAttachment({ text: "keepalives at 20", messageId: "a1" }, "u2:quote:0"),
+      toCompleteQuoteAttachment(
+        { text: "keepalives at 20", source: { type: "message", messageId: "a1" } },
+        "u2:quote:0",
+      ),
     ],
   })
   expect(toChatThreadMessage(userMessage("u3", "Plain"))).not.toHaveProperty("quotes")

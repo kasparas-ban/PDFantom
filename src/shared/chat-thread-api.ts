@@ -30,9 +30,13 @@ export type ChatThreadMessageStatus =
   | { readonly type: "complete" }
   | { readonly type: "incomplete"; readonly error?: string }
 
+export type ChatThreadQuoteSource =
+  | { readonly type: "message"; readonly messageId: string }
+  | { readonly type: "document"; readonly firstPage: number; readonly lastPage: number }
+
 export type ChatThreadQuote = {
   readonly text: string
-  readonly messageId: string
+  readonly source: ChatThreadQuoteSource
 }
 
 export type ChatThreadMessage = {
@@ -97,10 +101,56 @@ export function compareChatThreadsByActivity(a: ChatThreadSummary, b: ChatThread
   return b.lastMessageAt.localeCompare(a.lastMessageAt) || b.createdAt.localeCompare(a.createdAt)
 }
 
-const QUOTE_LABEL = "Quoting from the conversation:"
+export function parseQuoteSource(value: unknown): ChatThreadQuoteSource | null {
+  if (typeof value !== "object" || value === null || !("type" in value)) return null
+
+  if (value.type === "message") {
+    return "messageId" in value && typeof value.messageId === "string"
+      ? { type: "message", messageId: value.messageId }
+      : null
+  }
+
+  if (value.type === "document" && "firstPage" in value && "lastPage" in value) {
+    const { firstPage, lastPage } = value
+
+    return isPageNumber(firstPage) && isPageNumber(lastPage) && firstPage <= lastPage
+      ? { type: "document", firstPage, lastPage }
+      : null
+  }
+
+  return null
+}
+
+function isPageNumber(value: unknown): value is number {
+  return typeof value === "number" && Number.isInteger(value) && value >= 1
+}
+
+export function isSameQuoteSource(a: ChatThreadQuoteSource, b: ChatThreadQuoteSource) {
+  return a.type === "message"
+    ? b.type === "message" && a.messageId === b.messageId
+    : b.type === "document" && a.firstPage === b.firstPage && a.lastPage === b.lastPage
+}
+
+export function describeQuotePages(source: ChatThreadQuoteSource) {
+  if (source.type !== "document") return null
+
+  return source.firstPage === source.lastPage
+    ? `p. ${source.firstPage}`
+    : `pp. ${source.firstPage}–${source.lastPage}`
+}
+
+function quoteLabel(source: ChatThreadQuoteSource) {
+  if (source.type === "message") return "Quoting from the conversation:"
+
+  return source.firstPage === source.lastPage
+    ? `Quoting from the document, page ${source.firstPage}:`
+    : `Quoting from the document, pages ${source.firstPage}–${source.lastPage}:`
+}
 
 export function formatUserMessageContent(text: string, quotes: readonly ChatThreadQuote[]) {
-  const blocks = quotes.map((quote) => `${QUOTE_LABEL}\n${formatBlockquote(quote.text)}`)
+  const blocks = quotes.map(
+    (quote) => `${quoteLabel(quote.source)}\n${formatBlockquote(quote.text)}`,
+  )
   if (text.trim()) blocks.push(text)
 
   return blocks.join("\n\n")

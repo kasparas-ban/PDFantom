@@ -1,8 +1,8 @@
 import { documentVersionKey } from "../../../shared/document-api"
+import type { ReaderSessionStore } from "../store/reader-session-store"
 import { createPDFReaderRuntime } from "./pdf-reader-runtime"
 import { capturePreview, decodePreview, viewportAppearance } from "./reader-preview"
 import type { ReaderSurfaces } from "./reader-workspace"
-import type { ReaderSessionStore } from "../store/reader-session-store"
 
 export function createReaderSurfaces(host: HTMLElement, store: ReaderSessionStore): ReaderSurfaces {
   return {
@@ -18,6 +18,7 @@ export function createReaderSurfaces(host: HTMLElement, store: ReaderSessionStor
 
       const container = window.document.createElement("div")
       container.className = "absolute inset-0 overflow-auto outline-none"
+      container.dataset.slot = "reader-scroll"
 
       const viewer = window.document.createElement("div")
       viewer.className = "pdfViewer pdf-reader-viewer pt-1"

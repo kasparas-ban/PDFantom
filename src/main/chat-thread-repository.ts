@@ -3,6 +3,7 @@ import type { DatabaseSync as Database, SQLOutputValue } from "node:sqlite"
 import { CHAT_MODEL_SOURCE_IDS, type ChatModelSourceId } from "../shared/chat-api"
 import {
   deriveChatThreadTitle,
+  parseQuoteSource,
   type AppendChatMessageInput,
   type ChatThreadMessage,
   type ChatThreadQuote,
@@ -305,10 +306,11 @@ function parseQuotes(json: string): ChatThreadQuote[] {
     return parsed.flatMap((entry: unknown) => {
       if (typeof entry !== "object" || entry === null) return []
 
-      const { text, messageId } = entry as { text?: unknown; messageId?: unknown }
-      if (typeof text !== "string" || !text) return []
+      const { text, source } = entry as { text?: unknown; source?: unknown }
+      const parsedSource = parseQuoteSource(source)
+      if (typeof text !== "string" || !text || !parsedSource) return []
 
-      return [{ text, messageId: typeof messageId === "string" ? messageId : "" }]
+      return [{ text, source: parsedSource }]
     })
   } catch {
     return []

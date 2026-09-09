@@ -8,7 +8,7 @@ import {
   threadsOfDocument,
   visibleThreadsOfDocument,
 } from "../../src/renderer/src/sidebar/chat-thread-store"
-import type { ChatThreadSummary } from "../../src/shared/chat-thread-api"
+import type { ChatThreadQuote, ChatThreadSummary } from "../../src/shared/chat-thread-api"
 
 const thread = (
   id: string,
@@ -243,15 +243,31 @@ test("asking in a side chat keeps the Quote until the Side Chat composer takes i
   const parent = thread("parent", "doc", "2026-09-01T10:00:00.000Z")
   store.getState().hydrate([parent])
   store.getState().openThread(parent)
-  const quote = { text: "keepalives at 20", messageId: "a1" }
+  const quote: ChatThreadQuote = {
+    text: "keepalives at 20",
+    source: { type: "message", messageId: "a1" },
+  }
 
-  store.getState().askInSideChat(quote)
+  store.getState().askInChat(quote, "side")
 
-  expect(store.getState().pendingSideChatQuote).toEqual(quote)
+  expect(store.getState().pendingQuote).toEqual({ quote, panel: "side" })
   expect(store.getState().activeSideChat).toEqual(draft("draft-1", "doc", "parent"))
 
-  store.getState().takeSideChatQuote()
-  expect(store.getState().pendingSideChatQuote).toBeNull()
+  store.getState().takeQuote()
+  expect(store.getState().pendingQuote).toBeNull()
+})
+
+test("asking in the main chat keeps a Document Quote without touching Side Chats", () => {
+  const store = createStore()
+  const quote: ChatThreadQuote = {
+    text: "An ecosystem is a community",
+    source: { type: "document", firstPage: 2, lastPage: 2 },
+  }
+
+  store.getState().askInChat(quote, "main")
+
+  expect(store.getState().pendingQuote).toEqual({ quote, panel: "main" })
+  expect(store.getState().activeSideChat).toBeNull()
 })
 
 test("a streaming Side Chat counts as activity within its parent, not as the parent streaming", () => {
