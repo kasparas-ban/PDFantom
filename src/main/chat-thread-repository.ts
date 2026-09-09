@@ -26,7 +26,8 @@ const THREAD_COLUMNS = `
   effort,
   created_at,
   last_message_at,
-  last_viewed_at
+  last_viewed_at,
+  parent_thread_id
 `
 
 const MESSAGE_COLUMNS = `
@@ -90,20 +91,22 @@ export class ChatThreadRepository {
     return { thread, messages }
   }
 
-  createThread({ id, documentId, message, selection }: CreateChatThreadInput) {
+  createThread({ id, documentId, message, selection, parentThreadId }: CreateChatThreadInput) {
     return this.studyHistory.inTransaction(() => {
       const now = this.now().toISOString()
+      const parent = parentThreadId ? this.requireThread(parentThreadId) : null
+      if (parent?.parentThreadId) throw new Error("A Side Chat cannot own another Side Chat.")
 
       this.database
         .prepare(
           `INSERT INTO chat_threads (
              id, document_id, title, model, model_source, effort,
-             created_at, last_message_at, last_viewed_at
-           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+             created_at, last_message_at, last_viewed_at, parent_thread_id
+           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         )
         .run(
           id,
-          documentId,
+          parent?.documentId ?? documentId,
           deriveChatThreadTitle(message.content.trim() || message.quotes?.[0]?.text || ""),
           selection.model,
           selection.source,
@@ -111,6 +114,7 @@ export class ChatThreadRepository {
           now,
           message.createdAt,
           now,
+          parent?.id ?? null,
         )
       this.insertMessage(id, 0, message)
 
@@ -209,6 +213,7 @@ function mapThread(row: Record<string, SQLOutputValue>): ChatThreadSummary {
     created_at: createdAt,
     last_message_at: lastMessageAt,
     last_viewed_at: lastViewedAt,
+    parent_thread_id: parentThreadId,
   } = row
 
   if (
@@ -230,6 +235,7 @@ function mapThread(row: Record<string, SQLOutputValue>): ChatThreadSummary {
     lastMessageAt,
     lastViewedAt,
     selection: mapSelection(model, source, effort),
+    parentThreadId: typeof parentThreadId === "string" ? parentThreadId : null,
   }
 }
 

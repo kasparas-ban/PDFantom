@@ -44,6 +44,7 @@ test("shared memory routes defer the reader on direct entry and preserve one own
           lastMessageAt: message.createdAt,
           lastViewedAt: message.createdAt,
           selection,
+          parentThreadId: null,
         }),
         appendChatMessage: async ({ threadId, message, selection }) => ({
           id: threadId,
@@ -53,6 +54,7 @@ test("shared memory routes defer the reader on direct entry and preserve one own
           lastMessageAt: message.createdAt,
           lastViewedAt: message.createdAt,
           selection: selection ?? null,
+          parentThreadId: null,
         }),
         deleteChatThread: async () => {},
         markChatThreadViewed: async () => null,

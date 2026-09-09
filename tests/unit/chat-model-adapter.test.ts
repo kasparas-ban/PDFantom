@@ -106,6 +106,32 @@ test("prepends Quote attachments to the user message the provider receives", asy
   ])
 })
 
+test("a Side Chat names its parent on every request and never ships the parent transcript", async () => {
+  let receivedRequest: ChatRequest | undefined
+  const streamChat: ChatApi["streamChat"] = (request, onEvent) => {
+    receivedRequest = request
+    queueMicrotask(() =>
+      onEvent({ type: "done", metadata: { source: "openrouter", model: "openai/gpt-5.4-nano" } }),
+    )
+
+    return vi.fn()
+  }
+  const adapter = createChatModelAdapter(
+    { streamChat },
+    () => ({ model: "openai/gpt-5.4-nano", source: "openrouter" }),
+    "side-chat-1",
+    "parent-1",
+  )
+
+  for await (const update of adapter.run(createRunOptions())) void update
+
+  expect(receivedRequest).toMatchObject({
+    conversationId: "side-chat-1",
+    parentThreadId: "parent-1",
+    messages: [{ id: "user-message", role: "user", content: "Hello" }],
+  })
+})
+
 test("normalizes synchronous transport setup failures", async () => {
   const adapter = createChatModelAdapter(
     {

@@ -9,6 +9,7 @@ import {
   type ChatRequest,
   type ChatStreamEvent,
 } from "../../shared/chat-api"
+import type { ChatThreadMessage } from "../../shared/chat-thread-api"
 import type { CodexSessionStatus } from "../../shared/settings-api"
 import type { SettingsStore } from "../settings-store"
 import { CodexAppServer } from "./app-server"
@@ -91,7 +92,11 @@ export class CodexSession {
     return status.available ? { models } : { models, unavailableReason: status.reason }
   }
 
-  async *streamChat(request: ChatRequest, abortSignal: AbortSignal) {
+  async *streamChat(
+    request: ChatRequest,
+    abortSignal: AbortSignal,
+    parentMessages?: readonly ChatThreadMessage[],
+  ) {
     const running = await this.acquire()
     if ("reason" in running) {
       yield { type: "error", message: running.reason } satisfies ChatStreamEvent
@@ -99,7 +104,11 @@ export class CodexSession {
     }
 
     const { server, disabledMcpServers } = running
-    const plan = planCodexTurn(this.threads.get(request.conversationId), request.messages)
+    const plan = planCodexTurn(
+      this.threads.get(request.conversationId),
+      request.messages,
+      parentMessages,
+    )
     const codexModel = request.model.slice(CHATGPT_MODEL_ID_PREFIX.length)
 
     try {
@@ -122,6 +131,7 @@ export class CodexSession {
         threadId,
         lastUserMessageId: request.messages.at(-1)!.id,
         messageCount: request.messages.length,
+        ...(parentMessages && { parentMessageCount: parentMessages.length }),
       })
 
       if (outcome.status === "interrupted") return

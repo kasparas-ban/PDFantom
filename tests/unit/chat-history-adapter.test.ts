@@ -6,7 +6,10 @@ import {
   toChatThreadMessage,
   toThreadMessageLike,
 } from "../../src/renderer/src/sidebar/chat-history-adapter"
-import { createQuoteAttachment, toCompleteQuoteAttachment } from "../../src/renderer/src/sidebar/chat-quote"
+import {
+  createQuoteAttachment,
+  toCompleteQuoteAttachment,
+} from "../../src/renderer/src/sidebar/chat-quote"
 import type { ChatThreadSummary } from "../../src/shared/chat-thread-api"
 
 const summary: ChatThreadSummary = {
@@ -17,6 +20,7 @@ const summary: ChatThreadSummary = {
   lastMessageAt: "2026-09-07T10:00:00.000Z",
   lastViewedAt: "2026-09-07T10:00:00.000Z",
   selection: { model: "openai/gpt-5.4-mini", source: "openrouter", effort: "high" },
+  parentThreadId: null,
 }
 
 const userMessage = (id: string, text: string): ThreadMessage => ({

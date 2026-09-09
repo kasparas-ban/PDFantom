@@ -12,7 +12,9 @@ async function openChatWithAnswer(application: Application) {
   await application.page.evaluate(() => window.pdfantom.saveOpenRouterApiKey("sk-or-test"))
   await application.electronApplication.evaluate(() => {
     globalThis.fetch = async (_input, init) => {
-      if (typeof init?.body === "string") Reflect.set(globalThis, "chatRequestBody", JSON.parse(init.body))
+      if (typeof init?.body === "string") {
+        Reflect.set(globalThis, "chatRequestBody", JSON.parse(init.body))
+      }
 
       return new Response(
         'data: {"choices":[{"delta":{"content":"Confirm keepalives at 20, 40, and 60 seconds."}}]}\n\ndata: [DONE]\n\n',
@@ -51,9 +53,7 @@ test("shows a toolbar above selected message text and adds the selection as a Qu
   expect(toolbar!.x + toolbar!.width).toBeLessThanOrEqual(panel!.x + panel!.width)
   expect(toolbar!.y + toolbar!.height).toBeLessThanOrEqual(selected!.y)
 
-  await expect(reader.chatAskInSideChatButton).toHaveAttribute("aria-disabled", "true")
-  await reader.chatAskInSideChatButton.hover()
-  await expect(reader.tooltip).toHaveText("Coming soon")
+  await expect(reader.chatAskInSideChatButton).toBeEnabled()
 
   await reader.chatAddToChatButton.click()
   await expect(reader.chatSelectionToolbar).toBeHidden()
@@ -119,7 +119,9 @@ test("sends a Quote on its own and ignores selections that leave a message", asy
   await reader.chatAddToChatButton.click()
   await expect(reader.chatSendMessageButton).toBeEnabled()
   await reader.chatSendMessageButton.click()
-  await expect(reader.chatMessageText("Confirm keepalives at 20, 40, and 60 seconds.")).toHaveCount(2)
+  await expect(reader.chatMessageText("Confirm keepalives at 20, 40, and 60 seconds.")).toHaveCount(
+    2,
+  )
   await expect(reader.chatUserMessageQuoteTexts).toHaveText([
     "Confirm keepalives at 20, 40, and 60 seconds.",
   ])
@@ -133,7 +135,8 @@ test("sends a Quote on its own and ignores selections that leave a message", asy
         { role: "assistant", content: "Confirm keepalives at 20, 40, and 60 seconds." },
         {
           role: "user",
-          content: "Quoting from the conversation:\n> Confirm keepalives at 20, 40, and 60 seconds.",
+          content:
+            "Quoting from the conversation:\n> Confirm keepalives at 20, 40, and 60 seconds.",
         },
       ],
     })
@@ -163,7 +166,10 @@ test("follows the chat scroll, hides when the selection leaves the panel, and ne
 }) => {
   await application.page.evaluate(() => window.pdfantom.saveOpenRouterApiKey("sk-or-test"))
   await application.electronApplication.evaluate(() => {
-    const paragraphs = Array.from({ length: 30 }, (_, index) => `Paragraph ${index + 1} of the long reply.`)
+    const paragraphs = Array.from(
+      { length: 30 },
+      (_, index) => `Paragraph ${index + 1} of the long reply.`,
+    )
     const payload = JSON.stringify({ choices: [{ delta: { content: paragraphs.join("\n\n") } }] })
 
     globalThis.fetch = async () =>
@@ -190,7 +196,9 @@ test("follows the chat scroll, hides when the selection leaves the panel, and ne
     .poll(async () => (await reader.chatSelectionToolbar.boundingBox())?.y)
     .toBeCloseTo(before.y + 120, 0)
 
-  await reader.chatViewport.evaluate((viewport) => viewport.scrollTo({ top: 0, behavior: "instant" }))
+  await reader.chatViewport.evaluate((viewport) =>
+    viewport.scrollTo({ top: 0, behavior: "instant" }),
+  )
   await expect(reader.chatSelectionToolbar).toBeHidden()
   expect(await reader.selectedText()).toBe("Paragraph 30 of the long reply.")
 
@@ -213,7 +221,9 @@ test("follows the chat scroll, hides when the selection leaves the panel, and ne
   await application.page.evaluate(() => window.getSelection()?.removeAllRanges())
   await application.page.mouse.move(strip.x + 1, strip.y + strip.height / 2)
   await application.page.mouse.down()
-  await application.page.mouse.move(strip.x + strip.width - 1, strip.y + strip.height / 2, { steps: 4 })
+  await application.page.mouse.move(strip.x + strip.width - 1, strip.y + strip.height / 2, {
+    steps: 4,
+  })
   await application.page.mouse.up()
   expect(await reader.selectedText()).toContain("Paragraph 1")
   await expect(reader.chatSelectionToolbar).toBeHidden({ timeout: 1000 })

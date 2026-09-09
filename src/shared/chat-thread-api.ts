@@ -23,6 +23,7 @@ export type ChatThreadSummary = {
   readonly lastMessageAt: string
   readonly lastViewedAt: string
   readonly selection: ChatThreadSelection | null
+  readonly parentThreadId: string | null
 }
 
 export type ChatThreadMessageStatus =
@@ -58,6 +59,7 @@ export type CreateChatThreadInput = {
   readonly documentId: string
   readonly message: ChatThreadMessage
   readonly selection: ChatThreadSelection
+  readonly parentThreadId?: string
 }
 
 export type AppendChatMessageInput = {
@@ -93,4 +95,20 @@ export function deriveChatThreadTitle(text: string) {
 
 export function compareChatThreadsByActivity(a: ChatThreadSummary, b: ChatThreadSummary) {
   return b.lastMessageAt.localeCompare(a.lastMessageAt) || b.createdAt.localeCompare(a.createdAt)
+}
+
+const QUOTE_LABEL = "Quoting from the conversation:"
+
+export function formatUserMessageContent(text: string, quotes: readonly ChatThreadQuote[]) {
+  const blocks = quotes.map((quote) => `${QUOTE_LABEL}\n${formatBlockquote(quote.text)}`)
+  if (text.trim()) blocks.push(text)
+
+  return blocks.join("\n\n")
+}
+
+function formatBlockquote(text: string) {
+  return text
+    .split("\n")
+    .map((line) => (line ? `> ${line}` : ">"))
+    .join("\n")
 }

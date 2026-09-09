@@ -24,6 +24,7 @@ export type ChatRequest = {
   model: string
   messages: ChatMessage[]
   effort?: string
+  parentThreadId?: string
 }
 
 export type ChatUsage = {

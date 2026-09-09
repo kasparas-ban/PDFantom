@@ -63,6 +63,7 @@ const createSchema = z.object({
   documentId: z.string().min(1).max(200),
   message: messageSchema,
   selection: selectionSchema,
+  parentThreadId: threadIdSchema.optional(),
 })
 
 const appendSchema = z.object({
@@ -111,6 +112,11 @@ export function registerChatThreadBoundary(
   ipcMain.handle(DELETE_CHAT_THREAD_CHANNEL, async (event, threadId: unknown) => {
     trusted(event)
     const id = threadIdSchema.parse(threadId)
+
+    for (const thread of repository.listThreads()) {
+      if (thread.parentThreadId === id) hooks.onDeleteThread(thread.id)
+    }
+
     hooks.onDeleteThread(id)
     repository.deleteThread(id)
   })

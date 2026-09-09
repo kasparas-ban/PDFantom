@@ -7,7 +7,8 @@ import {
   type ChatRequest,
   type ChatStreamEvent,
 } from "../../../shared/chat-api"
-import { formatUserMessageContent, readQuoteAttachments } from "./chat-quote"
+import { formatUserMessageContent } from "../../../shared/chat-thread-api"
+import { readQuoteAttachments } from "./chat-quote"
 
 export type ChatModelSelection = {
   model: string
@@ -21,6 +22,7 @@ export function createChatModelAdapter(
   platform: Pick<ChatApi, "streamChat">,
   getSelection: () => ChatModelSelection,
   conversationId: string,
+  parentThreadId: string | null = null,
 ) {
   let interruptController = new AbortController()
 
@@ -39,6 +41,7 @@ export function createChatModelAdapter(
         source: selection.source,
         model: selection.model,
         ...(selection.effort && { effort: selection.effort }),
+        ...(parentThreadId && { parentThreadId }),
         messages: messages
           .map((message) => ({
             id: message.id,

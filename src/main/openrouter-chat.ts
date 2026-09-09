@@ -19,12 +19,14 @@ export async function* streamOpenRouterChat(
   request: ChatRequest,
   apiKey: string,
   abortSignal: AbortSignal,
+  instructions?: string,
 ) {
   try {
     const openRouter = createOpenRouter({ apiKey, compatibility: "strict" })
     const effort = request.effort && z.enum(OPENROUTER_EFFORT_LEVELS).parse(request.effort)
     const result = streamText({
       model: openRouter.chat(request.model, effort ? { reasoning: { effort } } : undefined),
+      ...(instructions && { instructions }),
       messages: request.messages,
       abortSignal,
       timeout: 120_000,

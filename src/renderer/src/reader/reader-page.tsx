@@ -4,18 +4,19 @@ import { FilePlus2, FileWarning } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import pdfantomLogo from "../../../../assets/pdfantom-logo.svg?no-inline"
 import type { ActiveDocumentState, DocumentUnavailableReason } from "../../../shared/document-api"
-import { ChatPanelControl } from "../sidebar/chat-panel-control"
-import { DocumentsPanelControl } from "../sidebar/documents-panel-control"
-import { useReaderShortcuts } from "../hooks/use-reader-shortcuts"
 import { PageSurface } from "../app/page-surface"
-import { PDFControls } from "./controls/pdf-controls"
-import type { ReaderWorkspace } from "./reader-workspace"
-import { resolveReaderWorkspaceLayout } from "./reader-workspace-layout"
+import { useReaderShortcuts } from "../hooks/use-reader-shortcuts"
+import { ChatPanelControl } from "../sidebar/chat-panel-control"
+import { useChatThreads } from "../sidebar/chat-session"
+import { DocumentsPanelControl } from "../sidebar/documents-panel-control"
 import { ResizableChatPanel } from "../sidebar/resizable-chat-panel"
 import { ResizableDocumentsPanel } from "../sidebar/resizable-documents-panel"
 import { useNewChatThreadShortcut } from "../sidebar/use-new-chat-thread-shortcut"
 import { useAppConfig } from "../store/app-config-provider"
 import { useReaderSession } from "../store/reader-session-provider"
+import { PDFControls } from "./controls/pdf-controls"
+import type { ReaderWorkspace } from "./reader-workspace"
+import { resolveReaderWorkspaceLayout } from "./reader-workspace-layout"
 
 export function ReaderPage({
   host,
@@ -30,19 +31,25 @@ export function ReaderPage({
   useNewChatThreadShortcut()
   const isChatPanelOpen = useAppConfig((state) => state.isChatPanelOpen)
   const isDocumentsPanelOpen = useAppConfig((state) => state.isDocumentsPanelOpen)
+  const isSideChatPanelOpen = useAppConfig((state) => state.isSideChatPanelOpen)
   const lastResizedPanel = useAppConfig((state) => state.lastResizedPanel)
   const preferredChatPanelWidth = useAppConfig((state) => state.preferredChatPanelWidth)
   const preferredDocumentsPanelWidth = useAppConfig((state) => state.preferredDocumentsPanelWidth)
+  const preferredSideChatPanelWidth = useAppConfig((state) => state.preferredSideChatPanelWidth)
   const setChatPanelWidth = useAppConfig((state) => state.setChatPanelWidth)
   const setDocumentsPanelWidth = useAppConfig((state) => state.setDocumentsPanelWidth)
+  const setSideChatPanelWidth = useAppConfig((state) => state.setSideChatPanelWidth)
+  const hasSideChat = useChatThreads((state) => state.activeSideChat !== null)
   const [viewportWidth, setViewportWidth] = useState(() => window.innerWidth)
+  const showSideChatPanel = isChatPanelOpen && isSideChatPanelOpen && hasSideChat
 
   const panelLayout = resolveReaderWorkspaceLayout({
-    isChatPanelOpen,
-    isDocumentsPanelOpen,
+    panels: {
+      documents: { isOpen: isDocumentsPanelOpen, preferredWidth: preferredDocumentsPanelWidth },
+      chat: { isOpen: isChatPanelOpen, preferredWidth: preferredChatPanelWidth },
+      "side-chat": { isOpen: showSideChatPanel, preferredWidth: preferredSideChatPanelWidth },
+    },
     lastResizedPanel,
-    preferredChatPanelWidth,
-    preferredDocumentsPanelWidth,
     viewportWidth,
   })
 
@@ -68,11 +75,11 @@ export function ReaderPage({
       <ReaderLifecycle workspace={workspace} host={hostElement} />
       {isDocumentsPanelOpen && (
         <ResizableDocumentsPanel
-          maximumWidth={panelLayout.documentsPanel.maximumWidth}
+          maximumWidth={panelLayout.documents.maximumWidth}
           onActivateDocument={activateDocument}
           onOpenDocument={openDocument}
           onWidthChange={setDocumentsPanelWidth}
-          width={panelLayout.documentsPanel.width}
+          width={panelLayout.documents.width}
         />
       )}
 
@@ -88,10 +95,20 @@ export function ReaderPage({
 
       <Activity mode={isChatPanelOpen ? "visible" : "hidden"}>
         <ResizableChatPanel
-          maximumWidth={panelLayout.chatPanel.maximumWidth}
+          maximumWidth={panelLayout.chat.maximumWidth}
           onOpenDocument={openDocument}
           onWidthChange={setChatPanelWidth}
-          width={panelLayout.chatPanel.width}
+          width={panelLayout.chat.width}
+        />
+      </Activity>
+
+      <Activity mode={showSideChatPanel ? "visible" : "hidden"}>
+        <ResizableChatPanel
+          maximumWidth={panelLayout["side-chat"].maximumWidth}
+          mode="side"
+          onOpenDocument={openDocument}
+          onWidthChange={setSideChatPanelWidth}
+          width={panelLayout["side-chat"].width}
         />
       </Activity>
 
@@ -177,9 +194,7 @@ function PDFCanvas({
                 className="mx-auto mb-6 size-14 rounded-2xl opacity-65 grayscale"
                 src={pdfantomLogo}
               />
-              <h2 className="text-2xl font-medium tracking-[-0.035em]">
-                Open a PDF in PDFantom
-              </h2>
+              <h2 className="text-2xl font-medium tracking-[-0.035em]">Open a PDF in PDFantom</h2>
               <p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-muted-foreground">
                 Read and select text from local PDFs. Your PDFs stay on this Mac.
               </p>

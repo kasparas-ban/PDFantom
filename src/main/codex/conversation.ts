@@ -1,11 +1,14 @@
 import { z } from "zod"
 
 import { GENERIC_CHAT_ERROR, type ChatMessage } from "../../shared/chat-api"
+import type { ChatThreadMessage } from "../../shared/chat-thread-api"
+import { formatParentMessages, parentContextBlock } from "../side-chat-context"
 
 export type CodexThreadState = {
   threadId: string
   lastUserMessageId: string
   messageCount: number
+  parentMessageCount?: number
 }
 
 export type CodexTurnPlan =
@@ -15,15 +18,27 @@ export type CodexTurnPlan =
 export function planCodexTurn(
   state: CodexThreadState | undefined,
   messages: readonly ChatMessage[],
+  parentMessages?: readonly ChatThreadMessage[],
 ): CodexTurnPlan {
   const newest = messages.at(-1)
   if (!newest || newest.role !== "user") throw new Error(GENERIC_CHAT_ERROR)
 
   if (state && extendsThread(state, messages)) {
-    return { kind: "continue", threadId: state.threadId, input: newest.content }
+    const grown = parentMessages?.slice(state.parentMessageCount ?? 0) ?? []
+    const input =
+      grown.length > 0
+        ? `The main conversation has continued:\n\n${formatParentMessages(grown)}\n\nThe User's new message:\n${newest.content}`
+        : newest.content
+
+    return { kind: "continue", threadId: state.threadId, input }
   }
 
-  return { kind: "rebuild", input: flattenTranscript(messages) }
+  const transcript = flattenTranscript(messages)
+
+  return {
+    kind: "rebuild",
+    input: parentMessages ? `${parentContextBlock(parentMessages)}\n\n${transcript}` : transcript,
+  }
 }
 
 function extendsThread(state: CodexThreadState, messages: readonly ChatMessage[]) {
