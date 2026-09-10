@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react"
-import { Loader2Icon, PlusIcon, XIcon } from "lucide-react"
+import { useCallback, useLayoutEffect, useMemo, useRef, useState, type Ref } from "react"
+import { ChevronDownIcon, Loader2Icon, PlusIcon, XIcon } from "lucide-react"
 
 import {
   AlertDialog,
@@ -11,6 +11,13 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
 import type { ChatThreadSummary } from "../../../shared/chat-thread-api"
 import { usePlatform } from "../app/platform"
@@ -39,6 +46,7 @@ export function SideChatHeader() {
   const setSkipConfirmation = useAppConfig((state) => state.setSkipSideChatCloseConfirmation)
   const [pendingClose, setPendingClose] = useState<ChatThreadSummary | null>(null)
   const [dontAskAgain, setDontAskAgain] = useState(false)
+  const activeTabRef = useRef<HTMLDivElement>(null)
 
   const tabs = useMemo((): SideChatTab[] => {
     if (!parentThreadId) return []
@@ -49,6 +57,17 @@ export function SideChatHeader() {
       return { id: target.threadId, target, title: thread?.title ?? SIDE_CHAT_DRAFT_TITLE, thread }
     })
   }, [parentThreadId, threads, sideChatDrafts])
+
+  const revealActiveTab = useCallback(() => {
+    activeTabRef.current?.scrollIntoView({ block: "nearest", inline: "nearest" })
+  }, [])
+
+  useLayoutEffect(revealActiveTab, [activeSideChat?.threadId, revealActiveTab])
+
+  const openSideChat = (tab: SideChatTab) => {
+    if (tab.id === activeSideChat?.threadId) revealActiveTab()
+    threadStore.getState().openSideChat(tab.target)
+  }
 
   const removeSideChat = (id: string) => {
     const state = threadStore.getState()
@@ -85,7 +104,7 @@ export function SideChatHeader() {
     <div className="window-drag-region flex h-12 shrink-0 items-center gap-1 pr-12 pl-3">
       <div
         aria-label="Side chats"
-        className="flex min-w-0 flex-1 items-center gap-0.5 overflow-x-auto"
+        className="window-no-drag flex min-w-0 flex-1 scrollbar-none items-center gap-0.5 overflow-x-auto"
         role="tablist"
       >
         {tabs.map((tab) => (
@@ -93,14 +112,47 @@ export function SideChatHeader() {
             isActive={tab.id === activeSideChat?.threadId}
             key={tab.id}
             onClose={() => requestClose(tab)}
-            onOpen={() => threadStore.getState().openSideChat(tab.target)}
+            onOpen={() => openSideChat(tab)}
+            ref={tab.id === activeSideChat?.threadId ? activeTabRef : null}
             tab={tab}
           />
         ))}
       </div>
+      {tabs.length > 1 && (
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <Button
+                aria-label="All side chats"
+                className="window-no-drag shrink-0 text-muted-foreground"
+                size="icon-sm"
+                title="All side chats"
+                variant="ghost"
+              />
+            }
+          >
+            <ChevronDownIcon />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" aria-label="All side chats" className="max-w-80">
+            <DropdownMenuRadioGroup value={activeSideChat?.threadId ?? ""}>
+              {tabs.map((tab, index) => (
+                <DropdownMenuRadioItem
+                  closeOnClick
+                  key={tab.id}
+                  onClick={() => openSideChat(tab)}
+                  value={tab.id}
+                >
+                  <span className="shrink-0 text-muted-foreground">{index + 1}.</span>
+                  <span className="min-w-0 wrap-anywhere">{tab.title}</span>
+                </DropdownMenuRadioItem>
+              ))}
+            </DropdownMenuRadioGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )}
       <Button
         aria-label="New side chat"
-        className="window-no-drag size-7 rounded-full text-muted-foreground"
+        className="window-no-drag size-7 shrink-0 rounded-full text-muted-foreground"
         onClick={() => threadStore.getState().startSideChatDraft()}
         size="icon-sm"
         title="New side chat"
@@ -151,13 +203,14 @@ export function SideChatHeader() {
 }
 
 type SideChatTabItemProps = {
+  readonly ref: Ref<HTMLDivElement>
   readonly isActive: boolean
   readonly onClose: () => void
   readonly onOpen: () => void
   readonly tab: SideChatTab
 }
 
-function SideChatTabItem({ isActive, onClose, onOpen, tab }: SideChatTabItemProps) {
+function SideChatTabItem({ isActive, onClose, onOpen, ref, tab }: SideChatTabItemProps) {
   const isResponding = useChatThreads((state) => isStreaming(state, tab.id))
 
   return (
@@ -166,6 +219,7 @@ function SideChatTabItem({ isActive, onClose, onOpen, tab }: SideChatTabItemProp
         "group/tab flex h-8 shrink-0 items-center rounded-lg pr-0.5 text-muted-foreground hover:bg-sidebar-accent",
         isActive && "bg-sidebar-accent text-foreground",
       )}
+      ref={ref}
     >
       <button
         aria-selected={isActive}
