@@ -16,12 +16,13 @@ import type { ChatThreadSummary } from "../../../shared/chat-thread-api"
 import { usePlatform } from "../app/platform"
 import { useAppConfig } from "../store/app-config-provider"
 import { useChatThreads, useChatThreadStore } from "./chat-session"
-import { isStreaming, sideChatsOf } from "./chat-thread-store"
+import { isStreaming, sideChatTargetsOf, type ChatThreadTarget } from "./chat-thread-store"
 
 export const SIDE_CHAT_DRAFT_TITLE = "Side chat"
 
 type SideChatTab = {
   readonly id: string
+  readonly target: ChatThreadTarget
   readonly title: string
   readonly thread: ChatThreadSummary | null
 }
@@ -33,31 +34,28 @@ export function SideChatHeader() {
   const parentThreadId = useChatThreads((state) => state.active?.threadId ?? null)
   const activeSideChat = useChatThreads((state) => state.activeSideChat)
   const threads = useChatThreads((state) => state.threads)
+  const sideChatDrafts = useChatThreads((state) => state.sideChatDrafts)
   const skipConfirmation = useAppConfig((state) => state.skipSideChatCloseConfirmation)
   const setSkipConfirmation = useAppConfig((state) => state.setSkipSideChatCloseConfirmation)
   const [pendingClose, setPendingClose] = useState<ChatThreadSummary | null>(null)
   const [dontAskAgain, setDontAskAgain] = useState(false)
 
   const tabs = useMemo((): SideChatTab[] => {
-    const stored = parentThreadId
-      ? sideChatsOf(threads, parentThreadId).map((thread) => ({
-          id: thread.id,
-          title: thread.title,
-          thread,
-        }))
-      : []
-    if (!activeSideChat?.isDraft) return stored
+    if (!parentThreadId) return []
 
-    return [...stored, { id: activeSideChat.threadId, title: SIDE_CHAT_DRAFT_TITLE, thread: null }]
-  }, [activeSideChat, parentThreadId, threads])
+    return sideChatTargetsOf({ threads, sideChatDrafts }, parentThreadId).map((target) => {
+      const thread = threads.find((stored) => stored.id === target.threadId) ?? null
+
+      return { id: target.threadId, target, title: thread?.title ?? SIDE_CHAT_DRAFT_TITLE, thread }
+    })
+  }, [parentThreadId, threads, sideChatDrafts])
 
   const removeSideChat = (id: string) => {
     const state = threadStore.getState()
     const isLastTab =
       state.activeSideChat?.threadId === id &&
-      !state.threads.some(
-        (thread) => thread.parentThreadId === state.active?.threadId && thread.id !== id,
-      )
+      state.active !== null &&
+      sideChatTargetsOf(state, state.active.threadId).length === 1
 
     state.removeSideChat(id)
     if (isLastTab) setSideChatPanelOpen(false)
@@ -95,9 +93,7 @@ export function SideChatHeader() {
             isActive={tab.id === activeSideChat?.threadId}
             key={tab.id}
             onClose={() => requestClose(tab)}
-            onOpen={() => {
-              if (tab.thread) threadStore.getState().openSideChat(tab.thread)
-            }}
+            onOpen={() => threadStore.getState().openSideChat(tab.target)}
             tab={tab}
           />
         ))}

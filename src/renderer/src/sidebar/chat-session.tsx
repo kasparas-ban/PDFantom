@@ -62,6 +62,7 @@ export function ChatSessionProvider({ children }: PropsWithChildren) {
   const isHydrated = useStore(threadStore, (state) => state.isHydrated)
   const active = useStore(threadStore, (state) => state.active)
   const activeSideChat = useStore(threadStore, (state) => state.activeSideChat)
+  const sideChatDrafts = useStore(threadStore, (state) => state.sideChatDrafts)
   const streaming = useStore(threadStore, (state) => state.streaming)
 
   useEffect(() => {
@@ -142,7 +143,13 @@ export function ChatSessionProvider({ children }: PropsWithChildren) {
   const shown = [active, activeSideChat].filter((target) => target !== null)
   const ownedThreads = [
     ...shown,
-    ...streaming.filter((target) => !shown.some((owned) => owned.threadId === target.threadId)),
+    ...sideChatDrafts.filter(
+      (target) => !shown.some((owned) => owned.threadId === target.threadId),
+    ),
+    ...streaming.filter(
+      (target) =>
+        ![...shown, ...sideChatDrafts].some((owned) => owned.threadId === target.threadId),
+    ),
   ]
   const currentSessions = useMemo(
     () => ({

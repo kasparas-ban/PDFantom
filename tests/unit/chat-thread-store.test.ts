@@ -5,6 +5,7 @@ import {
   isStreaming,
   isStreamingWithin,
   sideChatsOf,
+  sideChatTargetsOf,
   threadsOfDocument,
   visibleThreadsOfDocument,
 } from "../../src/renderer/src/sidebar/chat-thread-store"
@@ -201,6 +202,39 @@ test("the plus button starts a Side Chat Draft that becomes a Side Chat when its
   expect(sideDraft).toEqual(draft("draft-1", "doc", "parent"))
   expect(store.getState().activeSideChat).toEqual(target("draft-1", "doc", "parent"))
   expect(store.getState().active).toEqual(target("parent"))
+})
+
+test("Side Chat Drafts remain separate through switching, saving, and closing", () => {
+  const store = createStore()
+  const parent = thread("parent", "doc", "2026-09-01T10:00:00.000Z")
+  store.getState().hydrate([parent])
+  store.getState().openThread(parent)
+  const first = store.getState().activeSideChat!
+  store.getState().startSideChatDraft()
+  const second = store.getState().activeSideChat!
+  store.getState().startSideChatDraft()
+  const third = store.getState().activeSideChat!
+
+  expect(store.getState().sideChatDrafts).toEqual([first, second, third])
+  store.getState().openSideChat(first)
+  expect(store.getState().activeSideChat).toEqual(first)
+
+  store.getState().upsertThread(sideChat(second.threadId, "parent", "2026-09-02T10:00:00.000Z"))
+  expect(store.getState().sideChatDrafts).toEqual([first, third])
+  expect(sideChatTargetsOf(store.getState(), "parent").map((item) => item.threadId)).toEqual([
+    second.threadId,
+    first.threadId,
+    third.threadId,
+  ])
+
+  store.getState().removeSideChat(first.threadId)
+  expect(store.getState().activeSideChat).toEqual(third)
+  store.getState().removeSideChat(second.threadId)
+  expect(store.getState().activeSideChat).toEqual(third)
+  expect(store.getState().sideChatDrafts).toEqual([third])
+
+  store.getState().removeThread(parent.id)
+  expect(store.getState().sideChatDrafts).toEqual([])
 })
 
 test("closing a Side Chat activates the tab to its right, then the left, then a fresh Draft", () => {

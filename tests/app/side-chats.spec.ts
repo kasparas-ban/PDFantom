@@ -103,6 +103,37 @@ test("Ask in side chat quotes the selection into a Side Chat that sees the live 
   await expect(reader.sideChatComposerQuoteTexts).toHaveText(["Reply to Why?"])
 })
 
+test("each plus press adds a selectable Side Chat Draft and preserves composer text", async ({
+  application,
+}) => {
+  const { reader } = await openChatWithReply(application, "Main question")
+  await reader.toggleSideChatsButton.click()
+  await reader.sideChatMessageInput.fill("First draft text")
+
+  await reader.newSideChatButton.click()
+  await expect(reader.sideChatTabs).toHaveCount(2)
+  await expect(reader.sideChatMessageInput).toHaveValue("")
+  await reader.sideChatMessageInput.fill("Second draft text")
+  await reader.newSideChatButton.click()
+  await expect(reader.sideChatTabs).toHaveCount(3)
+  await expect(reader.sideChatTabs.nth(2)).toHaveAttribute("aria-selected", "true")
+
+  await reader.sideChatTabs.nth(0).click()
+  await expect(reader.sideChatMessageInput).toHaveValue("First draft text")
+  await reader.sideChatTabs.nth(1).click()
+  await expect(reader.sideChatMessageInput).toHaveValue("Second draft text")
+  await sendSide(reader, "Saved second draft")
+  await expect(reader.sideChatTabs).toHaveCount(3)
+
+  await reader.closeSideChatButton("Side chat").last().click()
+  await expect(reader.sideChatTabs).toHaveCount(2)
+  await reader.sideChatTab("Side chat").click()
+  await expect(reader.sideChatMessageInput).toHaveValue("First draft text")
+  await reader.closeSideChatButton("Side chat").click()
+  await expect(reader.sideChatTabs).toHaveText(["Saved second draft"])
+  await expect(reader.sideChatPanel).toBeVisible()
+})
+
 test("tabs open with the plus button, close with one confirmation, and survive a restart", async ({
   application,
 }) => {
@@ -147,10 +178,16 @@ test("tabs open with the plus button, close with one confirmation, and survive a
 
   await restored.closeSideChatButton("First side").click()
   await expect(restarted.page.getByRole("alertdialog")).toHaveCount(0)
+  await expect(restored.sideChatPanel).toBeHidden()
+
+  await restored.toggleSideChatsButton.click()
   await expect(restored.sideChatTabs).toHaveText(["Side chat"])
   await expect(restored.sideChatEmptyState).toBeVisible()
 
   await restored.closeSideChatButton("Side chat").click()
+  await expect(restored.sideChatPanel).toBeHidden()
+
+  await restored.toggleSideChatsButton.click()
   await expect(restored.sideChatTabs).toHaveText(["Side chat"])
 })
 

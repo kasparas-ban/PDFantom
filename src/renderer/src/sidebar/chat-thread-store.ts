@@ -27,6 +27,7 @@ export type ChatThreadState = {
   isHydrated: boolean
   active: ChatThreadTarget | null
   activeSideChat: ChatThreadTarget | null
+  sideChatDrafts: readonly ChatThreadTarget[]
   pendingQuote: PendingChatQuote | null
   streaming: readonly ChatThreadTarget[]
   revealedDocumentIds: readonly string[]
@@ -35,7 +36,7 @@ export type ChatThreadState = {
   openThread: (thread: ChatThreadSummary) => void
   startDraft: (documentId: string) => void
   detach: () => void
-  openSideChat: (thread: ChatThreadSummary) => void
+  openSideChat: (thread: ChatThreadSummary | ChatThreadTarget) => void
   startSideChatDraft: () => void
   removeSideChat: (threadId: string) => void
   askInChat: (quote: ChatThreadQuote, panel: ChatPanelMode) => void
@@ -56,25 +57,32 @@ export function createChatThreadStore(createId: () => string = () => crypto.rand
     draftTarget(parent.documentId, parent.threadId)
 
   const sideChatFor = (
-    threads: readonly ChatThreadSummary[],
+    state: Pick<ChatThreadState, "threads" | "sideChatDrafts">,
     parent: ChatThreadTarget | null,
   ): ChatThreadTarget | null => {
     if (!parent || parent.isDraft) return null
 
-    const recent = mostRecentlyViewed(sideChatsOf(threads, parent.threadId))
+    const recent = mostRecentlyViewed(sideChatsOf(state.threads, parent.threadId))
 
-    return recent ? targetOf(recent) : sideChatDraft(parent)
+    return recent
+      ? targetOf(recent)
+      : (state.sideChatDrafts.find((draft) => draft.parentThreadId === parent.threadId) ??
+          sideChatDraft(parent))
   }
 
   return createStore<ChatThreadState>()((set, get) => {
     const activate = (active: ChatThreadTarget | null) =>
-      set((state) => ({ active, activeSideChat: sideChatFor(state.threads, active) }))
+      set((state) => ({
+        active,
+        ...selectSideChat(sideChatFor(state, active), state.sideChatDrafts),
+      }))
 
     return {
       threads: [],
       isHydrated: false,
       active: null,
       activeSideChat: null,
+      sideChatDrafts: [],
       pendingQuote: null,
       streaming: [],
       revealedDocumentIds: [],
@@ -95,36 +103,43 @@ export function createChatThreadStore(createId: () => string = () => crypto.rand
       detach: () => {
         if (get().active?.documentId !== null) activate(draftTarget(null))
       },
-      openSideChat: (thread) => set({ activeSideChat: targetOf(thread) }),
+      openSideChat: (thread) =>
+        set({ activeSideChat: "isDraft" in thread ? thread : targetOf(thread) }),
       startSideChatDraft: () =>
-        set((state) => ({
-          activeSideChat: state.active ? sideChatDraft(state.active) : state.activeSideChat,
-        })),
+        set((state) =>
+          state.active && !state.active.isDraft
+            ? selectSideChat(sideChatDraft(state.active), state.sideChatDrafts)
+            : state,
+        ),
       removeSideChat: (threadId) =>
         set((state) => {
           const { active, activeSideChat } = state
           const threads = state.threads.filter((thread) => thread.id !== threadId)
-          if (activeSideChat?.threadId !== threadId) {
-            return { threads, streaming: withoutThread(state.streaming, threadId) }
+          const remaining = {
+            threads,
+            sideChatDrafts: withoutThread(state.sideChatDrafts, threadId),
+            streaming: withoutThread(state.streaming, threadId),
           }
+          if (activeSideChat?.threadId !== threadId) return remaining
 
-          const siblings = active ? sideChatsOf(state.threads, active.threadId) : []
-          const found = siblings.findIndex((thread) => thread.id === threadId)
+          const siblings = active ? sideChatTargetsOf(state, active.threadId) : []
+          const found = siblings.findIndex((thread) => thread.threadId === threadId)
           const index = found === -1 ? siblings.length : found
           const next = siblings[index + 1] ?? siblings[index - 1]
 
           return {
-            threads,
-            streaming: withoutThread(state.streaming, threadId),
-            activeSideChat: next ? targetOf(next) : sideChatFor(threads, active),
+            ...remaining,
+            ...selectSideChat(next ?? sideChatFor(remaining, active), remaining.sideChatDrafts),
           }
         }),
       askInChat: (quote, panel) =>
         set((state) => ({
           pendingQuote: { quote, panel },
-          ...(panel === "side" && {
-            activeSideChat: state.activeSideChat ?? sideChatFor(state.threads, state.active),
-          }),
+          ...(panel === "side" &&
+            selectSideChat(
+              state.activeSideChat ?? sideChatFor(state, state.active),
+              state.sideChatDrafts,
+            )),
         })),
       takeQuote: () => set({ pendingQuote: null }),
       upsertThread: (thread) =>
@@ -133,18 +148,27 @@ export function createChatThreadStore(createId: () => string = () => crypto.rand
             ...state.threads.filter((existing) => existing.id !== thread.id),
             thread,
           ])
+          const sideChatDrafts = withoutThread(state.sideChatDrafts, thread.id)
           const { active, activeSideChat } = state
           if (active?.threadId === thread.id && active.isDraft) {
             const settled = { ...active, isDraft: false }
 
-            return { threads, active: settled, activeSideChat: sideChatFor(threads, settled) }
+            return {
+              threads,
+              active: settled,
+              ...selectSideChat(sideChatFor({ threads, sideChatDrafts }, settled), sideChatDrafts),
+            }
           }
 
           if (activeSideChat?.threadId === thread.id && activeSideChat.isDraft) {
-            return { threads, activeSideChat: { ...activeSideChat, isDraft: false } }
+            return {
+              threads,
+              sideChatDrafts,
+              activeSideChat: { ...activeSideChat, isDraft: false },
+            }
           }
 
-          return { threads }
+          return { threads, sideChatDrafts }
         }),
       removeThread: (threadId) =>
         set((state) => {
@@ -159,6 +183,9 @@ export function createChatThreadStore(createId: () => string = () => crypto.rand
 
           return {
             threads: remaining,
+            sideChatDrafts: state.sideChatDrafts.filter(
+              (draft) => draft.parentThreadId !== threadId,
+            ),
             streaming: state.streaming.filter(
               (target) => target.threadId !== threadId && target.parentThreadId !== threadId,
             ),
@@ -186,6 +213,17 @@ export function createChatThreadStore(createId: () => string = () => crypto.rand
   })
 }
 
+const selectSideChat = (
+  activeSideChat: ChatThreadTarget | null,
+  drafts: readonly ChatThreadTarget[],
+) => ({
+  activeSideChat,
+  sideChatDrafts:
+    activeSideChat?.isDraft && !drafts.some((draft) => draft.threadId === activeSideChat.threadId)
+      ? [...drafts, activeSideChat]
+      : drafts,
+})
+
 export type ChatThreadStore = ReturnType<typeof createChatThreadStore>
 
 export function isStreaming(state: Pick<ChatThreadState, "streaming">, threadId: string) {
@@ -208,6 +246,16 @@ export function sideChatsOf(threads: readonly ChatThreadSummary[], parentThreadI
   return threads
     .filter((thread) => thread.parentThreadId === parentThreadId)
     .toSorted((a, b) => a.createdAt.localeCompare(b.createdAt))
+}
+
+export function sideChatTargetsOf(
+  state: Pick<ChatThreadState, "threads" | "sideChatDrafts">,
+  parentThreadId: string,
+) {
+  return [
+    ...sideChatsOf(state.threads, parentThreadId).map(targetOf),
+    ...state.sideChatDrafts.filter((draft) => draft.parentThreadId === parentThreadId),
+  ]
 }
 
 export function visibleThreadsOfDocument(
