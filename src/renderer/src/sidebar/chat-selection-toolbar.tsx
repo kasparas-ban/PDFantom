@@ -23,7 +23,7 @@ export function ChatSelectionToolbar({ viewportElement }: ChatSelectionToolbarPr
   const aui = useAui()
   const threadStore = useChatThreadStore()
   const isMain = useChatPanelMode() === "main"
-  const openSideChatPanel = useAppConfig((state) => state.openSideChatPanel)
+  const setSideChatPanelOpen = useAppConfig((state) => state.setSideChatPanelOpen)
   const selection = useTextSelection(viewportElement, readChatTextSelection)
   if (!selection || !viewportElement) return null
 
@@ -40,7 +40,7 @@ export function ChatSelectionToolbar({ viewportElement }: ChatSelectionToolbarPr
 
   const askInSideChat = () => {
     threadStore.getState().askInChat(quote, "side")
-    openSideChatPanel()
+    setSideChatPanelOpen(true)
     window.getSelection()?.removeAllRanges()
   }
 

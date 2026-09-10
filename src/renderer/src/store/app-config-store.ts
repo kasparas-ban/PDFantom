@@ -26,7 +26,7 @@ export type AppConfigState = {
   setSideChatPanelWidth: (width: number) => void
   setSkipSideChatCloseConfirmation: (skip: boolean) => void
   openChatPanel: () => void
-  openSideChatPanel: () => void
+  setSideChatPanelOpen: (isOpen: boolean) => void
   toggleChatPanel: () => void
   toggleDocumentChatThreads: (documentId: string) => void
   toggleDocumentsPanel: () => void
@@ -67,7 +67,7 @@ export const createAppConfigStore = () =>
         setSkipSideChatCloseConfirmation: (skipSideChatCloseConfirmation) =>
           set({ skipSideChatCloseConfirmation }),
         openChatPanel: () => set({ isChatPanelOpen: true }),
-        openSideChatPanel: () => set({ isSideChatPanelOpen: true }),
+        setSideChatPanelOpen: (isSideChatPanelOpen) => set({ isSideChatPanelOpen }),
         toggleChatPanel: () => set((state) => ({ isChatPanelOpen: !state.isChatPanelOpen })),
         toggleDocumentChatThreads: (documentId) =>
           set((state) => ({

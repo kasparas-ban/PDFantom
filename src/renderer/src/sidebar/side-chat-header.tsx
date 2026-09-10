@@ -29,6 +29,7 @@ type SideChatTab = {
 export function SideChatHeader() {
   const platform = usePlatform()
   const threadStore = useChatThreadStore()
+  const setSideChatPanelOpen = useAppConfig((state) => state.setSideChatPanelOpen)
   const parentThreadId = useChatThreads((state) => state.active?.threadId ?? null)
   const activeSideChat = useChatThreads((state) => state.activeSideChat)
   const threads = useChatThreads((state) => state.threads)
@@ -50,18 +51,30 @@ export function SideChatHeader() {
     return [...stored, { id: activeSideChat.threadId, title: SIDE_CHAT_DRAFT_TITLE, thread: null }]
   }, [activeSideChat, parentThreadId, threads])
 
+  const removeSideChat = (id: string) => {
+    const state = threadStore.getState()
+    const isLastTab =
+      state.activeSideChat?.threadId === id &&
+      !state.threads.some(
+        (thread) => thread.parentThreadId === state.active?.threadId && thread.id !== id,
+      )
+
+    state.removeSideChat(id)
+    if (isLastTab) setSideChatPanelOpen(false)
+  }
+
   const closeSideChat = async (thread: ChatThreadSummary) => {
     setPendingClose(null)
 
     try {
       await platform.deleteChatThread(thread.id)
-      threadStore.getState().removeSideChat(thread.id)
+      removeSideChat(thread.id)
     } catch {}
   }
 
   const requestClose = ({ id, thread }: SideChatTab) => {
     if (!thread) {
-      threadStore.getState().removeSideChat(id)
+      removeSideChat(id)
     } else if (skipConfirmation) {
       void closeSideChat(thread)
     } else {
