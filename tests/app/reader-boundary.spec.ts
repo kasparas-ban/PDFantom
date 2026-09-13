@@ -66,6 +66,7 @@ test("initial viewport renders while unrelated PDF.js page initialization is hel
         onPinchZoom: () => {},
         onReadingPositionChange: () => {},
         onSettled: () => {},
+        onDocumentSearchChange: () => {},
         onStatusChange: (status) => {
           if (status.state === "ready" && status.interactive) ready.resolve(allPages)
         },
@@ -171,6 +172,7 @@ test("PDF.js initialization milestones resume after finishing while inactive", a
         onPinchZoom: () => {},
         onReadingPositionChange: () => {},
         onSettled: () => {},
+        onDocumentSearchChange: () => {},
         onStatusChange: (status) => {
           if (status.state !== "ready") return
           if (inactive) readyWhileInactive = true
@@ -227,6 +229,124 @@ test("PDF.js initialization milestones resume after finishing while inactive", a
     interactive: true,
     hasCanvas: true,
   })
+})
+
+test("PDF.js search reports results, highlights matches, navigates, wraps, and closes", async ({
+  application,
+}) => {
+  const bytes = [...(await readFile("tests/fixtures/pdfs/document-mock.pdf"))]
+  const result = await application.page.evaluate(
+    async ({ moduleUrl: url, bytes: data }) => {
+      const boundary: Boundary = await import(url)
+      const host = document.createElement("div")
+      host.style.cssText = "position:fixed;inset:48px 0 0 256px;background:#e7e7e5;z-index:50"
+      const container = document.createElement("div")
+      container.style.cssText = "position:absolute;inset:0;overflow:auto"
+      const viewer = document.createElement("div")
+      viewer.className = "pdfViewer"
+      container.append(viewer)
+      host.append(container)
+      document.body.append(host)
+
+      // eslint-disable-next-line unicorn/consistent-function-scoping -- Playwright serializes this browser-side helper.
+      const waitFor = (predicate: () => boolean) =>
+        new Promise<void>((resolve, reject) => {
+          const interval = window.setInterval(() => {
+            if (!predicate()) return
+
+            window.clearInterval(interval)
+            window.clearTimeout(timeout)
+            resolve()
+          }, 25)
+          const timeout = window.setTimeout(() => {
+            window.clearInterval(interval)
+            reject(new Error("Timed out waiting for PDF search"))
+          }, 5_000)
+        })
+      const selectedPage = () =>
+        viewer.querySelector(".highlight.selected")?.closest<HTMLElement>(".page")?.dataset
+          .pageNumber
+      const worker = boundary.createReaderWorker()
+      const ready = Promise.withResolvers<void>()
+      const searchEvents: {
+        query: string
+        phase: "searching" | "found" | "not-found"
+        current: number
+        total: number
+        wrapped: boolean
+      }[] = []
+      let latest = searchEvents.at(-1)
+      let reportedPage = 0
+      const runtime = boundary.createPDFReaderRuntime({
+        worker,
+        document: {
+          id: "search",
+          name: "search.pdf",
+          fingerprint: "c".repeat(64),
+          bytes: new Uint8Array(data).buffer,
+        },
+        container,
+        viewer,
+        initialReadingPosition: null,
+        onPageChange: (pageNumber) => {
+          reportedPage = pageNumber
+        },
+        onPageCountChange: () => {},
+        onScaleChange: () => {},
+        onPinchZoom: () => {},
+        onReadingPositionChange: () => {},
+        onSettled: () => {},
+        onStatusChange: (status) => {
+          if (status.state === "ready" && status.interactive) ready.resolve()
+        },
+        onDocumentSearchChange: (event) => {
+          searchEvents.push(event)
+          latest = event
+        },
+      })
+
+      await ready.promise
+      runtime.updateSearch("introduction to ecosystems")
+      await waitFor(() => latest?.phase === "found" && latest.total === 5 && selectedPage() === "1")
+      const initial = { ...latest!, highlights: viewer.querySelectorAll(".highlight").length }
+
+      runtime.moveSearch(false)
+      await waitFor(() => latest?.current === 2 && selectedPage() === "2")
+      const forward = { ...latest!, page: selectedPage() }
+
+      runtime.moveSearch(true)
+      await waitFor(() => latest?.current === 1 && selectedPage() === "1")
+
+      runtime.moveSearch(true)
+      await waitFor(() => latest?.current === 5 && latest.wrapped && selectedPage() === "5")
+      const wrapped = { ...latest!, page: selectedPage() }
+
+      viewer
+        .querySelector<HTMLElement>('.page[data-page-number="3"]')!
+        .scrollIntoView({ block: "start" })
+      await waitFor(() => reportedPage === 3)
+
+      runtime.closeSearch()
+      await waitFor(() => viewer.querySelectorAll(".highlight").length === 0)
+      const highlightsAfterClose = viewer.querySelectorAll(".highlight").length
+
+      await runtime.destroy()
+      worker.destroy()
+      host.remove()
+
+      return { initial, forward, wrapped, manuallyScrolledPage: reportedPage, highlightsAfterClose }
+    },
+    { moduleUrl, bytes },
+  )
+
+  expect(result).toMatchObject({
+    initial: { query: "introduction to ecosystems", current: 1, total: 5, wrapped: false },
+    forward: { current: 2, total: 5, wrapped: false, page: "2" },
+    wrapped: { current: 5, total: 5, wrapped: true, page: "5" },
+    manuallyScrolledPage: 3,
+    highlightsAfterClose: 0,
+  })
+  expect(result.initial.highlights).toBeGreaterThan(0)
 })
 
 test("native preview storage handles revisions, invalidation, corruption, recreation and both limits", async ({
@@ -405,6 +525,18 @@ test("a preview is persisted, shown before delayed verification, and replaced by
   await expect(application.page.getByRole("spinbutton", { name: "Page number" })).toHaveValue("3")
   await expect(application.page.getByRole("spinbutton", { name: "Page number" })).toBeDisabled()
   await application.page.screenshot({ path: test.info().outputPath("saved-preview.png") })
+
+  const readerToolbar = application.page.getByRole("toolbar", { name: "PDF reader toolbar" })
+  await expect(readerToolbar).toHaveAttribute("tabindex", "0")
+  await readerToolbar.focus()
+  await expect(readerToolbar).toBeFocused()
+  await application.page.keyboard.press("Meta+f")
+  const search = application.page.getByRole("search", { name: "Document search" })
+  const searchInput = search.getByRole("searchbox", { name: "Search document" })
+  await expect(searchInput).toBeFocused()
+  await searchInput.fill("no such embedded phrase")
+  await expect(search.getByLabel("Search match count")).toHaveText("Searching…")
+
   await application.electronApplication.evaluate(() => {
     const release: () => void = Reflect.get(globalThis, "releaseDocumentCheck")
     release()
@@ -413,6 +545,9 @@ test("a preview is persisted, shown before delayed verification, and replaced by
   await expect(application.page.getByRole("spinbutton", { name: "Page number" })).toBeEnabled()
   await expect(application.page.locator('[data-reader-preview="true"]')).toHaveCount(0)
   await expect(application.page.getByRole("spinbutton", { name: "Page number" })).toHaveValue("3")
+  await expect(search.getByLabel("Search match count")).toHaveText("0 / 0")
+  await searchInput.press("Escape")
+  await expect(search).toHaveCount(0)
   await application.page.screenshot({ path: test.info().outputPath("live-handoff.png") })
   const difference = await application.page.evaluate(
     async ({ url, saved }) => {

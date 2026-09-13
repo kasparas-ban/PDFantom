@@ -134,6 +134,54 @@ test("each plus press adds a selectable Side Chat Draft and preserves composer t
   await expect(reader.sideChatPanel).toBeVisible()
 })
 
+test("overflowing Side Chat tabs stay reachable through the tab picker", async ({
+  application,
+}) => {
+  const { reader } = await openChatWithReply(application, "Main question")
+  await reader.toggleSideChatsButton.click()
+  const picker = reader.sideChatPanel.getByRole("button", { name: "All side chats" })
+  await expect(picker).toHaveCount(0)
+
+  for (let index = 0; index < 9; index++) {
+    // Each click must finish before creating the next tab.
+    // eslint-disable-next-line no-await-in-loop
+    await reader.newSideChatButton.click()
+  }
+
+  await expect(reader.sideChatTabs).toHaveCount(10)
+  await expect(reader.sideChatTabs.last()).toBeInViewport({ ratio: 1 })
+  await expect(reader.newSideChatButton).toBeInViewport({ ratio: 1 })
+  await picker.click()
+  const menu = application.page.getByRole("menu", { name: "All side chats" })
+  const items = menu.getByRole("menuitemradio")
+  await expect(items).toHaveCount(10)
+  await expect(items.last()).toHaveAttribute("aria-checked", "true")
+  await items.first().click()
+  await expect(reader.sideChatTabs.first()).toHaveAttribute("aria-selected", "true")
+  await expect(reader.sideChatTabs.first()).toBeInViewport({ ratio: 1 })
+
+  await picker.click()
+  await items.last().click()
+  await expect(reader.sideChatTabs.last()).toHaveAttribute("aria-selected", "true")
+  await expect(reader.sideChatTabs.last()).toBeInViewport({ ratio: 1 })
+
+  const strip = reader.sideChatPanel.getByRole("tablist", { name: "Side chats" })
+  await strip.evaluate((element) => {
+    element.scrollLeft = 0
+  })
+  await expect(reader.sideChatTabs.last()).not.toBeInViewport()
+  await picker.click()
+  await items.last().click()
+  await expect(reader.sideChatTabs.last()).toBeInViewport({ ratio: 1 })
+
+  await strip.evaluate((element) => {
+    element.scrollLeft = 0
+  })
+  await expect(reader.sideChatTabs.first()).toBeInViewport({ ratio: 1 })
+  await sendMain(reader, "Another main question")
+  await expect(reader.sideChatTabs.first()).toBeInViewport({ ratio: 1 })
+})
+
 test("tabs open with the plus button, close with one confirmation, and survive a restart", async ({
   application,
 }) => {

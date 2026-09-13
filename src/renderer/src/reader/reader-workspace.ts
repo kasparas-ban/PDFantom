@@ -6,6 +6,7 @@ import {
   type DocumentSummary,
   type OpenedDocument,
 } from "../../../shared/document-api"
+import type { DocumentSearchUpdate } from "./document-search-runtime"
 import type { PDFReaderRuntime, PDFReaderStatus } from "./pdf-reader-runtime"
 import {
   sameAppearance,
@@ -33,6 +34,7 @@ export type ReaderSurfaces = {
     document: OpenedDocument,
     worker: PDFWorker,
     onStatus: (status: PDFReaderStatus) => void,
+    onDocumentSearchChange: (update: DocumentSearchUpdate) => void,
     onSettled: () => void,
   ) => ReaderSurface
   preview: (record: ReaderPreview) => Promise<PreviewSurface | null>
@@ -44,6 +46,24 @@ type Entry = {
   used: number
   verified: boolean
   captureRevision: number
+}
+
+export type DocumentSearchSnapshot = {
+  readonly visible: boolean
+  readonly query: string
+  readonly phase: "idle" | DocumentSearchUpdate["phase"]
+  readonly current: number
+  readonly total: number
+  readonly wrapped: boolean
+}
+
+export const EMPTY_DOCUMENT_SEARCH: DocumentSearchSnapshot = {
+  visible: false,
+  query: "",
+  phase: "idle",
+  current: 0,
+  total: 0,
+  wrapped: false,
 }
 
 // One concrete owner for intent, resource lifetime and atomic presentation.
@@ -61,6 +81,8 @@ export class ReaderWorkspace {
   private target: string | null = null
   private disposed = false
   private suspended = false
+  private search = EMPTY_DOCUMENT_SEARCH
+  private readonly searchListeners = new Set<() => void>()
 
   constructor(
     private readonly api: DocumentApi,
@@ -72,6 +94,65 @@ export class ReaderWorkspace {
     >,
     private readonly createWorker: () => PDFWorker,
   ) {}
+
+  getSearchSnapshot = () => this.search
+
+  subscribeSearch = (listener: () => void) => {
+    this.searchListeners.add(listener)
+
+    return () => {
+      this.searchListeners.delete(listener)
+    }
+  }
+
+  openSearch() {
+    if (this.disposed) return
+
+    this.publishSearch({
+      ...this.search,
+      visible: true,
+      phase: this.search.query ? "searching" : "idle",
+      current: 0,
+      total: 0,
+      wrapped: false,
+    })
+    this.restoreSearch()
+  }
+
+  updateSearch(query: string) {
+    if (this.disposed || !this.search.visible) return
+
+    this.publishSearch({
+      visible: true,
+      query,
+      phase: query ? "searching" : "idle",
+      current: 0,
+      total: 0,
+      wrapped: false,
+    })
+    this.presentedRuntime()?.updateSearch(query)
+  }
+
+  moveSearch(previous: boolean) {
+    if (!this.search.visible || !this.search.current) return
+
+    this.publishSearch({ ...this.search, wrapped: false })
+    this.presentedRuntime()?.moveSearch(previous)
+  }
+
+  closeSearch() {
+    if (!this.search.visible) return
+
+    this.presentedRuntime()?.closeSearch()
+    this.publishSearch({
+      ...this.search,
+      visible: false,
+      phase: "idle",
+      current: 0,
+      total: 0,
+      wrapped: false,
+    })
+  }
 
   warm() {
     if (this.disposed || this.worker) return
@@ -183,6 +264,9 @@ export class ReaderWorkspace {
 
   private async prepare(document: DocumentSummary, generation: number, opened?: OpenedDocument) {
     const key = documentVersionKey(document)
+
+    if (this.target !== key) this.resetSearch()
+
     this.target = key
     this.store.setState({
       selectedDocument: document,
@@ -250,6 +334,19 @@ export class ReaderWorkspace {
           if (status.state !== "opening" && this.entries.get(key)?.surface === surface) {
             this.status(document, status)
           }
+        },
+        (searchResult) => {
+          if (
+            this.entries.get(key)?.surface !== surface ||
+            this.presented !== key ||
+            this.preview ||
+            !this.search.visible ||
+            searchResult.query !== this.search.query
+          ) {
+            return
+          }
+
+          this.publishSearch({ ...this.search, ...searchResult })
         },
         () => {
           if (this.entries.get(key)?.surface === surface) void this.capture(document)
@@ -373,6 +470,7 @@ export class ReaderWorkspace {
     entry.surface.show()
     this.store.getState().present({ status: "loaded", document: entry.document })
     this.store.setState({ sourceStatus: entry.verified ? null : "checking" })
+    this.restoreSearch(entry.surface.runtime)
 
     performance.clearMarks("reader-live-presented")
     performance.mark("reader-live-presented")
@@ -522,6 +620,7 @@ export class ReaderWorkspace {
       if (compatible && entry.surface.runtime.isReady()) {
         if (this.presented === this.target && !this.preview) {
           entry.surface.show()
+          this.restoreSearch(entry.surface.runtime)
         } else {
           this.reveal(entry)
         }
@@ -555,8 +654,31 @@ export class ReaderWorkspace {
     return !this.disposed && generation === this.intent
   }
 
+  private presentedRuntime() {
+    if (!this.presented || this.preview) return null
+
+    return this.entries.get(this.presented)?.surface.runtime ?? null
+  }
+
+  private publishSearch(search: DocumentSearchSnapshot) {
+    this.search = search
+
+    for (const listener of this.searchListeners) listener()
+  }
+
+  private resetSearch() {
+    this.presentedRuntime()?.closeSearch()
+    this.publishSearch(EMPTY_DOCUMENT_SEARCH)
+  }
+
+  private restoreSearch(runtime = this.presentedRuntime()) {
+    if (this.search.visible && this.search.query) runtime?.updateSearch(this.search.query)
+  }
+
   async dispose() {
     this.disposed = true
+    this.resetSearch()
+    this.searchListeners.clear()
     this.clearPresentation()
 
     for (const entry of this.entries.values()) this.remove(entry)

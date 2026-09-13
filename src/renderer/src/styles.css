@@ -171,6 +171,16 @@
   outline: none;
 }
 
+.pdf-reader-viewer .textLayer .highlight {
+  --highlight-bg-color: rgb(250 204 21 / 0.38);
+  --highlight-selected-bg-color: rgb(249 115 22 / 0.58);
+}
+
+.dark .pdf-reader-viewer .textLayer .highlight {
+  --highlight-bg-color: rgb(250 204 21 / 0.3);
+  --highlight-selected-bg-color: rgb(251 146 60 / 0.62);
+}
+
 .pdf-reader-viewer.removePageBorders .spread .page {
   margin-inline: 0;
 }

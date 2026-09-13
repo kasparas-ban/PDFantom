@@ -10,6 +10,10 @@ import {
 } from "pdfjs-dist/web/pdf_viewer.mjs"
 
 import type { OpenedDocument } from "../../../shared/document-api"
+import {
+  createDocumentSearchAdapter,
+  type DocumentSearchUpdate,
+} from "./document-search-runtime"
 import { installPDFRenderingGate } from "./pdf-rendering-gate"
 import { defaultPinchGesturePolicy, type PinchGesturePolicy } from "./pinch-gesture-policy"
 import {
@@ -54,6 +58,7 @@ type PDFReaderRuntimeOptions = {
   readonly onScaleChange: (scale: number) => void
   readonly onPinchZoom: (scale: number) => void
   readonly onStatusChange: (status: PDFReaderStatus) => void
+  readonly onDocumentSearchChange: (update: DocumentSearchUpdate) => void
   readonly onSettled: () => void
   readonly pinchGesturePolicy?: PinchGesturePolicy
 }
@@ -72,12 +77,14 @@ export function createPDFReaderRuntime({
   onScaleChange,
   onPinchZoom,
   onStatusChange,
+  onDocumentSearchChange,
   onSettled,
   worker,
   pinchGesturePolicy = defaultPinchGesturePolicy(),
 }: PDFReaderRuntimeOptions) {
   const documentId = document.id
   const abortController = new AbortController()
+  const eventBus = new EventBus()
   const loadingTask = getDocument({
     data: document.bytes.slice(0),
     useWorkerFetch: false,
@@ -98,7 +105,6 @@ export function createPDFReaderRuntime({
   const drawn = new Map<number, number>()
   const details = new Map<number, { scale: number; canvas: HTMLCanvasElement }>()
   const textDrawn = new Map<number, number>()
-  let eventBus: EventBus | null = null
   let pdfViewer: PDFViewer | null = null
   let renderingGate: ReturnType<typeof installPDFRenderingGate> | null = null
   let requestedPage = 1
@@ -108,6 +114,13 @@ export function createPDFReaderRuntime({
   let pinchUnusedFactor = 1
   let pinchContainerBox: { left: number; top: number } | null = null
   let isCtrlKeyDown = false
+
+  const documentSearch = createDocumentSearchAdapter({
+    eventBus,
+    onChange: (update) => {
+      if (!destroyed && lifecycle !== "inactive") onDocumentSearchChange(update)
+    },
+  })
 
   const savePosition = () => {
     if (
@@ -500,15 +513,17 @@ export function createPDFReaderRuntime({
   // Parsing may finish in the background; PDFViewer needs a measurable host.
   const initializeViewer = () => {
     if (destroyed || lifecycle === "inactive" || pdfViewer || !loadedDocument) return
-    eventBus = new EventBus()
     const viewerOptions = {
       abortSignal: abortController.signal,
       container,
       eventBus,
+      findController: documentSearch.findController,
+      linkService: documentSearch.linkService,
       removePageBorders: true,
       viewer,
     }
     pdfViewer = new PDFViewer(viewerOptions)
+    documentSearch.connect(pdfViewer, loadedDocument)
     renderingGate = installPDFRenderingGate(pdfViewer)
 
     eventBus.on("pagesinit", handlePagesInit)
@@ -542,13 +557,14 @@ export function createPDFReaderRuntime({
       renderingGate?.setActive(false)
       cancelAnimationFrame(frame)
       clearTimeout(settledTimer)
-      eventBus?.off("pagesinit", handlePagesInit)
-      eventBus?.off("pagesloaded", handlePagesLoaded)
-      eventBus?.off("updateviewarea", savePosition)
-      eventBus?.off("pagechanging", handlePageChange)
-      eventBus?.off("pagerendered", handlePageRendered)
-      eventBus?.off("textlayerrendered", handleTextRendered)
-      eventBus?.off("scalechanging", handleScaleChange)
+      documentSearch.dispose()
+      eventBus.off("pagesinit", handlePagesInit)
+      eventBus.off("pagesloaded", handlePagesLoaded)
+      eventBus.off("updateviewarea", savePosition)
+      eventBus.off("pagechanging", handlePageChange)
+      eventBus.off("pagerendered", handlePageRendered)
+      eventBus.off("textlayerrendered", handleTextRendered)
+      eventBus.off("scalechanging", handleScaleChange)
       pdfViewer?.setDocument(null)
       abortController.abort()
       resizeObserver.disconnect()
@@ -587,6 +603,7 @@ export function createPDFReaderRuntime({
       isCtrlKeyDown = false
 
       if (next === "inactive") {
+        documentSearch.hide()
         cancelAnimationFrame(frame)
         clearTimeout(settledTimer)
 
@@ -634,6 +651,9 @@ export function createPDFReaderRuntime({
 
       scheduleReadiness()
     },
+    updateSearch: documentSearch.update,
+    moveSearch: documentSearch.move,
+    closeSearch: documentSearch.close,
     setScale: (scale: PDFScale) => {
       if (requestedScale === scale) return
 

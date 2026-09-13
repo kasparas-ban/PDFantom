@@ -54,6 +54,15 @@ _Avoid_: Snippet, highlight, selection (when naming the attached thing rather th
 act of selecting), reply, document quote (as a separate concept: it is a Quote whose
 source is the Document)
 
+**Document Search**:
+The User's lookup for literal text within the active Document.
+_Avoid_: Find, page search, PDF search
+
+**Search Match**:
+One occurrence of a Document Search's query in the Document. Exactly one is current
+when matches exist.
+_Avoid_: Result, hit, highlight
+
 ### Models and where they come from
 
 **Model**:

@@ -86,7 +86,7 @@ export function ReaderPage({
 
       <section className="flex h-full min-w-0 flex-1 flex-col">
         <div className="window-drag-region h-12">
-          <PDFControls />
+          <PDFControls workspace={workspace} />
         </div>
 
         <div className="flex min-h-0 w-full flex-1">

@@ -7,7 +7,7 @@ import type { ReaderSurfaces } from "./reader-workspace"
 export function createReaderSurfaces(host: HTMLElement, store: ReaderSessionStore): ReaderSurfaces {
   return {
     appearance: () => viewportAppearance(host),
-    create: (document, worker, onStatusChange, onSettled) => {
+    create: (document, worker, onStatusChange, onDocumentSearchChange, onSettled) => {
       const key = documentVersionKey(document)
       const section = window.document.createElement("section")
       section.className = "absolute inset-0 overflow-hidden bg-[#e7e7e5] dark:bg-[#171716]"
@@ -19,6 +19,7 @@ export function createReaderSurfaces(host: HTMLElement, store: ReaderSessionStor
       const container = window.document.createElement("div")
       container.className = "absolute inset-0 overflow-auto outline-none"
       container.dataset.slot = "reader-scroll"
+      container.tabIndex = 0
 
       const viewer = window.document.createElement("div")
       viewer.className = "pdfViewer pdf-reader-viewer pt-1"
@@ -47,6 +48,7 @@ export function createReaderSurfaces(host: HTMLElement, store: ReaderSessionStor
         onReadingPositionChange: (position) =>
           store.getState().reportReadingPosition(document, position),
         onStatusChange,
+        onDocumentSearchChange,
         onSettled,
       })
 

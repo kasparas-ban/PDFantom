@@ -3,6 +3,7 @@ import type { PDFWorker } from "pdfjs-dist"
 
 import type { ReaderPreview } from "../../src/renderer/src/reader/reader-preview"
 import { ReaderWorkspace, type ReaderSurface } from "../../src/renderer/src/reader/reader-workspace"
+import type { DocumentSearchUpdate } from "../../src/renderer/src/reader/document-search-runtime"
 import { createReaderSessionStore } from "../../src/renderer/src/store/reader-session-store"
 import type {
   DocumentApi,
@@ -68,6 +69,10 @@ function workspaceFixture(workerStartup = () => Promise.resolve()) {
     mode: string
     ready: (interactive?: boolean) => void
     fail: () => void
+    search: (update: DocumentSearchUpdate) => void
+    searches: string[]
+    moves: boolean[]
+    closedSearches: number
   }[] = []
   const invalidations: string[] = []
   const preview = Promise.withResolvers<ReaderPreview | null>()
@@ -94,7 +99,7 @@ function workspaceFixture(workerStartup = () => Promise.resolve()) {
     store,
     {
       appearance: () => appearance,
-      create: (document, _worker, onStatus) => {
+      create: (document, _worker, onStatus, onDocumentSearchChange) => {
         let ready = false
         const entry = {
           id: document.id,
@@ -105,6 +110,10 @@ function workspaceFixture(workerStartup = () => Promise.resolve()) {
             onStatus({ state: "ready", interactive })
           },
           fail: () => onStatus({ state: "failed", message: "Invalid PDF" }),
+          search: onDocumentSearchChange,
+          searches: [] as string[],
+          moves: [] as boolean[],
+          closedSearches: 0,
         }
         created.push(entry)
         const surface: ReaderSurface = {
@@ -118,6 +127,11 @@ function workspaceFixture(workerStartup = () => Promise.resolve()) {
             setPageView: () => {},
             setPageLayout: () => {},
             goToPage: () => {},
+            updateSearch: (query) => entry.searches.push(query),
+            moveSearch: (previous) => entry.moves.push(previous),
+            closeSearch: () => {
+              entry.closedSearches++
+            },
           },
           compatible: () => true,
           prepare: () => {
@@ -478,5 +492,65 @@ test("decoded previews are disposed while hidden and retried only for a compatib
   fixture.created[0].ready()
   expect(fixture.previewVisible()).toBe(false)
   expect(fixture.created[0].mode).toBe("presented")
+  await fixture.owner.dispose()
+})
+
+test("queues preview search, restores it after close, and resets it across Documents", async () => {
+  const fixture = workspaceFixture()
+  await fixture.owner.restore()
+  const load = Promise.withResolvers<DocumentLoadResult>()
+  fixture.pending.set("A", load.promise)
+  fixture.preview.resolve(previewRecord)
+
+  const activation = fixture.owner.activate("A")
+  await expect.poll(fixture.previewVisible).toBe(true)
+
+  fixture.owner.openSearch()
+  fixture.owner.updateSearch("first")
+  fixture.owner.updateSearch("latest")
+  expect(fixture.owner.getSearchSnapshot()).toMatchObject({
+    visible: true,
+    query: "latest",
+    phase: "searching",
+  })
+
+  load.resolve(verified(documents[0]))
+  await activation
+  fixture.created[0].ready()
+  expect(fixture.created[0].searches).toEqual(["latest"])
+
+  fixture.created[0].search({
+    query: "latest",
+    phase: "found",
+    current: 1,
+    total: 2,
+    wrapped: false,
+  })
+  fixture.owner.closeSearch()
+  expect(fixture.created[0].closedSearches).toBe(1)
+  expect(fixture.owner.getSearchSnapshot()).toMatchObject({ visible: false, query: "latest" })
+
+  fixture.owner.openSearch()
+  expect(fixture.created[0].searches).toEqual(["latest", "latest"])
+
+  await fixture.owner.activate("B")
+  expect(fixture.created[0].closedSearches).toBe(2)
+  expect(fixture.owner.getSearchSnapshot()).toEqual({
+    visible: false,
+    query: "",
+    phase: "idle",
+    current: 0,
+    total: 0,
+    wrapped: false,
+  })
+
+  fixture.created[0].search({
+    query: "latest",
+    phase: "found",
+    current: 2,
+    total: 2,
+    wrapped: true,
+  })
+  expect(fixture.owner.getSearchSnapshot().query).toBe("")
   await fixture.owner.dispose()
 })

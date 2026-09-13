@@ -1,14 +1,16 @@
 import { useIsFullScreen } from "../../hooks/useIsFullScreen"
 import { cn } from "../../lib/utils"
+import { useAppConfig } from "../../store/app-config-provider"
+import { useReaderSession } from "../../store/reader-session-provider"
+import { DocumentSearch } from "../document-search"
+import type { ReaderWorkspace } from "../reader-workspace"
 import { PageControls } from "./page-controls"
 import { PageFitControl } from "./page-fit-control"
 import { PageLayoutControl } from "./page-layout-control"
 import { PageViewControl } from "./page-view-control"
-import { useAppConfig } from "../../store/app-config-provider"
-import { useReaderSession } from "../../store/reader-session-provider"
 import { ZoomControls } from "./zoom-controls"
 
-export function PDFControls() {
+export function PDFControls({ workspace }: { workspace: ReaderWorkspace | null }) {
   const activeDocument = useReaderSession((state) => state.activeDocument)
   const isDocumentsPanelOpen = useAppConfig((state) => state.isDocumentsPanelOpen)
   const isFullScreen = useIsFullScreen()
@@ -17,7 +19,13 @@ export function PDFControls() {
   if (activeDocument.status !== "loaded" && activeDocument.status !== "preview") return null
 
   return (
-    <header className="flex h-full w-full">
+    <header
+      aria-label="PDF reader toolbar"
+      className="relative flex h-full w-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+      data-slot="reader-toolbar"
+      role="toolbar"
+      tabIndex={activeDocument.status === "preview" ? 0 : -1}
+    >
       <div
         className={cn(
           "grid h-full w-full grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-4 border-b border-border/70 bg-background px-3",
@@ -42,6 +50,7 @@ export function PDFControls() {
           <PageLayoutControl />
           <PageFitControl />
         </fieldset>
+        <DocumentSearch workspace={workspace} />
       </div>
     </header>
   )

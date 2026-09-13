@@ -217,6 +217,49 @@ export class DocumentReaderDriver {
     return this.page.locator('[data-presented="true"] [data-slot="reader-scroll"]')
   }
 
+  get documentSearch() {
+    return this.page.locator('[data-slot="document-search"]')
+  }
+
+  get documentSearchInput() {
+    return this.documentSearch.getByRole("searchbox", { name: "Search document" })
+  }
+
+  get documentSearchCount() {
+    return this.documentSearch.getByLabel("Search match count")
+  }
+
+  get documentSearchPreviousButton() {
+    return this.documentSearch.getByRole("button", { name: "Previous match" })
+  }
+
+  get documentSearchNextButton() {
+    return this.documentSearch.getByRole("button", { name: "Next match" })
+  }
+
+  get documentSearchCloseButton() {
+    return this.documentSearch.getByRole("button", { name: "Close search" })
+  }
+
+  get documentSearchMatches() {
+    return this.presentedReader.locator(".textLayer .highlight")
+  }
+
+  get selectedDocumentSearchMatch() {
+    return this.presentedReader.locator(".textLayer .highlight.selected")
+  }
+
+  async openDocumentSearch() {
+    await this.presentedReader.focus()
+    await this.page.keyboard.press("Meta+f")
+  }
+
+  selectedDocumentSearchPage() {
+    return this.selectedDocumentSearchMatch.first().evaluate(
+      (match) => match.closest<HTMLElement>(".page")?.dataset.pageNumber,
+    )
+  }
+
   async selectDocumentText(from: DocumentTextLocation, to = from) {
     await Promise.all(
       [from, to].map(({ page, text }) =>
