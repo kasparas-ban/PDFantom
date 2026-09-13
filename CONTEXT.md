@@ -58,9 +58,18 @@ source is the Document)
 The User's lookup for literal text within the active Document.
 _Avoid_: Find, page search, PDF search
 
+**Chat Search**:
+The User's lookup for literal text within the messages and Quotes of the Chat Thread
+or Side Chat currently shown in one chat panel, including an Assistant Message as it
+streams. Panel chrome, errors, Draft content, and queued messages are outside its
+scope. The main and side panels search independently, and changing the Chat Thread or
+Side Chat shown in a panel ends that panel's Chat Search. Hiding a panel does not end
+its Chat Search.
+_Avoid_: Conversation search, panel search, find in chat
+
 **Search Match**:
-One occurrence of a Document Search's query in the Document. Exactly one is current
-when matches exist.
+One occurrence of a Document Search's query in the Document, or a Chat Search's query
+in its Chat Thread or Side Chat. Exactly one is current when matches exist.
 _Avoid_: Result, hit, highlight
 
 ### Models and where they come from
