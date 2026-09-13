@@ -3,6 +3,7 @@ import type { PDFWorker } from "pdfjs-dist"
 import {
   documentVersionKey,
   type DocumentApi,
+  type DocumentLoadResult,
   type DocumentSummary,
   type OpenedDocument,
 } from "../../../shared/document-api"
@@ -57,7 +58,7 @@ export const EMPTY_DOCUMENT_SEARCH = EMPTY_SEARCH_SNAPSHOT
 // PDF.js objects and DOM stay here, never in the application store.
 export class ReaderWorkspace {
   private readonly entries = new Map<string, Entry>()
-  private readonly checks = new Map<string, number>()
+  private readonly preparationRevisions = new Map<string, number>()
   private readonly teardown = new Set<Promise<void>>()
   private worker: PDFWorker | null = null
   private preview: PreviewSurface | null = null
@@ -252,49 +253,28 @@ export class ReaderWorkspace {
   private async prepare(document: DocumentSummary, generation: number, opened?: OpenedDocument) {
     const key = documentVersionKey(document)
 
-    if (this.target !== key) this.resetSearch()
-
-    this.target = key
-    this.store.setState({
-      selectedDocument: document,
-      sourceStatus: opened ? "preparing" : "checking",
-    })
+    this.beginPrepare(document, key, opened)
 
     const retained = this.entries.get(key)
 
-    for (const [otherKey, entry] of this.entries) {
-      if (otherKey !== key && otherKey !== this.presented) entry.surface.hide()
-    }
+    this.hideOtherSurfaces(key)
 
-    if (retained) {
-      retained.verified = Boolean(opened)
-      retained.used = ++this.clock
-      if (this.canPresent()) {
-        const compatible = retained.surface.compatible()
-        if (this.presented !== key || this.preview) retained.surface.prepare()
-        if (compatible && retained.surface.runtime.isReady()) this.reveal(retained)
-      }
-    }
+    if (retained) this.reuseRetained(key, retained, opened)
 
-    const check = (this.checks.get(key) ?? 0) + 1
-    this.checks.set(key, check)
+    const revision = (this.preparationRevisions.get(key) ?? 0) + 1
+    this.preparationRevisions.set(key, revision)
 
-    if (!retained) void this.tryPreview(document, generation, check)
+    if (!retained) void this.tryPreview(document, generation, revision)
 
     try {
       const result = opened
         ? { status: "verified" as const, document, bytes: opened.bytes }
         : await this.api.loadDocument(document.id, document.fingerprint, !retained)
 
-      if (this.disposed || this.checks.get(key) !== check) return
+      if (this.isPreparationStale(key, revision)) return
 
       if (result.status === "unavailable") {
-        this.invalidate(document)
-        if (this.current(generation)) {
-          this.clearPresentation()
-          this.store.getState().present(result)
-          this.store.setState({ sourceStatus: null })
-        }
+        this.presentUnavailable(document, generation, result)
 
         return
       }
@@ -310,64 +290,122 @@ export class ReaderWorkspace {
       this.store.getState().initializeDocument(document)
       this.warm()
 
-      if (!this.worker) throw new Error("The PDF worker is unavailable.")
+      const worker = this.worker
+      if (!worker) throw new Error("The PDF worker is unavailable.")
 
-      this.evict(key)
-
-      const surface = this.surfaces.create(
-        { ...document, bytes: result.bytes },
-        this.worker,
-        (status) => {
-          if (status.state !== "opening" && this.entries.get(key)?.surface === surface) {
-            this.status(document, status)
-          }
-        },
-        (searchResult) => {
-          if (
-            this.entries.get(key)?.surface !== surface ||
-            this.presented !== key ||
-            this.preview ||
-            !this.search.visible ||
-            searchResult.query !== this.search.query
-          ) {
-            return
-          }
-
-          this.publishSearch({ ...this.search, ...searchResult })
-        },
-        () => {
-          if (this.entries.get(key)?.surface === surface) void this.capture(document)
-        },
-      )
-
-      const entry: Entry = {
-        document,
-        surface,
-        used: ++this.clock,
-        verified: true,
-        captureRevision: 0,
-      }
-
-      this.entries.set(key, entry)
-      if (this.canPresent()) {
-        surface.prepare()
-      } else {
-        surface.hide()
-      }
+      this.materializeSurface(document, key, result.bytes, worker)
     } catch {
-      if (this.disposed || this.checks.get(key) !== check) return
+      if (this.isPreparationStale(key, revision)) return
 
-      this.invalidate(document)
-
-      if (this.current(generation)) {
-        this.clearPresentation()
-        this.store.getState().present({ status: "unavailable", document, reason: "unreadable" })
-        this.store.setState({ error: "This PDF could not be opened.", sourceStatus: null })
-      }
+      this.failPrepare(document, generation)
     }
   }
 
-  private async tryPreview(document: DocumentSummary, generation: number, check: number) {
+  private beginPrepare(document: DocumentSummary, key: string, opened?: OpenedDocument) {
+    if (this.target !== key) this.resetSearch()
+
+    this.target = key
+    this.store.setState({
+      selectedDocument: document,
+      sourceStatus: opened ? "preparing" : "checking",
+    })
+  }
+
+  private hideOtherSurfaces(key: string) {
+    for (const [otherKey, entry] of this.entries) {
+      if (otherKey !== key && otherKey !== this.presented) entry.surface.hide()
+    }
+  }
+
+  private reuseRetained(key: string, retained: Entry, opened?: OpenedDocument) {
+    retained.verified = Boolean(opened)
+    retained.used = ++this.clock
+    if (!this.canPresent()) return
+
+    const compatible = retained.surface.compatible()
+
+    if (this.presented !== key || this.preview) retained.surface.prepare()
+    if (compatible && retained.surface.runtime.isReady()) this.reveal(retained)
+  }
+
+  private isPreparationStale(key: string, revision: number) {
+    return this.disposed || this.preparationRevisions.get(key) !== revision
+  }
+
+  private presentUnavailable(
+    document: DocumentSummary,
+    generation: number,
+    result: Extract<DocumentLoadResult, { status: "unavailable" }>,
+  ) {
+    this.invalidate(document)
+    if (!this.current(generation)) return
+
+    this.clearPresentation()
+    this.store.getState().present(result)
+    this.store.setState({ sourceStatus: null })
+  }
+
+  private materializeSurface(
+    document: DocumentSummary,
+    key: string,
+    bytes: ArrayBuffer,
+    worker: PDFWorker,
+  ) {
+    this.evict(key)
+
+    const surface = this.surfaces.create(
+      { ...document, bytes },
+      worker,
+      (status) => {
+        if (status.state !== "opening" && this.entries.get(key)?.surface === surface) {
+          this.status(document, status)
+        }
+      },
+      (searchResult) => {
+        if (
+          this.entries.get(key)?.surface !== surface ||
+          this.presented !== key ||
+          this.preview ||
+          !this.search.visible ||
+          searchResult.query !== this.search.query
+        ) {
+          return
+        }
+
+        this.publishSearch({ ...this.search, ...searchResult })
+      },
+      () => {
+        if (this.entries.get(key)?.surface === surface) void this.capture(document)
+      },
+    )
+
+    const entry: Entry = {
+      document,
+      surface,
+      used: ++this.clock,
+      verified: true,
+      captureRevision: 0,
+    }
+
+    this.entries.set(key, entry)
+    if (this.canPresent()) {
+      surface.prepare()
+    } else {
+      surface.hide()
+    }
+  }
+
+  private failPrepare(document: DocumentSummary, generation: number) {
+    this.invalidate(document)
+
+    if (!this.current(generation)) return
+
+    this.clearPresentation()
+    this.store.getState().present({ status: "unavailable", document, reason: "unreadable" })
+    this.store.setState({ error: "This PDF could not be opened.", sourceStatus: null })
+  }
+
+  private async tryPreview(document: DocumentSummary, generation: number, revision: number) {
     const appearance = this.surfaces.appearance()
     if (!this.canPresent(appearance)) return
 
@@ -379,7 +417,7 @@ export class ReaderWorkspace {
       !record ||
       !this.canPresent() ||
       !this.current(generation) ||
-      this.checks.get(key) !== check ||
+      this.preparationRevisions.get(key) !== revision ||
       (this.presented === key && this.store.getState().activeDocument.status === "loaded")
     ) {
       return
@@ -392,7 +430,7 @@ export class ReaderWorkspace {
     if (
       !this.canPresent(currentAppearance) ||
       !this.current(generation) ||
-      this.checks.get(key) !== check ||
+      this.preparationRevisions.get(key) !== revision ||
       this.target !== key ||
       (this.presented === key && this.store.getState().activeDocument.status === "loaded") ||
       !sameAppearance(appearance, currentAppearance)
@@ -496,7 +534,7 @@ export class ReaderWorkspace {
 
   private invalidate(document: DocumentSummary) {
     const key = documentVersionKey(document)
-    this.checks.set(key, (this.checks.get(key) ?? 0) + 1)
+    this.preparationRevisions.set(key, (this.preparationRevisions.get(key) ?? 0) + 1)
     void this.previews.invalidate(document)
 
     if (this.presented === key) {
@@ -622,7 +660,7 @@ export class ReaderWorkspace {
       void this.tryPreview(
         document,
         this.intent,
-        this.checks.get(documentVersionKey(document)) ?? 0,
+        this.preparationRevisions.get(documentVersionKey(document)) ?? 0,
       )
     }
   }

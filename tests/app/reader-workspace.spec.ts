@@ -1,9 +1,9 @@
 import { expect, test } from "@playwright/test"
 import type { PDFWorker } from "pdfjs-dist"
 
+import type { DocumentSearchUpdate } from "../../src/renderer/src/reader/document-search-runtime"
 import type { ReaderPreview } from "../../src/renderer/src/reader/reader-preview"
 import { ReaderWorkspace, type ReaderSurface } from "../../src/renderer/src/reader/reader-workspace"
-import type { DocumentSearchUpdate } from "../../src/renderer/src/reader/document-search-runtime"
 import { createReaderSessionStore } from "../../src/renderer/src/store/reader-session-store"
 import type {
   DocumentApi,
@@ -75,11 +75,13 @@ function workspaceFixture(workerStartup = () => Promise.resolve()) {
     closedSearches: number
   }[] = []
   const invalidations: string[] = []
+  const events: string[] = []
   const preview = Promise.withResolvers<ReaderPreview | null>()
   let opened = Promise.resolve<DocumentOpenResult | null>(null)
   const api: DocumentApi = {
     getDocumentLibrary: async () => ({ selectedDocument: selected, documents }),
     activateDocument: async (id) => {
+      events.push(`activate:${id}`)
       selected = documents.find((document) => document.id === id)!
       return { selectedDocument: selected, documents }
     },
@@ -100,6 +102,7 @@ function workspaceFixture(workerStartup = () => Promise.resolve()) {
     {
       appearance: () => appearance,
       create: (document, _worker, onStatus, onDocumentSearchChange) => {
+        events.push(`create:${document.id}`)
         let ready = false
         const entry = {
           id: document.id,
@@ -133,8 +136,13 @@ function workspaceFixture(workerStartup = () => Promise.resolve()) {
               entry.closedSearches++
             },
           },
-          compatible: () => true,
+          compatible: () => {
+            events.push(`compatible:${document.id}`)
+
+            return true
+          },
           prepare: () => {
+            events.push(`prepare:${document.id}`)
             entry.mode = "preparing"
           },
           show: () => {
@@ -191,6 +199,7 @@ function workspaceFixture(workerStartup = () => Promise.resolve()) {
     pending,
     calls,
     created,
+    events,
     preview,
     invalidations,
     selected: () => selected,
@@ -210,6 +219,37 @@ function workspaceFixture(workerStartup = () => Promise.resolve()) {
     },
   }
 }
+
+test("materializes opened bytes before persisting the selection", async () => {
+  const fixture = workspaceFixture()
+  fixture.setOpen(
+    Promise.resolve({
+      document: { ...documents[0], bytes: new ArrayBuffer(1) },
+      previousFingerprint: null,
+      library: { selectedDocument: documents[0], documents },
+    }),
+  )
+
+  await fixture.owner.open()
+
+  expect(fixture.events.slice(0, 3)).toEqual(["create:A", "prepare:A", "activate:A"])
+  await fixture.owner.dispose()
+})
+
+test("checks retained surface compatibility before preparing it", async () => {
+  const fixture = workspaceFixture()
+  await fixture.owner.restore()
+  await fixture.owner.activate("A")
+  fixture.created[0].ready()
+  await fixture.owner.activate("B")
+  fixture.created[1].ready()
+  fixture.events.length = 0
+
+  await fixture.owner.activate("A")
+
+  expect(fixture.events.slice(0, 2)).toEqual(["compatible:A", "prepare:A"])
+  await fixture.owner.dispose()
+})
 
 test("keeps A during B preparation and reuses A before delayed verification finishes", async () => {
   const fixture = workspaceFixture()
