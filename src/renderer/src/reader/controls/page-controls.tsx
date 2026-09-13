@@ -30,7 +30,7 @@ export function PageControls() {
 
   return (
     <div
-      className="flex items-center rounded-lg border border-border/80 bg-muted/50 p-0.5 shadow-xs"
+      className="flex shrink-0 items-center whitespace-nowrap rounded-lg border border-border/80 bg-muted/50 p-0.5 shadow-xs"
       aria-label="Page controls"
     >
       <Button
