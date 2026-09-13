@@ -1,5 +1,5 @@
 import { useCallback, useLayoutEffect, useMemo, useRef, useState, type Ref } from "react"
-import { ChevronDownIcon, Loader2Icon, PlusIcon, XIcon } from "lucide-react"
+import { ChevronDownIcon, Loader2Icon, Maximize2Icon, PlusIcon, XIcon } from "lucide-react"
 
 import {
   AlertDialog,
@@ -104,7 +104,7 @@ export function SideChatHeader() {
     <div className="window-drag-region flex h-12 shrink-0 items-center gap-1 pr-12 pl-3">
       <div
         aria-label="Side chats"
-        className="window-no-drag flex min-w-0 flex-1 scrollbar-none items-center gap-0.5 overflow-x-auto"
+        className="window-no-drag flex min-w-0 scrollbar-none items-center gap-0.5 overflow-x-auto"
         role="tablist"
       >
         {tabs.map((tab) => (
@@ -160,6 +160,16 @@ export function SideChatHeader() {
         variant="ghost"
       >
         <PlusIcon />
+      </Button>
+      <Button
+        aria-label="Enter full screen"
+        className="window-no-drag ml-auto size-7 shrink-0 rounded-full text-muted-foreground"
+        size="icon-sm"
+        title="Enter full screen"
+        type="button"
+        variant="ghost"
+      >
+        <Maximize2Icon />
       </Button>
 
       <AlertDialog
