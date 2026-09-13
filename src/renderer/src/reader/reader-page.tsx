@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import pdfantomLogo from "../../../../assets/pdfantom-logo.svg?no-inline"
 import type { ActiveDocumentState, DocumentUnavailableReason } from "../../../shared/document-api"
 import { PageSurface } from "../app/page-surface"
+import { usePanelShortcuts } from "../hooks/use-panel-shortcuts"
 import { useReaderShortcuts } from "../hooks/use-reader-shortcuts"
 import { ChatPanelControl } from "../sidebar/chat-panel-control"
 import { useChatThreads } from "../sidebar/chat-session"
@@ -28,8 +29,10 @@ export function ReaderPage({
   host: RefCallback<HTMLDivElement>
   workspace: ReaderWorkspace | null
 }) {
+  usePanelShortcuts()
   useReaderShortcuts()
   useNewChatThreadShortcut()
+
   const isChatPanelOpen = useAppConfig((state) => state.isChatPanelOpen)
   const isDocumentsPanelOpen = useAppConfig((state) => state.isDocumentsPanelOpen)
   const isSideChatPanelOpen = useAppConfig((state) => state.isSideChatPanelOpen)

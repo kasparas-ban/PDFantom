@@ -32,6 +32,29 @@ test("toggles the Documents panel", async ({ application }) => {
   await expect(reader.documentsPanel).toBeVisible()
 })
 
+test("toggles the reader panels with keyboard shortcuts", async ({ application }) => {
+  const reader = new DocumentReaderDriver(application.page)
+
+  await expect(reader.documentsPanel).toBeVisible()
+  await expect(reader.chatPanel).toBeHidden()
+
+  await application.page.keyboard.press("Alt+Meta+b")
+  await expect(reader.chatPanel).toBeVisible()
+
+  await reader.chatMessageInput.focus()
+  await application.page.keyboard.press("Meta+b")
+  await expect(reader.documentsPanel).toBeHidden()
+
+  await application.page.keyboard.press("Meta+b")
+  await expect(reader.documentsPanel).toBeVisible()
+
+  await application.page.keyboard.press("Alt+Meta+b")
+  await expect(reader.chatPanel).toBeHidden()
+
+  await application.page.keyboard.press("Alt+Meta+b")
+  await expect(reader.chatPanel).toBeVisible()
+})
+
 test("toggles the Chat panel", async ({ application }) => {
   const reader = new DocumentReaderDriver(application.page)
   await reader.openFixtureDocument(application, documentFixture)
@@ -538,6 +561,7 @@ test("navigates document pages with the arrow keys", async ({ application }) => 
   await reader.openSelectedDocument()
   await expect(reader.pageNumber).toHaveValue("1")
   await expect(reader.pageNumber).toBeEnabled()
+  await reader.presentedReader.focus()
 
   await application.page.keyboard.press("ArrowRight")
   await expect(reader.pageNumber).toHaveValue("2")
@@ -560,6 +584,19 @@ test("keeps arrow keys available while editing the page number", async ({ applic
   await expect(reader.pageNumber).toHaveValue("2")
 })
 
+test("keeps arrow keys available while typing a chat message", async ({ application }) => {
+  await application.selectOpenPath(documentFixture)
+  const reader = new DocumentReaderDriver(application.page)
+
+  await reader.openSelectedDocument()
+  await reader.toggleChatPanel("Show")
+  await reader.writeChatMessage("Draft")
+  await reader.chatMessageInput.press("ArrowRight")
+
+  await expect(reader.pageNumber).toHaveValue("1")
+  await expect(reader.chatMessageInput).toHaveValue("Draft")
+})
+
 test("navigates double-page spreads with one arrow-key press", async ({ application }) => {
   await application.selectOpenPath(documentFixture)
   const reader = new DocumentReaderDriver(application.page)
@@ -567,6 +604,7 @@ test("navigates double-page spreads with one arrow-key press", async ({ applicat
   await reader.openSelectedDocument()
   await expect(reader.renderedPages).toHaveCount(5)
   await reader.pageViewButton.click()
+  await reader.presentedReader.focus()
 
   await application.page.keyboard.press("ArrowRight")
   await expect(reader.pageNumber).toHaveValue("3")

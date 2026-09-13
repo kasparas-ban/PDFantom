@@ -7,6 +7,7 @@ export function useReaderShortcuts() {
   const pageView = useReaderSession((state) => state.pageView)
   const requestPage = useReaderSession((state) => state.requestPage)
   const interactive = useReaderSession((state) => state.interactive)
+
   useEffect(() => {
     const navigateWithArrowKey = (event: globalThis.KeyboardEvent) => {
       if (
@@ -17,7 +18,7 @@ export function useReaderShortcuts() {
         event.metaKey ||
         event.shiftKey ||
         !(event.target instanceof Element) ||
-        event.target.closest("input, textarea, select, [contenteditable='true']")
+        !event.target.closest("[data-slot='reader-scroll']")
       ) {
         return
       }
