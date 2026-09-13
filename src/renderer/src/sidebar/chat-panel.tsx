@@ -48,6 +48,7 @@ import { ChatMarkdown } from "./chat-markdown"
 import { ChatMinimap } from "./chat-minimap"
 import { ChatPanelShell } from "./chat-panel-shell"
 import { ChatQuoteChip } from "./chat-quote-chip"
+import { ChatSearch } from "./chat-search"
 import { addQuoteToComposer, ChatSelectionToolbar } from "./chat-selection-toolbar"
 import {
   useChatModel,
@@ -185,6 +186,7 @@ function ChatThread() {
       className="@container relative flex min-h-0 flex-1 flex-col"
       data-slot="chat-thread"
     >
+      <ChatSearch viewportElement={viewportElement} />
       <ThreadPrimitive.Viewport
         className="relative flex min-h-0 flex-1 flex-col overflow-y-auto scroll-smooth px-4 pt-5"
         data-slot="chat-viewport"
@@ -449,10 +451,18 @@ function UserMessage() {
         <div className="mb-2 flex flex-col gap-1.5 empty:hidden" data-slot="user-message-quotes">
           <MessagePrimitive.Attachments components={{ Attachment: MessageQuoteChip }} />
         </div>
-        <MessagePrimitive.Parts />
+        <MessagePrimitive.Parts components={{ Text: UserText }} />
       </div>
       <UserActionBar />
     </MessagePrimitive.Root>
+  )
+}
+
+function UserText({ text }: TextMessagePartProps) {
+  return (
+    <p data-chat-search-text="" className="whitespace-pre-line">
+      {text}
+    </p>
   )
 }
 

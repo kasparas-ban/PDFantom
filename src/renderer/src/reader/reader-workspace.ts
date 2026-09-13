@@ -6,6 +6,8 @@ import {
   type DocumentSummary,
   type OpenedDocument,
 } from "../../../shared/document-api"
+import { EMPTY_SEARCH_SNAPSHOT, type SearchSnapshot } from "../search"
+import type { ReaderSessionStore } from "../store/reader-session-store"
 import type { DocumentSearchUpdate } from "./document-search-runtime"
 import type { PDFReaderRuntime, PDFReaderStatus } from "./pdf-reader-runtime"
 import {
@@ -14,7 +16,6 @@ import {
   type ReaderPreviewCache,
   type ViewportAppearance,
 } from "./reader-preview"
-import type { ReaderSessionStore } from "../store/reader-session-store"
 
 export type ReaderSurface = {
   runtime: PDFReaderRuntime
@@ -48,23 +49,9 @@ type Entry = {
   captureRevision: number
 }
 
-export type DocumentSearchSnapshot = {
-  readonly visible: boolean
-  readonly query: string
-  readonly phase: "idle" | DocumentSearchUpdate["phase"]
-  readonly current: number
-  readonly total: number
-  readonly wrapped: boolean
-}
+export type DocumentSearchSnapshot = SearchSnapshot
 
-export const EMPTY_DOCUMENT_SEARCH: DocumentSearchSnapshot = {
-  visible: false,
-  query: "",
-  phase: "idle",
-  current: 0,
-  total: 0,
-  wrapped: false,
-}
+export const EMPTY_DOCUMENT_SEARCH = EMPTY_SEARCH_SNAPSHOT
 
 // One concrete owner for intent, resource lifetime and atomic presentation.
 // PDF.js objects and DOM stay here, never in the application store.

@@ -22,7 +22,10 @@ type HastNode = {
 
 export function ChatMarkdown({ text }: { text: string }) {
   return (
-    <div className="text-[15px] leading-relaxed wrap-break-word [&_.katex-display]:overflow-x-auto [&_.katex-display]:overflow-y-hidden [&_.katex-display]:py-2 [&>:first-child]:mt-0 [&>:last-child]:mb-0">
+    <div
+      className="text-[15px] leading-relaxed wrap-break-word [&_.katex-display]:overflow-x-auto [&_.katex-display]:overflow-y-hidden [&_.katex-display]:py-2 [&>:first-child]:mt-0 [&>:last-child]:mb-0"
+      data-chat-search-text=""
+    >
       <Markdown
         components={MARKDOWN_COMPONENTS}
         rehypePlugins={REHYPE_PLUGINS}
@@ -144,7 +147,10 @@ function CodeBlock({ code, language }: { code: string; language?: string }) {
 
   return (
     <div className="my-4 overflow-hidden rounded-lg border border-sidebar-border bg-background">
-      <div className="flex items-center justify-between gap-2 border-b border-sidebar-border bg-sidebar-accent/50 py-0.5 pr-0.5 pl-2.5">
+      <div
+        className="flex items-center justify-between gap-2 border-b border-sidebar-border bg-sidebar-accent/50 py-0.5 pr-0.5 pl-2.5"
+        data-chat-search-exclude=""
+      >
         <span className="truncate font-mono text-xs text-muted-foreground">
           {language ?? "code"}
         </span>

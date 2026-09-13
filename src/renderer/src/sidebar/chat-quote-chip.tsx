@@ -34,7 +34,10 @@ export function ChatQuoteChip({ removable = false, className }: ChatQuoteChipPro
       <Tooltip delay={600}>
         <TooltipTrigger
           render={
-            <span className="line-clamp-2 min-w-0 flex-1 wrap-break-word whitespace-pre-wrap" />
+            <span
+              className="line-clamp-2 min-w-0 flex-1 wrap-break-word whitespace-pre-wrap data-[chat-search-current=true]:line-clamp-none"
+              data-chat-search-text={removable ? undefined : ""}
+            />
           }
         >
           <span data-slot="chat-quote-text">{quote.text}</span>

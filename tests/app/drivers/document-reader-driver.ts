@@ -205,6 +205,56 @@ export class DocumentReaderDriver {
     )
   }
 
+  get chatSearch() {
+    return this.chatPanel.locator('[data-slot="chat-search"]')
+  }
+
+  get chatSearchInput() {
+    return this.chatSearch.getByRole("searchbox", { name: "Search chat" })
+  }
+
+  get chatSearchCount() {
+    return this.chatSearch.getByLabel("Search match count")
+  }
+
+  get chatSearchPreviousButton() {
+    return this.chatSearch.getByRole("button", { name: "Previous match" })
+  }
+
+  get chatSearchNextButton() {
+    return this.chatSearch.getByRole("button", { name: "Next match" })
+  }
+
+  get chatSearchCloseButton() {
+    return this.chatSearch.getByRole("button", { name: "Close search" })
+  }
+
+  get sideChatSearch() {
+    return this.sideChatPanel.locator('[data-slot="chat-search"]')
+  }
+
+  get sideChatSearchInput() {
+    return this.sideChatSearch.getByRole("searchbox", { name: "Search chat" })
+  }
+
+  get sideChatSearchCount() {
+    return this.sideChatSearch.getByLabel("Search match count")
+  }
+
+  get sideChatSearchCloseButton() {
+    return this.sideChatSearch.getByRole("button", { name: "Close search" })
+  }
+
+  async openChatSearch() {
+    await this.chatMessageInput.focus()
+    await this.page.keyboard.press("Meta+f")
+  }
+
+  async openSideChatSearch() {
+    await this.sideChatMessageInput.focus()
+    await this.page.keyboard.press("Meta+f")
+  }
+
   get documentSelectionToolbar() {
     return this.page.locator("[data-slot='document-selection-toolbar']")
   }
@@ -255,9 +305,9 @@ export class DocumentReaderDriver {
   }
 
   selectedDocumentSearchPage() {
-    return this.selectedDocumentSearchMatch.first().evaluate(
-      (match) => match.closest<HTMLElement>(".page")?.dataset.pageNumber,
-    )
+    return this.selectedDocumentSearchMatch
+      .first()
+      .evaluate((match) => match.closest<HTMLElement>(".page")?.dataset.pageNumber)
   }
 
   async selectDocumentText(from: DocumentTextLocation, to = from) {

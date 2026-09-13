@@ -7,12 +7,10 @@ import {
   type PDFViewer,
 } from "pdfjs-dist/web/pdf_viewer.mjs"
 
-export type DocumentSearchUpdate = {
-  readonly query: string
-  readonly phase: "searching" | "found" | "not-found"
-  readonly current: number
-  readonly total: number
-  readonly wrapped: boolean
+import type { SearchState } from "../search"
+
+export type DocumentSearchUpdate = Omit<SearchState, "phase"> & {
+  readonly phase: Exclude<SearchState["phase"], "idle">
 }
 
 type SearchMatchCount = Pick<DocumentSearchUpdate, "current" | "total">
@@ -29,7 +27,11 @@ export function createDocumentSearchAdapter({
   let query = ""
   let phase: DocumentSearchUpdate["phase"] = "searching"
 
-  const report = (nextPhase: DocumentSearchUpdate["phase"], count: SearchMatchCount, wrapped = false) => {
+  const report = (
+    nextPhase: DocumentSearchUpdate["phase"],
+    count: SearchMatchCount,
+    wrapped = false,
+  ) => {
     if (!query) return
 
     phase = nextPhase
